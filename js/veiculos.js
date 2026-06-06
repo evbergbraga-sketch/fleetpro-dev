@@ -1,3 +1,120 @@
+// ══ RASTREADOR TOGGLE ══
+function _toggleRastreador(prefix){
+  const sel = document.getElementById(prefix+'-tem-rastreador');
+  const wrap = document.getElementById(prefix+'-rastreador-empresa-wrap');
+  if(wrap) wrap.style.display = sel?.value==='sim' ? '' : 'none';
+}
+
+// ══ ANEXOS / UPLOAD ══
+let _veicAnexosNovos = {}; // { prefix: [File, ...] }
+if(!window._veicAnexosRemovidos) window._veicAnexosRemovidos = {};
+
+function _previewAnexos(prefix, files){
+  if(!_veicAnexosNovos[prefix]) _veicAnexosNovos[prefix] = [];
+  Array.from(files).forEach(f=>{
+    if(f.size > 10*1024*1024){ notify(f.name+': arquivo muito grande (máx 10MB)','error'); return; }
+    _veicAnexosNovos[prefix].push(f);
+  });
+  _renderAnexosLista(prefix);
+  const inp = document.getElementById(prefix+'-anexos-input');
+  if(inp) inp.value='';
+}
+
+function _renderAnexosLista(prefix){
+  const lista = document.getElementById(prefix+'-anexos-lista');
+  if(!lista) return;
+  const novos = _veicAnexosNovos[prefix]||[];
+  const existing = lista.querySelectorAll('.anexo-existente');
+  const existHtml = Array.from(existing).map(el=>el.outerHTML).join('');
+  if(!novos.length){ lista.innerHTML=existHtml; return; }
+  const novosHtml = novos.map((f,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:6px">
+      <span style="font-size:18px">${_fileIcon(f.name)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name}</div>
+        <div style="font-size:10px;color:var(--muted)">${(f.size/1024).toFixed(1)} KB — aguardando envio</div>
+      </div>
+      <button onclick="_removeAnexoNovo('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+    </div>`).join('');
+  lista.innerHTML = existHtml + novosHtml;
+}
+
+function _renderAnexosExistentes(prefix, urls){
+  const lista = document.getElementById(prefix+'-anexos-lista');
+  if(!lista) return;
+  let arr = [];
+  try{ arr = urls ? (Array.isArray(urls) ? urls : JSON.parse(urls)) : []; }catch(_){}
+  const existHtml = arr.map((u,i)=>{
+    const name = decodeURIComponent(u.split('/').pop().split('?')[0]);
+    return `<div class="anexo-existente" data-idx="${i}" style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:6px">
+      <span style="font-size:18px">${_fileIcon(name)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+        <div style="font-size:10px;color:var(--muted)">Arquivo salvo</div>
+      </div>
+      <a href="${u}" target="_blank" style="color:var(--accent);font-size:13px;text-decoration:none">🔗</a>
+      <button onclick="_removeAnexoExistente('${prefix}','${u}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+    </div>`;
+  }).join('');
+  lista.innerHTML = existHtml;
+  _renderAnexosLista(prefix);
+}
+
+function _removeAnexoNovo(prefix, i){
+  if(_veicAnexosNovos[prefix]) _veicAnexosNovos[prefix].splice(i,1);
+  _renderAnexosLista(prefix);
+}
+
+function _removeAnexoExistente(prefix, url){
+  if(!window._veicAnexosRemovidos[prefix]) window._veicAnexosRemovidos[prefix] = [];
+  window._veicAnexosRemovidos[prefix].push(url);
+  const lista = document.getElementById(prefix+'-anexos-lista');
+  if(!lista) return;
+  lista.querySelectorAll('.anexo-existente').forEach(el=>{
+    if(el.querySelector('button[onclick*="'+url.slice(-20)+'"]')) el.remove();
+  });
+  // re-render to clean up
+  const btn = lista.querySelector('button[onclick*="removeAnexoExistente"]');
+  // fallback: just remove the item with matching url in onclick
+  Array.from(lista.querySelectorAll('.anexo-existente')).forEach(el=>{
+    if(el.innerHTML.includes(url.slice(-30))) el.remove();
+  });
+}
+
+function _fileIcon(name){
+  const ext = (name||'').split('.').pop().toLowerCase();
+  if(['pdf'].includes(ext)) return '📄';
+  if(['jpg','jpeg','png','webp','gif'].includes(ext)) return '🖼️';
+  if(['doc','docx'].includes(ext)) return '📝';
+  return '📎';
+}
+
+async function _uploadAnexos(prefix, veiculoId){
+  const files = _veicAnexosNovos[prefix]||[];
+  if(!files.length) return [];
+  const uploaded = [];
+  for(const f of files){
+    const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path = `veiculos/${veiculoId}/${Date.now()}_${Math.random().toString(36).slice(2)}_${safeName}`;
+    const {error} = await sb.storage.from('veiculos-docs').upload(path, f, {upsert:false});
+    if(error){ notify('Erro ao enviar '+f.name+': '+error.message,'error'); continue; }
+    const { data: pub } = sb.storage.from('veiculos-docs').getPublicUrl(path);
+    uploaded.push(pub.publicUrl);
+  }
+  return uploaded;
+}
+
+function _coletarAnexosExistentes(prefix){
+  const lista = document.getElementById(prefix+'-anexos-lista');
+  if(!lista) return [];
+  const urls = [];
+  lista.querySelectorAll('.anexo-existente').forEach(el=>{
+    const a = el.querySelector('a');
+    if(a) urls.push(a.href);
+  });
+  return urls;
+}
+
 // ══ IPVA E MANUTENÇÕES DINÂMICOS ══
 let _veicIpvas = [];       // [{ano, valor, vencimento}]
 let _veicManutencoes = []; // [{data, tipo, obs}]
@@ -86,6 +203,7 @@ function _renderManutencoes(prefix){
 
 function _coletarCamposExtras(prefix){
   const g = id => document.getElementById(prefix+'-'+id)?.value||null;
+  const temRast = g('tem-rastreador')||'nao';
   return {
     chassi:              g('chassi')||null,
     renavam:             g('renavam')||null,
@@ -103,6 +221,13 @@ function _coletarCamposExtras(prefix){
     produtos:            g('produtos')||null,
     ipvas:               _veicIpvas.length>0 ? JSON.stringify(_veicIpvas) : null,
     manutencoes_veiculo: _veicManutencoes.length>0 ? JSON.stringify(_veicManutencoes) : null,
+    // Seguro
+    seguradora:          g('seguradora')||null,
+    apolice:             g('apolice')||null,
+    seguro_vencimento:   g('seguro-vencimento')||null,
+    // Rastreador
+    tem_rastreador:      temRast === 'sim',
+    rastreador_empresa:  temRast === 'sim' ? (g('rastreador-empresa')||null) : null,
   };
 }
 
@@ -122,6 +247,16 @@ function _preencherCamposExtras(prefix, v){
   s('data-entrada', v.data_entrada);
   s('data-entrega', v.data_entrega);
   s('produtos', v.produtos);
+  // Seguro
+  s('seguradora', v.seguradora);
+  s('apolice', v.apolice);
+  s('seguro-vencimento', v.seguro_vencimento);
+  // Rastreador
+  const selRast = document.getElementById(prefix+'-tem-rastreador');
+  if(selRast){ selRast.value = v.tem_rastreador ? 'sim' : 'nao'; _toggleRastreador(prefix); }
+  s('rastreador-empresa', v.rastreador_empresa);
+  // Anexos existentes
+  _renderAnexosExistentes(prefix, v.anexos_urls);
   // IPVA
   try{ _veicIpvas = v.ipvas ? JSON.parse(v.ipvas) : []; }catch(e){ _veicIpvas=[]; }
   _renderIpvas(prefix);
@@ -221,10 +356,16 @@ async function atualizarVeiculo(){
   const btn = document.querySelector('#m-editar-veiculo .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
   try{
+    // Upload novos anexos
+    const novosUrlsEv = await _uploadAnexos('ev', id);
+    const existentesEv = _coletarAnexosExistentes('ev');
+    const todosAnexos = [...existentesEv, ...novosUrlsEv];
+    obj.anexos_urls = todosAnexos.length ? JSON.stringify(todosAnexos) : null;
     const {error} = await sb.from('veiculos').update(obj).eq('id',id);
     if(error) throw error;
     notify('Veículo atualizado!','success');
     closeModal('editar-veiculo');
+    _veicAnexosNovos['ev']=[]; window._veicAnexosRemovidos['ev']=[];
     await loadVeiculos(); renderDashboard();
   }catch(e){
     notify('Erro: '+e.message,'error');
@@ -267,18 +408,26 @@ async function salvarVeiculo(){
   try{
     const extrasMv = _coletarCamposExtras('mv');
     const statusMv = document.getElementById('mv-status')?.value||'disponivel';
-    const {error}=await sb.from('veiculos').insert({
+    const {data: vInserido, error}=await sb.from('veiculos').insert({
       tipo,marca,modelo,placa,ano,cor,cambio,km_atual:km,diaria,observacoes:obs,
       investidor_id:investidor_id||null, status:statusMv, ...extrasMv
     }).select().single();
     if(error) throw error;
+    // Upload de anexos após obter o ID
+    const novosUrls = await _uploadAnexos('mv', vInserido.id);
+    if(novosUrls.length){
+      await sb.from('veiculos').update({anexos_urls: JSON.stringify(novosUrls)}).eq('id', vInserido.id);
+    }
     notify('Veículo cadastrado com sucesso!','success');
     closeModal('veiculo');
     _veicIpvas=[]; _veicManutencoes=[]; _renderIpvas('mv'); _renderManutencoes('mv');
-    ['mv-marca','mv-modelo','mv-placa','mv-ano','mv-cor','mv-km','mv-diaria','mv-obs'].forEach(id=>{
+    _veicAnexosNovos['mv']=[]; _renderAnexosLista('mv');
+    ['mv-marca','mv-modelo','mv-placa','mv-ano','mv-cor','mv-km','mv-diaria','mv-obs',
+     'mv-seguradora','mv-apolice','mv-seguro-vencimento','mv-rastreador-empresa'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
     const sel=document.getElementById('mv-investidor'); if(sel) sel.value='';
+    const selRast=document.getElementById('mv-tem-rastreador'); if(selRast){ selRast.value='nao'; _toggleRastreador('mv'); }
     await loadVeiculos(); renderDashboard();
   }catch(e){
     notify('Erro ao salvar: '+e.message,'error');

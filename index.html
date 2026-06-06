@@ -1043,9 +1043,35 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <button type="button" onclick="_addManutencao('mv')" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Adicionar</button>
       </div>
       <div id="mv-manutencoes" style="margin-bottom:8px"></div>
+      <div class="form-section-title">🛡️ Seguro</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Seguradora</label><input type="text" id="mv-seguradora" placeholder="Porto Seguro, Tokio Marine..." style="width:100%"></div>
+        <div class="form-group"><label>Nº da Apólice</label><input type="text" id="mv-apolice" placeholder="Ex: 123456789" style="width:100%"></div>
+        <div class="form-group"><label>Vencimento do Seguro</label><input type="date" id="mv-seguro-vencimento" style="width:100%"></div>
+      </div>
+      <div class="form-section-title">📡 Rastreador</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Possui rastreador?</label>
+          <select id="mv-tem-rastreador" style="width:100%" onchange="_toggleRastreador('mv')">
+            <option value="nao">❌ Não</option>
+            <option value="sim">✅ Sim</option>
+          </select>
+        </div>
+        <div class="form-group" id="mv-rastreador-empresa-wrap" style="display:none"><label>Empresa rastreadora</label><input type="text" id="mv-rastreador-empresa" placeholder="Ex: Sascar, Cobli, Onixsat..." style="width:100%"></div>
+      </div>
       <div class="form-section-title">📝 Extras</div>
       <div class="form-grid">
         <div class="form-group full"><label>Produtos instalados</label><textarea id="mv-produtos" rows="2" placeholder="Ex: Baú, GPS, Rastreador..." style="width:100%;resize:vertical"></textarea></div>
+      </div>
+      <div class="form-section-title">📎 Anexos / Documentos</div>
+      <div id="mv-anexos-area" style="margin-bottom:8px">
+        <div style="border:2px dashed var(--border2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:.2s" onclick="document.getElementById('mv-anexos-input').click()">
+          <div style="font-size:22px;margin-bottom:4px">📁</div>
+          <div style="font-size:12px;color:var(--muted)">Clique para selecionar arquivos</div>
+          <div style="font-size:10px;color:var(--muted2);margin-top:2px">PDF, imagens, CNH, CRLV, apólice... (máx. 10MB cada)</div>
+        </div>
+        <input type="file" id="mv-anexos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" style="display:none" onchange="_previewAnexos('mv', this.files)">
+        <div id="mv-anexos-lista" style="margin-top:8px"></div>
       </div>
       <div class="form-section-title">💬 Observações</div>
       <div class="form-group full"><textarea id="mv-obs" rows="2" style="width:100%;resize:vertical"></textarea></div>
@@ -1159,11 +1185,38 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <button type="button" onclick="_addManutencao('ev')" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Adicionar</button>
       </div>
       <div id="ev-manutencoes" style="margin-bottom:8px"></div>
+      <div class="form-section-title">🛡️ Seguro</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Seguradora</label><input type="text" id="ev-seguradora" placeholder="Porto Seguro, Tokio Marine..." style="width:100%"></div>
+        <div class="form-group"><label>Nº da Apólice</label><input type="text" id="ev-apolice" placeholder="Ex: 123456789" style="width:100%"></div>
+        <div class="form-group"><label>Vencimento do Seguro</label><input type="date" id="ev-seguro-vencimento" style="width:100%"></div>
+      </div>
+      <div class="form-section-title">📡 Rastreador</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Possui rastreador?</label>
+          <select id="ev-tem-rastreador" style="width:100%" onchange="_toggleRastreador('ev')">
+            <option value="nao">❌ Não</option>
+            <option value="sim">✅ Sim</option>
+          </select>
+        </div>
+        <div class="form-group" id="ev-rastreador-empresa-wrap" style="display:none"><label>Empresa rastreadora</label><input type="text" id="ev-rastreador-empresa" placeholder="Ex: Sascar, Cobli, Onixsat..." style="width:100%"></div>
+      </div>
       <div class="form-section-title">📝 Extras</div>
       <div class="form-grid">
         <div class="form-group full"><label>Produtos instalados</label><textarea id="ev-produtos" rows="2" style="width:100%;resize:vertical"></textarea></div>
-        <div class="form-group full"><label>Observações</label><textarea id="ev-obs" rows="2" style="width:100%;resize:none"></textarea></div>
       </div>
+      <div class="form-section-title">📎 Anexos / Documentos</div>
+      <div id="ev-anexos-area" style="margin-bottom:8px">
+        <div style="border:2px dashed var(--border2);border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:.2s" onclick="document.getElementById('ev-anexos-input').click()">
+          <div style="font-size:22px;margin-bottom:4px">📁</div>
+          <div style="font-size:12px;color:var(--muted)">Clique para selecionar arquivos</div>
+          <div style="font-size:10px;color:var(--muted2);margin-top:2px">PDF, imagens, CNH, CRLV, apólice... (máx. 10MB cada)</div>
+        </div>
+        <input type="file" id="ev-anexos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" style="display:none" onchange="_previewAnexos('ev', this.files)">
+        <div id="ev-anexos-lista" style="margin-top:8px"></div>
+      </div>
+      <div class="form-section-title">💬 Observações</div>
+      <div class="form-group full"><textarea id="ev-obs" rows="2" style="width:100%;resize:none"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('editar-veiculo')">Cancelar</button>
