@@ -121,11 +121,18 @@ function selecionarTipoContrato(tipo){
   document.getElementById('campos-moto').style.display  = tipo==='moto'  ? '' : 'none';
   document.getElementById('campos-carro').style.display = tipo==='carro' ? '' : 'none';
   document.getElementById('label-valor-principal').textContent = tipo==='moto' ? 'Valor semanal (R$)' : 'Diária (R$)';
-  document.getElementById('label-periodo').textContent = tipo==='moto' ? 'Período (semanas)' : 'Período (dias)';
+  // label-periodo é agora estático (período calculado automaticamente)
   window._reservaOrigemId = null;
   window._reservaValorPago = 0;
   _toggleCamposCartao();
   previewContrato();
+}
+
+// ══ PROTEÇÃO COMPLETA — mostra/esconde campo de valor ══
+function _toggleProtecaoCompleta(){
+  const sel = document.getElementById('c-protecao')?.value;
+  const wrap = document.getElementById('wrap-protecao-valor');
+  if(wrap) wrap.style.display = sel==='Completa' ? '' : 'none';
 }
 
 // ══ CARTÃO — mostra/esconde campos ══
@@ -325,31 +332,48 @@ function previewContrato(){
   const km    = document.getElementById('c-km')?.value||'—';
   const obs   = document.getElementById('c-obs')?.value||'';
   const caucao= parseFloat(document.getElementById('c-caucao')?.value)||0;
-  const pgto  = document.getElementById('c-pgto')?.value||'PIX';
+  const pgto       = document.getElementById('c-pgto')?.value||'PIX';
+  const pgtoCaucao = document.getElementById('c-pgto-caucao')?.value||pgto;
   const condutor    = document.getElementById('c-condutor')?.value||'';
   const condutorCpf = document.getElementById('c-condutor-cpf')?.value||'';
   const localRet    = document.getElementById('c-local-ret')?.value||'Loja';
-  const periodoVal  = parseInt(document.getElementById('c-periodo')?.value)||1;
   const isMoto      = _tipoContrato === 'moto';
+
+  // ── Período calculado automaticamente pelas datas ──
+  let periodoVal = 1;
+  let days = 1;
+  let diasLabel = '';
+  if(ini && fim){
+    const diffMs = new Date(fim) - new Date(ini);
+    if(isMoto){
+      periodoVal = Math.max(1, Math.ceil(diffMs / (7*24*3600*1000)));
+      diasLabel = `${periodoVal} semana${periodoVal!==1?'s':''}`;
+    } else {
+      days = Math.max(1, Math.ceil(diffMs / (24*3600*1000)));
+      periodoVal = days;
+      diasLabel = `${days} dia${days!==1?'s':''}`;
+    }
+  } else {
+    diasLabel = isMoto ? '1 semana' : '1 dia';
+  }
+  // Atualiza display do período
+  const perDisplay = document.getElementById('c-periodo-display');
+  if(perDisplay) perDisplay.textContent = ini&&fim ? diasLabel : '— preencha as datas';
+  const perHidden = document.getElementById('c-periodo');
+  if(perHidden) perHidden.value = periodoVal;
 
   // Cálculo total
   const totalServicos = _servicosLista.reduce((acc,s)=>acc+(parseFloat(s.valor)||0),0);
   let totalBruto = 0;
-  let diasLabel  = '';
-  let days = 1;
 
   if(isMoto){
     totalBruto = dia * periodoVal;
-    diasLabel  = `${periodoVal} semana${periodoVal!==1?'s':''}`;
   } else {
-    days = ini&&fim
-      ? Math.max(1,Math.ceil((new Date(fim)-new Date(ini))/86400000))
-      : periodoVal;
     totalBruto = dia * days;
-    diasLabel  = `${days} dia${days!==1?'s':''}`;
-    const taxaLoc = parseFloat(document.getElementById('c-taxa-loc')?.value)||0;
     const lavagem = parseFloat(document.getElementById('c-lavagem')?.value)||0;
-    totalBruto += (totalBruto * taxaLoc/100) + lavagem;
+    const protVal = document.getElementById('c-protecao')?.value==='Completa'
+      ? parseFloat(document.getElementById('c-protecao-valor')?.value)||0 : 0;
+    totalBruto += lavagem + protVal;
   }
   totalBruto += totalServicos;
 
@@ -408,7 +432,7 @@ function previewContrato(){
     if(valorPago>0) avisoEl.innerHTML = `⚠️ Valor já pago na reserva: <strong>R$ ${valorPago.toFixed(2).replace('.',',')}</strong> · Total ajustado: <strong>R$ ${totalLiq.toFixed(2).replace('.',',')}</strong>`;
   }
 
-  return {totalBruto, totalLiq, valorPago, nomeCli, cpfCli, telCli,
+  return {totalBruto, totalLiq, valorPago, pgtoCaucao, nomeCli, cpfCli, telCli,
     emailCli, cnhCli, cnhValCli, cnhCatCli, endCli, nascCli,
     placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
@@ -680,39 +704,36 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
     rowMoto.forEach((v,i)=>{ txt(v,cx2+1,y+5,{size:7}); cx2+=cols[i]; });
     y+=10;
     rect(M,y,CW,8,'#f9f9f9','#dddddd');
-    txt(`Forma de Pagamento: ${d.pgto}`,M+2,y+3,{size:8,bold:true});
-    txt(`Caução/Garantia: ${d.pgto} — R$ ${d.caucao.toFixed(2).replace('.',',')}`,M+2,y+7,{size:8});
+    txt(`Pagamento do contrato: ${d.pgto}`,M+2,y+3,{size:8,bold:true});
+    txt(`Caução/Garantia: R$ ${d.caucao.toFixed(2).replace('.',',')} — Pagamento: ${d.pgtoCaucao||d.pgto}`,M+2,y+7,{size:8});
     y+=10;
   } else {
     const kmLivre=document.getElementById('c-km-livre')?.checked;
-    const tanque=document.getElementById('c-tanque')?.value||'Cheio';
     const protecao=document.getElementById('c-protecao')?.value||'Basica';
-    const taxaLoc=parseFloat(document.getElementById('c-taxa-loc')?.value)||6;
+    const protValor=protecao==='Completa'?parseFloat(document.getElementById('c-protecao-valor')?.value)||0:0;
     const lavagem=parseFloat(document.getElementById('c-lavagem')?.value)||0;
-    const grupo=document.getElementById('c-grupo')?.value||'';
     const days2=d.days||1;
     const totalDiarias=(d.dia||0)*days2;
-    const totalTaxa=totalDiarias*taxaLoc/100;
-    txt(`Grupo: ${grupo}  |  Km Livre: ${kmLivre?'Sim':'Não'}  |  Tanque Saída: ${tanque}  |  Km Saída: ${d.km} km`,M,y+4,{size:7.5});
+    txt(`Km Livre: ${kmLivre?'Sim':'Não'}   |   Proteção: ${protecao==='Completa'?'Completa':'Básica (inclusa na diária)'}`,M,y+4,{size:7.5});
     y+=7;
     rect(M,y,CW,6,'#006400','#006400');
-    const hCarro=['Valores da Locação','Qtd','Valor Unit.','Desconto','Valor Total'];
-    const wCarro=[70,15,35,25,35];
+    const hCarro=['Descrição','Qtd','Unit.','Total'];
+    const wCarro=[90,20,35,35];
     let ccx=M;
     hCarro.forEach((h,i)=>{ txt(h,ccx+1,y+4,{size:6.5,bold:true,color:'#ffffff'}); ccx+=wCarro[i]; });
     y+=6;
     const rowsCarro=[
-      ['Diária:',days2,`R$ ${(d.dia||0).toFixed(2).replace('.',',')}` ,'—',`R$ ${totalDiarias.toFixed(2).replace('.',',')}`],
-      ['Taxa de Locação:',1,`${taxaLoc}%`,'—',`R$ ${totalTaxa.toFixed(2).replace('.',',')}`],
-      lavagem>0?['Lavagem Antecipada:',1,`R$ ${lavagem.toFixed(2).replace('.',',')}`,'—',`R$ ${lavagem.toFixed(2).replace('.',',')}`]:null,
+      [`Diária — ${d.placa}`,days2,`R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,`R$ ${totalDiarias.toFixed(2).replace('.',',')}`],
+      protValor>0?['Proteção Completa',1,`R$ ${protValor.toFixed(2).replace('.',',')}`,`R$ ${protValor.toFixed(2).replace('.',',')}`]:null,
+      lavagem>0?['Lavagem Antecipada',1,`R$ ${lavagem.toFixed(2).replace('.',',')}`,`R$ ${lavagem.toFixed(2).replace('.',',')}`]:null,
     ].filter(Boolean);
     rowsCarro.forEach((row,ri)=>{
       rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
       ccx=M; row.forEach((v2,i)=>{ txt(String(v2),ccx+1,y+5,{size:7.5,bold:i===0}); ccx+=wCarro[i]; }); y+=7;
     });
     const protText=protecao==='Completa'
-      ?'Proteção Completa: cobertura ampla, franquia 6% FIPE, vidros e pneus incluídos, danos a terceiros até R$ 50.000'
-      :'Proteção Básica: Casco franquia 12% FIPE; Furto/roubo coparticipação 12%; Vidros e pneus não incluídos';
+      ?'Proteção Completa: cobertura ampla, danos a terceiros até R$ 50.000, vidros e pneus incluídos.'
+      :'Proteção Básica: já inclusa no valor da diária. Cobre casco e roubo/furto total.';
     rect(M,y,CW,9,'#fff8e1','#dddddd');
     doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
     doc.text(doc.splitTextToSize(protText,CW-4),M+2,y+4);
@@ -722,8 +743,8 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
     txt(`R$ ${d.totalLiq.toFixed(2).replace('.',',')}`,PW-M,y+5,{size:11,bold:true,color:'#006400',align:'right'});
     y+=10;
     rect(M,y,CW,8,'#f9f9f9','#dddddd');
-    txt(`Forma de Pagamento Locação: ${d.pgto}`,M+2,y+3.5,{size:8,bold:true});
-    txt(`Forma de Pagamento Garantia: ${d.pgto} — Caução R$ ${d.caucao.toFixed(2).replace('.',',')}`,M+2,y+7.5,{size:7.5});
+    txt(`Pagamento do contrato: ${d.pgto}`,M+2,y+3.5,{size:8,bold:true});
+    txt(`Caução/Garantia: R$ ${d.caucao.toFixed(2).replace('.',',')} — Pagamento: ${d.pgtoCaucao||d.pgto}`,M+2,y+7.5,{size:7.5});
     y+=10;
   }
 

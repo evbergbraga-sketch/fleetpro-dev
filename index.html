@@ -456,16 +456,17 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <input type="datetime-local" id="c-fim" style="width:100%" oninput="previewContrato()">
               </div>
               <div class="form-group">
+                <label id="label-periodo">Período (calculado automaticamente)</label>
+                <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--muted)" id="c-periodo-display">—</div>
+                <input type="hidden" id="c-periodo" value="1">
+              </div>
+              <div class="form-group">
                 <label>Local de retirada</label>
                 <select id="c-local-ret" style="width:100%" onchange="previewContrato()">
                   <option value="Loja">Loja</option>
                   <option value="Endereço do cliente">Endereço do cliente</option>
                   <option value="Outro">Outro</option>
                 </select>
-              </div>
-              <div class="form-group">
-                <label>Km saída</label>
-                <input type="text" id="c-km" placeholder="0 km" style="width:100%" oninput="previewContrato()">
               </div>
             </div>
 
@@ -476,55 +477,29 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <input type="number" id="c-dia" placeholder="0,00" step="0.01" style="width:100%" oninput="previewContrato()">
               </div>
               <div class="form-group">
-                <label id="label-periodo">Período (semanas)</label>
-                <input type="number" id="c-periodo" value="1" min="1" style="width:100%" oninput="previewContrato()">
-              </div>
-              <div class="form-group">
                 <label>Caução / Garantia (R$)</label>
                 <input type="number" id="c-caucao" placeholder="600,00" step="0.01" style="width:100%" oninput="previewContrato()">
               </div>
               <div class="form-group">
-                <label>Forma de pagamento</label>
-                <select id="c-pgto" style="width:100%" onchange="_toggleCamposCartao();previewContrato()">
+                <label>Pagamento do contrato</label>
+                <select id="c-pgto" style="width:100%" onchange="previewContrato()">
                   <option value="PIX">PIX</option>
                   <option value="Cartão de Crédito">Cartão de Crédito</option>
                   <option value="Cartão de Débito">Cartão de Débito</option>
-                  <option value="Boleto">Boleto</option>
                   <option value="Dinheiro">Dinheiro</option>
+                  <option value="Transferência">Transferência</option>
+                  <option value="Boleto">Boleto</option>
                 </select>
               </div>
-            </div>
-
-            <div id="campos-cartao" style="display:none">
-              <div class="form-section-title">💳 Dados do cartão</div>
-              <div class="form-grid">
-                <div class="form-group full">
-                  <label>Titular do cartão</label>
-                  <input type="text" id="c-cartao-titular" placeholder="Nome como no cartão" style="width:100%">
-                </div>
-                <div class="form-group">
-                  <label>Número do cartão</label>
-                  <input type="text" id="c-cartao-numero" placeholder="0000 0000 0000 0000" maxlength="19" style="width:100%"
-                    oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{4})/g,'$1 ').trim().slice(0,19)">
-                </div>
-                <div class="form-group">
-                  <label>Validade</label>
-                  <input type="text" id="c-cartao-validade" placeholder="MM/AA" maxlength="5" style="width:100%">
-                </div>
-                <div class="form-group">
-                  <label>Bandeira</label>
-                  <select id="c-cartao-bandeira" style="width:100%">
-                    <option value="Visa">Visa</option>
-                    <option value="Mastercard">Mastercard</option>
-                    <option value="Elo">Elo</option>
-                    <option value="American Express">American Express</option>
-                    <option value="Hipercard">Hipercard</option>
-                    <option value="Outra">Outra</option>
-                  </select>
-                </div>
-              </div>
-              <div style="font-size:11px;color:var(--muted);background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.15);border-radius:6px;padding:8px 10px;margin-bottom:8px">
-                🔒 Dados do cartão armazenados com segurança para uso exclusivo em cobranças futuras.
+              <div class="form-group">
+                <label>Pagamento da caução</label>
+                <select id="c-pgto-caucao" style="width:100%" onchange="previewContrato()">
+                  <option value="PIX">PIX</option>
+                  <option value="Cartão de Crédito">Cartão de Crédito</option>
+                  <option value="Cartão de Débito">Cartão de Débito</option>
+                  <option value="Dinheiro">Dinheiro</option>
+                  <option value="Transferência">Transferência</option>
+                </select>
               </div>
             </div>
 
@@ -546,25 +521,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <div class="form-section-title">🚗 Específico — Carro</div>
               <div class="form-grid">
                 <div class="form-group">
-                  <label>Grupo do veículo</label>
-                  <input type="text" id="c-grupo" placeholder="Ex: Grupo J – SUV Automático" style="width:100%" oninput="previewContrato()">
-                </div>
-                <div class="form-group">
-                  <label>Tanque saída</label>
-                  <select id="c-tanque" style="width:100%" onchange="previewContrato()">
-                    <option>Cheio</option><option>3/4</option><option>1/2</option><option>1/4</option>
-                  </select>
-                </div>
-                <div class="form-group">
                   <label>Proteção</label>
-                  <select id="c-protecao" style="width:100%" onchange="previewContrato()">
-                    <option value="Basica">Básica (franquia 12%)</option>
-                    <option value="Completa">Completa (franquia 6%)</option>
+                  <select id="c-protecao" style="width:100%" onchange="_toggleProtecaoCompleta();previewContrato()">
+                    <option value="Basica">Básica (inclusa na diária)</option>
+                    <option value="Completa">Completa (valor adicional)</option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label>Taxa de locação (%)</label>
-                  <input type="number" id="c-taxa-loc" value="6" step="0.1" style="width:100%" oninput="previewContrato()">
+                <div class="form-group" id="wrap-protecao-valor" style="display:none">
+                  <label>Valor proteção completa (R$)</label>
+                  <input type="number" id="c-protecao-valor" value="0" step="0.01" style="width:100%" oninput="previewContrato()">
                 </div>
                 <div class="form-group">
                   <label>Lavagem antecipada (R$)</label>
@@ -576,6 +541,11 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 </div>
               </div>
             </div>
+            <!-- Campos ocultos para compatibilidade -->
+            <input type="hidden" id="c-km" value="0">
+            <input type="hidden" id="c-grupo" value="">
+            <input type="hidden" id="c-tanque" value="Cheio">
+            <input type="hidden" id="c-taxa-loc" value="0">
 
             <div class="form-section-title">🔧 Serviços / Taxas adicionais</div>
             <div id="servicos-lista" style="margin-bottom:8px"></div>
