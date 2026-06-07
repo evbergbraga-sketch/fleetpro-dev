@@ -567,8 +567,18 @@ function renderChatContacts(){
   const unread = getUnread();
   document.getElementById('chat-contacts').innerHTML = clientes.map(c=>{
     const ini = (c.nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-    const lastMsg = (chatMsgs[c.id]||[]).slice(-1)[0];
-    const preview = lastMsg?.texto||lastMsg?.text||(lastMsg?.tipo==='audio'||lastMsg?.tipo==='audioMessage'?'🎵 Áudio':lastMsg?.tipo==='image'||lastMsg?.tipo==='imageMessage'?'🖼️ Imagem':lastMsg?.tipo==='document'?'📎 Documento':'Toque para abrir');
+    // Busca última msg pela chave correta: id do cliente OU número de telefone
+    const telNum = (c.telefone||'').replace(/\D/g,'');
+    const telNum11 = telNum.slice(-11);
+    const msgsById  = chatMsgs[c.id]||[];
+    const msgsByTel = chatMsgs[telNum]||chatMsgs[telNum11]||chatMsgs[c.telefone]||[];
+    // Mescla e pega a mais recente
+    const todasMsgs = [...msgsById, ...msgsByTel]
+      .filter((m,i,arr)=>arr.findIndex(x=>x.created_at===m.created_at&&x.texto===m.texto)===i)
+      .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const lastMsg = todasMsgs.slice(-1)[0];
+    const previewTxt = lastMsg?.texto||lastMsg?.text||'';
+    const preview = previewTxt || (lastMsg?.tipo==='audio'||lastMsg?.tipo==='audioMessage'?'🎵 Áudio':lastMsg?.tipo==='image'||lastMsg?.tipo==='imageMessage'?'🖼️ Imagem':lastMsg?.tipo==='document'||lastMsg?.tipo==='documentMessage'?'📎 Documento': lastMsg ? '📎 Mídia' : 'Toque para abrir');
     const nl = unread[c.id]||0;
     const badge = nl>0?`<div class="chat-unread-badge">${nl}</div>`:'';
     const ativo = activeChatId===c.id?'active':'';
