@@ -801,21 +801,22 @@ async function _buscarFotoPerfil(numero){
 function _setAvatar(elId, nome, fotoUrl){
   const el = document.getElementById(elId);
   if(!el) return;
+  const ini = _iniciais(nome||'?');
+  const cor = _avatarCor(nome||'?');
   if(fotoUrl){
+    el.style.cssText = 'background:transparent;padding:0;overflow:hidden;border-radius:50%';
     el.innerHTML = '';
-    el.style.background = 'transparent';
-    el.style.padding = '0';
-    el.style.overflow = 'hidden';
     const img = document.createElement('img');
     img.src = fotoUrl;
     img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%';
-    img.onerror = ()=>{ el.innerHTML = _iniciais(nome); el.style.background='#2a3942'; };
+    img.onerror = ()=>{
+      el.style.cssText = `background:${cor};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;border-radius:50%`;
+      el.innerHTML = ini;
+    };
     el.appendChild(img);
   } else {
-    el.innerHTML = _iniciais(nome);
-    el.style.background = '#2a3942';
-    el.style.color = '#8696a0';
-    el.style.overflow = '';
+    el.style.cssText = `background:${cor};display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;border-radius:50%;overflow:''`;
+    el.innerHTML = ini;
   }
 }
 
@@ -823,23 +824,50 @@ function _iniciais(nome){
   return (nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
 }
 
+// Gera cor única por nome/número — igual Telegram/Linear
+function _avatarCor(str){
+  const paleta = [
+    '#1a7fa0','#0e8a6e','#7c3aed','#be185d','#b45309',
+    '#0369a1','#15803d','#c2410c','#6d28d9','#0f766e',
+    '#1d4ed8','#9333ea','#b91c1c','#0284c7','#047857',
+  ];
+  let hash = 0;
+  for(let i=0;i<str.length;i++) hash = str.charCodeAt(i) + ((hash<<5)-hash);
+  return paleta[Math.abs(hash) % paleta.length];
+}
 
-function _avatarHtmlLista(cid, ini){
-  const tel = (allClientes.find(c=>c.id===cid)||{}).telefone;
-  const num = tel ? tel.replace(/\D/g,'') : cid.replace(/\D/g,'');
-  const url = _fotoCache[num];
-  if(url) return `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='${ini}'">`;
-  return ini;
+function _avatarHtml(str, size=46){
+  const ini = _iniciais(str);
+  const cor = _avatarCor(str);
+  const fs  = size <= 38 ? 13 : 15;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${cor};display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:700;color:#fff;flex-shrink:0">${ini}</div>`;
+}
+
+
+function _avatarHtmlLista(cid, nomeOuNum){
+  const cliente = allClientes.find(c=>c.id===cid);
+  const tel = cliente?.telefone;
+  const numKey = tel ? tel.replace(/\D/g,'').slice(-11) : cid.replace(/\D/g,'').slice(-11);
+  const url = _fotoCache[numKey];
+  const str = cliente?.nome || nomeOuNum || cid;
+  const ini = _iniciais(str);
+  const cor = _avatarCor(str);
+  if(url) return `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none';this.parentElement.style.background='${cor}';this.parentElement.innerHTML='${ini}'">`;
+  // Avatar colorido sem foto
+  return `<div style="width:100%;height:100%;background:${cor};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;border-radius:50%">${ini}</div>`;
 }
 
 function _atualizarAvatarLista(cid, fotoUrl, nome){
   const el = document.getElementById('cav-'+cid);
   if(!el) return;
+  const ini = _iniciais(nome||'?');
+  const cor = _avatarCor(nome||'?');
   if(fotoUrl){
-    const ini = _iniciais(nome);
-    el.style.padding = '0';
-    el.style.overflow = 'hidden';
-    el.innerHTML = `<img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='${ini}'">`;
+    el.style.cssText = 'padding:0;overflow:hidden;border-radius:50%';
+    el.innerHTML = `<img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none';this.parentElement.style.background='${cor}';this.parentElement.innerHTML='${ini}'">`;
+  } else {
+    el.style.cssText = `background:${cor};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;border-radius:50%`;
+    el.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${ini}</div>`;
   }
 }
 
@@ -875,7 +903,6 @@ function abrirChat(cid){
   // Busca foto de perfil em background
   if(c.telefone){
     _buscarFotoPerfil(c.telefone).then(url=>{
-      console.log('[foto]', c.telefone, '->', url ? 'OK' : 'sem foto');
       if(activeChatId===cid) _setAvatar('chat-av', c.nome, url);
       // Atualiza também o avatar na lista de contatos
       _atualizarAvatarLista(cid, url, c.nome);
