@@ -137,19 +137,21 @@ function populateContratosSelects(){
       // Pega email principal
       let email = c.email || '';
       if(!email && c.emails){ try{ const a=JSON.parse(c.emails); if(a?.length) email=a[0].email; }catch(_){} }
+      const _e = s => String(s||'').replace(/"/g,'&quot;');
+      const endStr = c.endereco||[c.endereco_rua,c.endereco_numero,c.endereco_bairro,c.endereco_cidade,c.endereco_uf].filter(Boolean).join(', ');
       return `<option value="${c.id}"
-        data-nome="${c.nome}"
-        data-cpf="${c.cpf||''}"
-        data-tel="${tel}"
-        data-email="${email}"
-        data-cnh="${c.cnh||''}"
-        data-cnh-val="${c.cnh_validade||''}"
-        data-cnh-cat="${c.cnh_categoria||''}"
-        data-nasc="${c.data_nascimento||''}"
-        data-end="${c.endereco||[c.endereco_rua,c.endereco_numero,c.endereco_bairro,c.endereco_cidade,c.endereco_uf].filter(Boolean).join(', ')}"
-        data-pai="${c.nome_pai||''}"
-        data-mae="${c.nome_mae||''}"
-      >${c.nome}${c.status_analise==='aprovado'?' ✅':''}</option>`;
+        data-nome="${_e(c.nome)}"
+        data-cpf="${_e(c.cpf)}"
+        data-tel="${_e(tel)}"
+        data-email="${_e(email)}"
+        data-cnh="${_e(c.cnh)}"
+        data-cnh-val="${_e(c.cnh_validade)}"
+        data-cnh-cat="${_e(c.cnh_categoria)}"
+        data-nasc="${_e(c.data_nascimento)}"
+        data-end="${_e(endStr)}"
+        data-pai="${_e(c.nome_pai)}"
+        data-mae="${_e(c.nome_mae)}"
+      >${_e(c.nome)}${c.status_analise==='aprovado'?' ✅':''}</option>`;
     }).join('');
     // Preenche campos do cliente ao trocar o select
     cs.addEventListener('change', _preencherCamposClienteContrato);
