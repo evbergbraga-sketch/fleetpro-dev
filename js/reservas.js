@@ -218,12 +218,16 @@ async function converterReservaContrato(id){
     }
 
     // Datas — extrai só a parte da data (YYYY-MM-DD)
-    const dataIni = r.data_inicio?.slice(0,10)||'';
-    const dataFim = r.data_fim?.slice(0,10)||'';
+    // datetime-local precisa do formato YYYY-MM-DDTHH:MM
+    const _toDatetimeLocal = (str) => {
+      if(!str) return '';
+      const s = str.slice(0,16); // YYYY-MM-DDTHH:MM
+      return s.includes('T') ? s : s + 'T00:00';
+    };
     const elIni = document.getElementById('c-ini');
     const elFim = document.getElementById('c-fim');
-    if(elIni) elIni.value = dataIni;
-    if(elFim) elFim.value = dataFim;
+    if(elIni) elIni.value = _toDatetimeLocal(r.data_inicio);
+    if(elFim) elFim.value = _toDatetimeLocal(r.data_fim);
 
     // Observações — menciona valor já pago e dados da reserva
     const elObs = document.getElementById('c-obs');
