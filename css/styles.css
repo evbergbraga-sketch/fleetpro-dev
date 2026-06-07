@@ -350,8 +350,17 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 .tab-filter { display:flex; gap:6px; margin-bottom:16px; }
 .tab-btn { padding:6px 14px; border-radius:99px; font-size:12px; cursor:pointer; border:1.5px solid var(--border2); color:var(--muted); background:transparent; font-family:var(--font-body); transition:all .15s; font-weight:500; }
 .tab-btn.active, .tab-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+/* Scrollbar global estilo WhatsApp */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: rgba(255,255,255,0.15) transparent; }
+*::-webkit-scrollbar { width:6px; height:6px; }
+*::-webkit-scrollbar-track { background:transparent; }
+*::-webkit-scrollbar-thumb { background:transparent; border-radius:99px; transition:background .2s; }
+*:hover::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); }
+*::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.22) !important; }
 .scrollbar-thin::-webkit-scrollbar { width:4px; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background:var(--border2); border-radius:99px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background:transparent; border-radius:99px; }
+.scrollbar-thin:hover::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); }
 .input-group { display:flex; gap:10px; margin-bottom:16px; align-items:center; }
 
 .search-results { position:absolute; top:100%; left:0; right:0; background:var(--card); border:1px solid var(--border2); border-radius:10px; box-shadow:var(--shadow-lg); z-index:100; max-height:300px; overflow-y:auto; margin-top:4px; }
