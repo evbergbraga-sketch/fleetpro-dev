@@ -360,10 +360,12 @@ async function salvarCliente(){
 function editarCliente(id){
   const c = allClientes.find(x=>x.id===id);
   if(!c) return;
-  document.getElementById('ec-id').value = c.id;
-  document.getElementById('ec-nome').value = c.nome||'';
-  document.getElementById('ec-cpf').value = c.cpf||'';
-  document.getElementById('ec-obs').value = c.observacoes||'';
+  // Helper seguro para setar valor (evita erro se campo não existir)
+  const sv = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val||''; };
+  sv('ec-id',   c.id);
+  sv('ec-nome', c.nome);
+  sv('ec-cpf',  c.cpf);
+  sv('ec-obs',  c.observacoes);
   _cliAnexos['ec'] = [];
   window._cliAnexosRemovidos['ec'] = [];
   _preencherCamposCliente('ec', c);
