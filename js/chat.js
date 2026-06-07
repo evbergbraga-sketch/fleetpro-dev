@@ -199,25 +199,6 @@ async function desconectarWpp(){
   notify('WhatsApp desconectado','info');
 }
 
-// ── TOGGLE SEÇÕES DA SIDEBAR DIREITA ──
-function _toggleSideSection(id){
-  const el = document.getElementById(id);
-  if(!el) return;
-  const isOpen = el.style.display !== 'none';
-  el.style.display = isOpen ? 'none' : '';
-  // Atualiza seta do header
-  const parent = el.previousElementSibling;
-  if(parent){
-    const arrow = parent.querySelector('span:last-child');
-    if(arrow && (arrow.textContent==='▼'||arrow.textContent==='▲'))
-      arrow.textContent = isOpen ? '▼' : '▲';
-  }
-  // Caso especial: status WPP usa arrow próprio
-  const cfgArrow = document.getElementById('wpp-cfg-arrow');
-  if(id==='wpp-cfg-body' && cfgArrow)
-    cfgArrow.textContent = isOpen ? '▼' : '▲';
-}
-
 // ── SSE ──
 let _sseRetryDelay = 5000;
 let _sseRetryTimer = null;

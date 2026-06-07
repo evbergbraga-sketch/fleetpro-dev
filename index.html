@@ -17,6 +17,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+function _toggleSideSection(id){
+  var el=document.getElementById(id);if(!el)return;
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'';
+  var parent=el.previousElementSibling;
+  if(parent){var arrow=parent.querySelector('span:last-child');
+    if(arrow&&(arrow.textContent==='▼'||arrow.textContent==='▲'))arrow.textContent=isOpen?'▼':'▲';}
+  var a=document.getElementById('wpp-cfg-arrow');
+  if(id==='wpp-cfg-body'&&a)a.textContent=isOpen?'▼':'▲';
+}
+</script>
 </head>
 <body>
 
