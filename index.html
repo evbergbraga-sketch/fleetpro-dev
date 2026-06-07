@@ -990,20 +990,110 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
 <!-- MODAL EDITAR CLIENTE -->
 <div class="modal-overlay" id="m-editar-cliente">
-  <div class="modal">
-    <div class="modal-header"><div class="modal-title">Editar Cliente</div><button class="modal-close" onclick="closeModal('editar-cliente')">✕</button></div>
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header"><div class="modal-title">✏️ Editar Cliente</div><button class="modal-close" onclick="closeModal('editar-cliente')">✕</button></div>
     <input type="hidden" id="ec-id">
-    <div class="form-grid">
-      <div class="form-group full"><label>Nome completo</label><input type="text" id="ec-nome" style="width:100%"></div>
-      <div class="form-group"><label>CPF</label><input type="text" id="ec-cpf" style="width:100%" oninput="if(typeof maskCPF==='function')maskCPF(this)" placeholder="000.000.000-00"></div>
-      <div class="form-group"><label>Telefone</label><input type="text" id="ec-tel" style="width:100%"></div>
-      <div class="form-group full"><label>Email</label><input type="email" id="ec-email" style="width:100%"></div>
-      <div class="form-group"><label>Nº CNH</label><input type="text" id="ec-cnh" style="width:100%"></div>
-      <div class="form-group"><label>Validade CNH</label><input type="date" id="ec-cnh-val" style="width:100%"></div>
-      <div class="form-group full"><label>Endereço</label><input type="text" id="ec-end" style="width:100%"></div>
-      <div class="form-group full"><label>Observações</label><textarea id="ec-obs" rows="2" style="width:100%;resize:none"></textarea></div>
+    <div style="max-height:78vh;overflow-y:auto;padding:16px 20px">
+
+      <div class="form-section-title">👤 Identificação</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nome completo</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="text" id="ec-nome" style="width:100%;flex:1">
+            <select id="ec-status-analise" style="width:160px;flex-shrink:0">
+              <option value="em_analise">🔍 Em análise</option>
+              <option value="aprovado">✅ Aprovado</option>
+              <option value="reprovado">❌ Reprovado</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>CPF</label><input type="text" id="ec-cpf" style="width:100%" oninput="if(typeof maskCPF==='function')maskCPF(this)" placeholder="000.000.000-00"></div>
+        <div class="form-group"><label>Data de nascimento</label><input type="date" id="ec-nascimento" style="width:100%"></div>
+        <div class="form-group"><label>Veio de onde?</label>
+          <select id="ec-origem" style="width:100%">
+            <option value="">— Selecione</option>
+            <option>Instagram</option><option>Facebook</option><option>Google</option>
+            <option>Indicação</option><option>WhatsApp</option><option>Passagem</option><option>Outro</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>📱 Telefones</span>
+        <button type="button" onclick="_addTelefone('ec')" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Adicionar</button>
+      </div>
+      <div id="ec-telefones-lista" style="margin-bottom:8px"></div>
+
+      <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>✉️ Emails</span>
+        <button type="button" onclick="_addEmail('ec')" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Adicionar</button>
+      </div>
+      <div id="ec-emails-lista" style="margin-bottom:8px"></div>
+
+      <div class="form-section-title">🪪 CNH — Carteira de Habilitação</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Nº Registro</label><input type="text" id="ec-cnh-registro" style="width:100%"></div>
+        <div class="form-group"><label>Nº CNH</label><input type="text" id="ec-cnh" style="width:100%"></div>
+        <div class="form-group"><label>Nº de Segurança</label><input type="text" id="ec-cnh-seguranca" style="width:100%"></div>
+        <div class="form-group"><label>Categoria</label>
+          <select id="ec-cnh-categoria" style="width:100%">
+            <option value="">— Selecione</option>
+            <option>A</option><option>B</option><option>AB</option><option>C</option><option>D</option><option>E</option><option>ACC</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Data de emissão</label><input type="date" id="ec-cnh-emissao" style="width:100%"></div>
+        <div class="form-group"><label>Data de validade</label><input type="date" id="ec-cnh-val" style="width:100%"></div>
+        <div class="form-group"><label>Primeira habilitação</label><input type="date" id="ec-cnh-primeira" style="width:100%"></div>
+        <div class="form-group"><label>Local de emissão</label><input type="text" id="ec-cnh-local" style="width:100%"></div>
+        <div class="form-group"><label>Nome do pai</label><input type="text" id="ec-pai" style="width:100%"></div>
+        <div class="form-group"><label>Nome da mãe</label><input type="text" id="ec-mae" style="width:100%"></div>
+      </div>
+
+      <div class="form-section-title">📍 Endereço</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>CEP</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="ec-cep" maxlength="9" style="flex:1" oninput="if(typeof maskCEP==='function')maskCEP(this)" onblur="_buscarCEP('ec')">
+            <button type="button" onclick="_buscarCEP('ec')" style="padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap">🔍</button>
+          </div>
+        </div>
+        <div class="form-group"><label>Cidade</label><input type="text" id="ec-cidade" style="width:100%"></div>
+        <div class="form-group"><label>Rua / Logradouro</label><input type="text" id="ec-rua" style="width:100%"></div>
+        <div class="form-group"><label>Número</label><input type="text" id="ec-numero-end" style="width:100%"></div>
+        <div class="form-group"><label>Bairro</label><input type="text" id="ec-bairro" style="width:100%"></div>
+        <div class="form-group"><label>Complemento</label><input type="text" id="ec-complemento" style="width:100%"></div>
+        <div class="form-group"><label>Estado (UF)</label>
+          <select id="ec-uf" style="width:100%">
+            <option value="">— UF</option>
+            <option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option>
+            <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+            <option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option>
+            <option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option>
+            <option>RO</option><option>RR</option><option>RS</option><option>SC</option><option>SE</option>
+            <option>SP</option><option>TO</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section-title">📎 Anexos / Documentos</div>
+      <div id="ec-cli-anexos-area" style="margin-bottom:8px">
+        <div style="border:2px dashed var(--border2);border-radius:10px;padding:14px;text-align:center;cursor:pointer" onclick="document.getElementById('ec-cli-anexos-input').click()">
+          <div style="font-size:20px;margin-bottom:4px">📁</div>
+          <div style="font-size:12px;color:var(--muted)">Clique para adicionar documentos (máx. 10MB)</div>
+        </div>
+        <input type="file" id="ec-cli-anexos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" style="display:none" onchange="_previewAnexosCli('ec', this.files)">
+        <div id="ec-cli-anexos-lista" style="margin-top:8px"></div>
+      </div>
+
+      <div class="form-section-title">💬 Observações</div>
+      <div class="form-group full"><textarea id="ec-obs" rows="2" style="width:100%;resize:vertical"></textarea></div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('editar-cliente')">Cancelar</button><button class="btn btn-primary" onclick="atualizarCliente()">✓ Salvar alterações</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('editar-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="atualizarCliente()">✓ Salvar alterações</button>
+    </div>
   </div>
 </div>
 
@@ -1115,19 +1205,109 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
 <!-- MODAL CADASTRAR CLIENTE -->
 <div class="modal-overlay" id="m-cliente">
-  <div class="modal">
+  <div class="modal" style="max-width:720px">
     <div class="modal-header"><div class="modal-title">Cadastrar Cliente</div><button class="modal-close" onclick="closeModal('cliente')">✕</button></div>
-    <div class="form-grid">
-      <div class="form-group full"><label>Nome completo</label><input type="text" id="mc-nome" placeholder="Ana Lima" style="width:100%"></div>
-      <div class="form-group"><label>CPF</label><input type="text" id="mc-cpf" placeholder="123.456.789-00" style="width:100%"></div>
-      <div class="form-group"><label>Telefone</label><input type="text" id="mc-tel" placeholder="(21) 99999-0000" style="width:100%"></div>
-      <div class="form-group full"><label>Email</label><input type="email" id="mc-email" placeholder="email@exemplo.com" style="width:100%"></div>
-      <div class="form-group"><label>Nº CNH</label><input type="text" id="mc-cnh" placeholder="AB123456" style="width:100%"></div>
-      <div class="form-group"><label>Validade CNH</label><input type="date" id="mc-cnh-val" style="width:100%"></div>
-      <div class="form-group full"><label>Endereço</label><input type="text" id="mc-end" placeholder="Rua, número, bairro, cidade" style="width:100%"></div>
-      <div class="form-group full"><label>Observações</label><textarea id="mc-obs" rows="2" style="width:100%;resize:none"></textarea></div>
+    <div style="max-height:78vh;overflow-y:auto;padding:16px 20px">
+
+      <div class="form-section-title">👤 Identificação</div>
+      <div class="form-grid">
+        <div class="form-group full" style="position:relative">
+          <label>Nome completo</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="text" id="mc-nome" placeholder="Ana Lima" style="width:100%;flex:1">
+            <select id="mc-status-analise" style="width:160px;flex-shrink:0" title="Status de análise">
+              <option value="em_analise">🔍 Em análise</option>
+              <option value="aprovado">✅ Aprovado</option>
+              <option value="reprovado">❌ Reprovado</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>CPF</label><input type="text" id="mc-cpf" placeholder="123.456.789-00" style="width:100%" oninput="if(typeof maskCPF==='function')maskCPF(this)"></div>
+        <div class="form-group"><label>Data de nascimento</label><input type="date" id="mc-nascimento" style="width:100%"></div>
+        <div class="form-group"><label>Veio de onde?</label>
+          <select id="mc-origem" style="width:100%">
+            <option value="">— Selecione</option>
+            <option>Instagram</option><option>Facebook</option><option>Google</option>
+            <option>Indicação</option><option>WhatsApp</option><option>Passagem</option><option>Outro</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>📱 Telefones</span>
+        <button type="button" onclick="_addTelefone('mc')" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Adicionar</button>
+      </div>
+      <div id="mc-telefones-lista" style="margin-bottom:8px"></div>
+
+      <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>✉️ Emails</span>
+        <button type="button" onclick="_addEmail('mc')" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Adicionar</button>
+      </div>
+      <div id="mc-emails-lista" style="margin-bottom:8px"></div>
+
+      <div class="form-section-title">🪪 CNH — Carteira de Habilitação</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Nº Registro</label><input type="text" id="mc-cnh-registro" placeholder="00000000000" style="width:100%"></div>
+        <div class="form-group"><label>Nº CNH</label><input type="text" id="mc-cnh" placeholder="AB123456" style="width:100%"></div>
+        <div class="form-group"><label>Nº de Segurança</label><input type="text" id="mc-cnh-seguranca" placeholder="00000000000" style="width:100%"></div>
+        <div class="form-group"><label>Categoria</label>
+          <select id="mc-cnh-categoria" style="width:100%">
+            <option value="">— Selecione</option>
+            <option>A</option><option>B</option><option>AB</option><option>C</option><option>D</option><option>E</option><option>ACC</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Data de emissão</label><input type="date" id="mc-cnh-emissao" style="width:100%"></div>
+        <div class="form-group"><label>Data de validade</label><input type="date" id="mc-cnh-val" style="width:100%"></div>
+        <div class="form-group"><label>Primeira habilitação</label><input type="date" id="mc-cnh-primeira" style="width:100%"></div>
+        <div class="form-group"><label>Local de emissão</label><input type="text" id="mc-cnh-local" placeholder="Ex: Rio de Janeiro/RJ" style="width:100%"></div>
+        <div class="form-group"><label>Nome do pai</label><input type="text" id="mc-pai" placeholder="Nome completo" style="width:100%"></div>
+        <div class="form-group"><label>Nome da mãe</label><input type="text" id="mc-mae" placeholder="Nome completo" style="width:100%"></div>
+      </div>
+
+      <div class="form-section-title">📍 Endereço</div>
+      <div class="form-grid">
+        <div class="form-group" style="position:relative">
+          <label>CEP</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="mc-cep" placeholder="00000-000" maxlength="9" style="flex:1" oninput="if(typeof maskCEP==='function')maskCEP(this)" onblur="_buscarCEP('mc')">
+            <button type="button" onclick="_buscarCEP('mc')" style="padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap">🔍 Buscar</button>
+          </div>
+        </div>
+        <div class="form-group"><label>Cidade</label><input type="text" id="mc-cidade" style="width:100%" placeholder="Preenchido pelo CEP"></div>
+        <div class="form-group"><label>Rua / Logradouro</label><input type="text" id="mc-rua" style="width:100%" placeholder="Preenchido pelo CEP"></div>
+        <div class="form-group"><label>Número</label><input type="text" id="mc-numero-end" style="width:100%" placeholder="Ex: 123"></div>
+        <div class="form-group"><label>Bairro</label><input type="text" id="mc-bairro" style="width:100%" placeholder="Preenchido pelo CEP"></div>
+        <div class="form-group"><label>Complemento</label><input type="text" id="mc-complemento" style="width:100%" placeholder="Apto, bloco..."></div>
+        <div class="form-group"><label>Estado (UF)</label>
+          <select id="mc-uf" style="width:100%">
+            <option value="">— UF</option>
+            <option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option>
+            <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+            <option>MG</option><option>MS</option><option>MT</option><option>PA</option><option>PB</option>
+            <option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option>
+            <option>RO</option><option>RR</option><option>RS</option><option>SC</option><option>SE</option>
+            <option>SP</option><option>TO</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section-title">📎 Anexos / Documentos</div>
+      <div id="mc-cli-anexos-area" style="margin-bottom:8px">
+        <div style="border:2px dashed var(--border2);border-radius:10px;padding:14px;text-align:center;cursor:pointer" onclick="document.getElementById('mc-cli-anexos-input').click()">
+          <div style="font-size:20px;margin-bottom:4px">📁</div>
+          <div style="font-size:12px;color:var(--muted)">Clique para selecionar — CNH, comprovante, contrato... (máx. 10MB)</div>
+        </div>
+        <input type="file" id="mc-cli-anexos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" style="display:none" onchange="_previewAnexosCli('mc', this.files)">
+        <div id="mc-cli-anexos-lista" style="margin-top:8px"></div>
+      </div>
+
+      <div class="form-section-title">💬 Observações</div>
+      <div class="form-group full"><textarea id="mc-obs" rows="2" style="width:100%;resize:vertical" placeholder="Observações gerais..."></textarea></div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('cliente')">Cancelar</button><button class="btn btn-primary" onclick="salvarCliente()">✓ Salvar</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCliente()">✓ Salvar</button>
+    </div>
   </div>
 </div>
 

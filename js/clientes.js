@@ -1,27 +1,45 @@
 // clientes.js — Gestão de clientes
 
-// ══ CLIENTES ══
+// ══ HELPERS DE STATUS ══
+const _STATUS_CFG = {
+  aprovado:   { label:'Aprovado',   badge:'badge-green', icon:'✅' },
+  reprovado:  { label:'Reprovado',  badge:'badge-red',   icon:'❌' },
+  em_analise: { label:'Em análise', badge:'badge-yellow', icon:'🔍' },
+};
+function _statusBadge(s){
+  const c = _STATUS_CFG[s] || _STATUS_CFG.em_analise;
+  return `<span class="badge ${c.badge}" style="font-size:10px">${c.icon} ${c.label}</span>`;
+}
+
 function cnhBadge(val){
   if(!val) return '<span class="badge badge-gray">Não informada</span>';
   const d=Math.ceil((new Date(val)-new Date())/86400000);
   return d<0?'<span class="badge badge-red">Vencida</span>':d<60?`<span class="badge badge-yellow">Vence em ${d}d</span>`:'<span class="badge badge-green">Válida</span>';
 }
 
+// ══ RENDER LISTA ══
 function renderClientes(){
   const s=(document.getElementById('s-clientes')?.value||'').toLowerCase();
   const data=allClientes.filter(c=>!s||`${c.nome} ${c.cpf} ${c.telefone||''}`.toLowerCase().includes(s));
   const tb=document.getElementById('tb-clientes');
-  const palette=['rgba(34,197,94,.15):#16a34a','rgba(168,85,247,.15):#7c3aed','rgba(37,99,235,.15):#2563EB','rgba(220,38,38,.15):#dc2626'];
+  if(!tb) return;
   tb.innerHTML=data.length?data.map(c=>{
     const ini=(c.nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-    const [bg,fg]=palette[c.nome.charCodeAt(0)%palette.length].split(':');
+    const cor = _avatarCor ? _avatarCor(c.nome) : '#2a3942';
+    const telPrincipal = _primeiroTelefone(c);
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:10px">
-        <div class="cavatar" style="width:36px;height:36px;font-size:12px;background:${bg};color:${fg}">${ini}</div>
-        <div><div style="font-weight:500">${c.nome}</div><div style="font-size:11px;color:var(--muted)">${c.email||''}</div></div>
+        <div class="cavatar" style="width:36px;height:36px;font-size:12px;background:${cor};color:#fff">${ini}</div>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-weight:500">${c.nome}</span>
+            ${_statusBadge(c.status_analise||'em_analise')}
+          </div>
+          <div style="font-size:11px;color:var(--muted)">${_primeiroEmail(c)||''}</div>
+        </div>
       </div></td>
-      <td>${c.cpf}</td>
-      <td>${c.telefone||'—'}</td>
+      <td>${c.cpf||'—'}</td>
+      <td>${telPrincipal||'—'}</td>
       <td>${c.cnh_validade?fmtData(c.cnh_validade):'—'}</td>
       <td>${cnhBadge(c.cnh_validade)}</td>
       <td><div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -33,42 +51,357 @@ function renderClientes(){
   }).join(''):'<tr class="empty-row"><td colspan="6">Nenhum cliente encontrado</td></tr>';
 }
 
+function _primeiroTelefone(c){
+  try{
+    const arr = c.telefones ? JSON.parse(c.telefones) : null;
+    if(arr && arr.length) return arr[0].numero;
+  }catch(_){}
+  return c.telefone||null;
+}
+
+function _primeiroEmail(c){
+  try{
+    const arr = c.emails ? JSON.parse(c.emails) : null;
+    if(arr && arr.length) return arr[0].email;
+  }catch(_){}
+  return c.email||null;
+}
+
 function irParaChat(id){
   goPage('chat');
   setTimeout(()=>abrirChat(id), 300);
 }
 
+// ══ TELEFONES DINÂMICOS ══
+let _cliTelefones = {};
+let _cliEmails    = {};
+let _cliAnexos    = {};
+if(!window._cliAnexosRemovidos) window._cliAnexosRemovidos = {};
+
+function _addTelefone(prefix){
+  if(!_cliTelefones[prefix]) _cliTelefones[prefix] = [];
+  _cliTelefones[prefix].push({ tipo:'Particular', numero:'' });
+  _renderTelefones(prefix);
+}
+function _removeTelefone(prefix, i){
+  _cliTelefones[prefix].splice(i,1);
+  _renderTelefones(prefix);
+}
+function _renderTelefones(prefix){
+  const wrap = document.getElementById(prefix+'-telefones-lista');
+  if(!wrap) return;
+  const arr = _cliTelefones[prefix]||[];
+  if(!arr.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px 0">Nenhum telefone. Clique em "+ Adicionar".</div>';
+    return;
+  }
+  wrap.innerHTML = arr.map((t,i)=>`
+    <div style="display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:center;margin-bottom:6px">
+      <select onchange="_cliTelefones['${prefix}'][${i}].tipo=this.value" style="width:100%">
+        ${['Particular','Familiar','Trabalho','WhatsApp','Outro'].map(o=>`<option${o===t.tipo?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <input type="text" value="${t.numero}" placeholder="(21) 99999-0000" style="width:100%"
+        oninput="_cliTelefones['${prefix}'][${i}].numero=this.value">
+      <button onclick="_removeTelefone('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+    </div>`).join('');
+}
+
+// ══ EMAILS DINÂMICOS ══
+function _addEmail(prefix){
+  if(!_cliEmails[prefix]) _cliEmails[prefix] = [];
+  _cliEmails[prefix].push({ tipo:'Principal', email:'' });
+  _renderEmails(prefix);
+}
+function _removeEmail(prefix, i){
+  _cliEmails[prefix].splice(i,1);
+  _renderEmails(prefix);
+}
+function _renderEmails(prefix){
+  const wrap = document.getElementById(prefix+'-emails-lista');
+  if(!wrap) return;
+  const arr = _cliEmails[prefix]||[];
+  if(!arr.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px 0">Nenhum email. Clique em "+ Adicionar".</div>';
+    return;
+  }
+  wrap.innerHTML = arr.map((e,i)=>`
+    <div style="display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:center;margin-bottom:6px">
+      <select onchange="_cliEmails['${prefix}'][${i}].tipo=this.value" style="width:100%">
+        ${['Principal','Secundário','Trabalho','Outro'].map(o=>`<option${o===e.tipo?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <input type="email" value="${e.email}" placeholder="email@exemplo.com" style="width:100%"
+        oninput="_cliEmails['${prefix}'][${i}].email=this.value">
+      <button onclick="_removeEmail('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+    </div>`).join('');
+}
+
+// ══ ANEXOS CLIENTES ══
+function _previewAnexosCli(prefix, files){
+  if(!_cliAnexos[prefix]) _cliAnexos[prefix] = [];
+  Array.from(files).forEach(f=>{
+    if(f.size > 10*1024*1024){ notify(f.name+': muito grande (máx 10MB)','error'); return; }
+    _cliAnexos[prefix].push(f);
+  });
+  _renderAnexosCli(prefix);
+  const inp = document.getElementById(prefix+'-cli-anexos-input');
+  if(inp) inp.value='';
+}
+function _renderAnexosCli(prefix){
+  const lista = document.getElementById(prefix+'-cli-anexos-lista');
+  if(!lista) return;
+  const novos = _cliAnexos[prefix]||[];
+  // mantém existentes
+  const existHtml = lista.querySelectorAll ? Array.from(lista.querySelectorAll('.cli-anexo-existente')).map(e=>e.outerHTML).join('') : '';
+  const novosHtml = novos.map((f,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:6px">
+      <span style="font-size:18px">${_fileIcon?_fileIcon(f.name):'📎'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</div>
+        <div style="font-size:10px;color:var(--muted)">${(f.size/1024).toFixed(1)} KB — aguardando envio</div>
+      </div>
+      <button onclick="_removAnexoCli('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+    </div>`).join('');
+  lista.innerHTML = existHtml + novosHtml;
+}
+function _removAnexoCli(prefix, i){
+  if(_cliAnexos[prefix]) _cliAnexos[prefix].splice(i,1);
+  _renderAnexosCli(prefix);
+}
+function _renderAnexosCliExistentes(prefix, urls){
+  const lista = document.getElementById(prefix+'-cli-anexos-lista');
+  if(!lista) return;
+  let arr = [];
+  try{ arr = urls ? (Array.isArray(urls)?urls:JSON.parse(urls)) : []; }catch(_){}
+  const existHtml = arr.map((u,i)=>{
+    const name = decodeURIComponent(u.split('/').pop().split('?')[0]);
+    return `<div class="cli-anexo-existente" style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:6px">
+      <span style="font-size:18px">${_fileIcon?_fileIcon(name):'📎'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+        <div style="font-size:10px;color:var(--muted)">Arquivo salvo</div>
+      </div>
+      <a href="${u}" target="_blank" style="color:var(--accent);font-size:13px;text-decoration:none">🔗</a>
+      <button onclick="_removAnexoCliExistente('${prefix}','${u}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+    </div>`;
+  }).join('');
+  lista.innerHTML = existHtml;
+  _renderAnexosCli(prefix);
+}
+function _removAnexoCliExistente(prefix, url){
+  if(!window._cliAnexosRemovidos[prefix]) window._cliAnexosRemovidos[prefix]=[];
+  window._cliAnexosRemovidos[prefix].push(url);
+  const lista = document.getElementById(prefix+'-cli-anexos-lista');
+  if(!lista) return;
+  Array.from(lista.querySelectorAll('.cli-anexo-existente')).forEach(el=>{
+    if(el.innerHTML.includes(url.slice(-30))) el.remove();
+  });
+}
+function _coletarAnexosCliExistentes(prefix){
+  const lista = document.getElementById(prefix+'-cli-anexos-lista');
+  if(!lista) return [];
+  return Array.from(lista.querySelectorAll('.cli-anexo-existente a')).map(a=>a.href);
+}
+async function _uploadAnexosCli(prefix, clienteId){
+  const files = _cliAnexos[prefix]||[];
+  if(!files.length) return [];
+  const uploaded = [];
+  for(const f of files){
+    const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path = `clientes/${clienteId}/${Date.now()}_${Math.random().toString(36).slice(2)}_${safeName}`;
+    const {error} = await sb.storage.from('clientes-docs').upload(path, f, {upsert:false});
+    if(error){ notify('Erro ao enviar '+f.name+': '+error.message,'error'); continue; }
+    const {data:pub} = sb.storage.from('clientes-docs').getPublicUrl(path);
+    uploaded.push(pub.publicUrl);
+  }
+  return uploaded;
+}
+
+// ══ BUSCA CEP ══
+async function _buscarCEP(prefix){
+  const cepEl = document.getElementById(prefix+'-cep');
+  if(!cepEl) return;
+  const cep = cepEl.value.replace(/\D/g,'');
+  if(cep.length !== 8){ notify('CEP inválido','error'); return; }
+  try{
+    const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const d = await r.json();
+    if(d.erro){ notify('CEP não encontrado','error'); return; }
+    const s=(id,v)=>{ const e=document.getElementById(prefix+'-'+id); if(e) e.value=v||''; };
+    s('rua',       d.logradouro);
+    s('bairro',    d.bairro);
+    s('cidade',    d.localidade);
+    s('uf',        d.uf);
+    // Foca no campo número
+    const numEl = document.getElementById(prefix+'-numero-end');
+    if(numEl) numEl.focus();
+    notify('Endereço preenchido!','success');
+  }catch(e){ notify('Erro ao buscar CEP','error'); }
+}
+
+// ══ COLETAR CAMPOS ══
+function _coletarCamposCliente(prefix){
+  const g = id => document.getElementById(prefix+'-'+id)?.value||null;
+  // Monta endereço completo para compatibilidade com campos legados
+  const rua  = g('rua')||'';
+  const num  = g('numero-end')||'';
+  const comp = g('complemento')||'';
+  const bair = g('bairro')||'';
+  const cid  = g('cidade')||'';
+  const uf   = g('uf')||'';
+  const cep  = g('cep')||'';
+  const endStr = [rua+(num?' '+num:''), comp, bair, cid+(uf?' - '+uf:''), cep].filter(Boolean).join(', ');
+  return {
+    data_nascimento:  g('nascimento')||null,
+    status_analise:   g('status-analise')||'em_analise',
+    origem:           g('origem')||null,
+    // CNH expandida
+    cnh:              g('cnh')||null,
+    cnh_registro:     g('cnh-registro')||null,
+    cnh_seguranca:    g('cnh-seguranca')||null,
+    cnh_categoria:    g('cnh-categoria')||null,
+    cnh_emissao:      g('cnh-emissao')||null,
+    cnh_validade:     g('cnh-val')||null,
+    cnh_primeira_hab: g('cnh-primeira')||null,
+    cnh_local:        g('cnh-local')||null,
+    nome_pai:         g('pai')||null,
+    nome_mae:         g('mae')||null,
+    // Endereço estruturado
+    cep:              cep||null,
+    endereco_rua:     rua||null,
+    endereco_numero:  num||null,
+    endereco_complemento: comp||null,
+    endereco_bairro:  bair||null,
+    endereco_cidade:  cid||null,
+    endereco_uf:      uf||null,
+    endereco:         endStr||null,
+    // Múltiplos contatos (JSON)
+    telefones: (_cliTelefones[prefix]||[]).length ? JSON.stringify(_cliTelefones[prefix]) : null,
+    emails:    (_cliEmails[prefix]||[]).length    ? JSON.stringify(_cliEmails[prefix])    : null,
+    // Compatibilidade: primeiro telefone/email nos campos legados
+    telefone:  (_cliTelefones[prefix]||[])[0]?.numero || null,
+    email:     (_cliEmails[prefix]||[])[0]?.email     || null,
+  };
+}
+
+function _preencherCamposCliente(prefix, c){
+  const s=(id,v)=>{ const e=document.getElementById(prefix+'-'+id); if(e) e.value=v||''; };
+  s('nascimento',    c.data_nascimento);
+  s('status-analise',c.status_analise||'em_analise');
+  s('origem',        c.origem);
+  s('cnh',           c.cnh);
+  s('cnh-registro',  c.cnh_registro);
+  s('cnh-seguranca', c.cnh_seguranca);
+  s('cnh-categoria', c.cnh_categoria);
+  s('cnh-emissao',   c.cnh_emissao);
+  s('cnh-val',       c.cnh_validade);
+  s('cnh-primeira',  c.cnh_primeira_hab);
+  s('cnh-local',     c.cnh_local);
+  s('pai',           c.nome_pai);
+  s('mae',           c.nome_mae);
+  s('cep',           c.cep);
+  s('rua',           c.endereco_rua);
+  s('numero-end',    c.endereco_numero);
+  s('complemento',   c.endereco_complemento);
+  s('bairro',        c.endereco_bairro);
+  s('cidade',        c.endereco_cidade);
+  s('uf',            c.endereco_uf);
+  // Telefones
+  try{ _cliTelefones[prefix] = c.telefones ? JSON.parse(c.telefones) : (c.telefone?[{tipo:'Particular',numero:c.telefone}]:[]); }catch(_){ _cliTelefones[prefix]=[]; }
+  _renderTelefones(prefix);
+  // Emails
+  try{ _cliEmails[prefix] = c.emails ? JSON.parse(c.emails) : (c.email?[{tipo:'Principal',email:c.email}]:[]); }catch(_){ _cliEmails[prefix]=[]; }
+  _renderEmails(prefix);
+  // Anexos existentes
+  _renderAnexosCliExistentes(prefix, c.anexos_urls);
+}
+
+function _limparFormCliente(prefix){
+  ['nome','cpf','obs'].forEach(id=>{ const e=document.getElementById(prefix+'-'+id); if(e) e.value=''; });
+  _cliTelefones[prefix]=[]; _renderTelefones(prefix);
+  _cliEmails[prefix]=[]; _renderEmails(prefix);
+  _cliAnexos[prefix]=[]; _renderAnexosCli(prefix);
+  const camposZerar=['nascimento','status-analise','origem','cnh','cnh-registro','cnh-seguranca',
+    'cnh-categoria','cnh-emissao','cnh-val','cnh-primeira','cnh-local','pai','mae',
+    'cep','rua','numero-end','complemento','bairro','cidade','uf'];
+  camposZerar.forEach(id=>{ const e=document.getElementById(prefix+'-'+id); if(e) e.value=''; });
+}
+
+// ══ SALVAR CLIENTE ══
 async function salvarCliente(){
   const nome = document.getElementById('mc-nome').value.trim();
   const cpf  = document.getElementById('mc-cpf').value.trim();
-  const tel  = document.getElementById('mc-tel').value.trim();
-  const email= document.getElementById('mc-email').value.trim();
-  const cnh  = document.getElementById('mc-cnh').value.trim();
-  const cnhv = document.getElementById('mc-cnh-val').value||null;
-  const end  = document.getElementById('mc-end').value.trim();
   const obs  = document.getElementById('mc-obs').value.trim();
-  if(!nome||!cpf){notify('Nome e CPF são obrigatórios','error');return;}
+  if(!nome||!cpf){ notify('Nome e CPF são obrigatórios','error'); return; }
   if(!checarCPF(cpf,'CPF do cliente')) return;
   const btn = document.querySelector('#m-cliente .btn-primary');
-  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
   try{
-    const {data,error}=await sb.from('clientes').insert({
-      nome,cpf,email,telefone:tel,cnh,cnh_validade:cnhv,endereco:end,observacoes:obs
+    const extras = _coletarCamposCliente('mc');
+    const {data, error} = await sb.from('clientes').insert({
+      nome, cpf, observacoes:obs, ...extras
     }).select().single();
     if(error) throw error;
+    // Upload anexos
+    const novosUrls = await _uploadAnexosCli('mc', data.id);
+    if(novosUrls.length) await sb.from('clientes').update({anexos_urls:JSON.stringify(novosUrls)}).eq('id',data.id);
     notify('Cliente cadastrado com sucesso!','success');
     closeModal('cliente');
-    ['mc-nome','mc-cpf','mc-tel','mc-email','mc-cnh','mc-end','mc-obs'].forEach(id=>{
-      const el=document.getElementById(id); if(el) el.value='';
-    });
-    await loadClientes(); renderDashboard(); renderChatContacts();
+    _limparFormCliente('mc');
+    if(window._afterSalvarCliente){ await window._afterSalvarCliente(); window._afterSalvarCliente=null; }
+    else { await loadClientes(); renderDashboard(); renderChatContacts(); }
   }catch(e){
     notify('Erro ao salvar: '+e.message,'error');
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='✓ Salvar';}
+    if(btn){ btn.disabled=false; btn.textContent='✓ Salvar'; }
   }
 }
 
+// ══ EDITAR CLIENTE ══
+function editarCliente(id){
+  const c = allClientes.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('ec-id').value = c.id;
+  document.getElementById('ec-nome').value = c.nome||'';
+  document.getElementById('ec-cpf').value = c.cpf||'';
+  document.getElementById('ec-obs').value = c.observacoes||'';
+  _cliAnexos['ec'] = [];
+  window._cliAnexosRemovidos['ec'] = [];
+  _preencherCamposCliente('ec', c);
+  document.getElementById('m-editar-cliente').classList.add('show');
+}
+
+// ══ ATUALIZAR CLIENTE ══
+async function atualizarCliente(){
+  const id   = document.getElementById('ec-id').value;
+  const nome = document.getElementById('ec-nome').value.trim();
+  const cpf  = document.getElementById('ec-cpf').value.trim();
+  const obs  = document.getElementById('ec-obs').value.trim();
+  if(!nome||!cpf){ notify('Nome e CPF obrigatórios','error'); return; }
+  if(!checarCPF(cpf,'CPF do cliente')) return;
+  const btn = document.querySelector('#m-editar-cliente .btn-primary');
+  if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
+  try{
+    const extras = _coletarCamposCliente('ec');
+    // Upload novos anexos
+    const novosUrls = await _uploadAnexosCli('ec', id);
+    const existentes = _coletarAnexosCliExistentes('ec');
+    const todosAnexos = [...existentes, ...novosUrls];
+    const obj = { nome, cpf, observacoes:obs, ...extras,
+      anexos_urls: todosAnexos.length ? JSON.stringify(todosAnexos) : null };
+    const {error} = await sb.from('clientes').update(obj).eq('id',id);
+    if(error) throw error;
+    notify('Cliente atualizado!','success');
+    closeModal('editar-cliente');
+    _cliAnexos['ec']=[]; window._cliAnexosRemovidos['ec']=[];
+    await loadClientes(); renderDashboard(); renderChatContacts();
+  }catch(e){
+    notify('Erro: '+e.message,'error');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='✓ Salvar alterações'; }
+  }
+}
+
+// ══ PERFIL EXPANDIDO ══
 async function verPerfilCliente(){
   if(!activeChatId) return;
   const c = allClientes.find(x=>x.id===activeChatId);
@@ -82,77 +415,6 @@ async function verPerfilClienteById(id){
   await _renderPerfilCliente(c);
 }
 
-function editarCliente(id){
-  const c = allClientes.find(x=>x.id===id);
-  if(!c) return;
-  document.getElementById('ec-id').value = c.id;
-  document.getElementById('ec-nome').value = c.nome||'';
-  document.getElementById('ec-cpf').value = c.cpf||'';
-  document.getElementById('ec-tel').value = c.telefone||'';
-  document.getElementById('ec-email').value = c.email||'';
-  document.getElementById('ec-cnh').value = c.cnh||'';
-  document.getElementById('ec-cnh-val').value = c.cnh_validade||'';
-  document.getElementById('ec-end').value = c.endereco||'';
-  document.getElementById('ec-obs').value = c.observacoes||'';
-  document.getElementById('m-editar-cliente').classList.add('show');
-}
-
-async function atualizarCliente(){
-  const id = document.getElementById('ec-id').value;
-  if(!id) return;
-  const obj = {
-    nome:        document.getElementById('ec-nome').value.trim(),
-    cpf:         document.getElementById('ec-cpf').value.trim(),
-    telefone:    document.getElementById('ec-tel').value.trim(),
-    email:       document.getElementById('ec-email').value.trim(),
-    cnh:         document.getElementById('ec-cnh').value.trim(),
-    cnh_validade:document.getElementById('ec-cnh-val').value||null,
-    endereco:    document.getElementById('ec-end').value.trim(),
-    observacoes: document.getElementById('ec-obs').value.trim(),
-  };
-  if(!obj.nome||!obj.cpf){notify('Nome e CPF obrigatórios','error');return;}
-  if(!checarCPF(obj.cpf,'CPF do cliente')) return;
-  const btn = document.querySelector('#m-editar-cliente .btn-primary');
-  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
-  try{
-    const {error} = await sb.from('clientes').update(obj).eq('id',id);
-    if(error) throw error;
-    notify('Cliente atualizado!','success');
-    closeModal('editar-cliente');
-    await loadClientes(); renderDashboard(); renderChatContacts();
-  }catch(e){
-    notify('Erro: '+e.message,'error');
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent='✓ Salvar alterações';}
-  }
-}
-
-async function confirmarDevolucao(locId, veiculoId, nomeVeiculo){
-  const kmFinal = prompt(`Confirmar devolução de ${nomeVeiculo}\n\nInforme o KM final (ou deixe vazio):`, '');
-  if(kmFinal === null) return;
-  try{
-    const updateObj = {status:'encerrada'};
-    if(kmFinal && !isNaN(parseInt(kmFinal))) updateObj.km_final = parseInt(kmFinal);
-    const {error:e1} = await sb.from('locacoes').update(updateObj).eq('id',locId);
-    if(e1) throw e1;
-    const kmUpdate = {status:'disponivel'};
-    if(kmFinal && !isNaN(parseInt(kmFinal))) kmUpdate.km_atual = parseInt(kmFinal);
-    const {error:e2} = await sb.from('veiculos').update(kmUpdate).eq('id',veiculoId);
-    if(e2) throw e2;
-    notify('Devolução confirmada! Veículo disponível. ✅','success');
-    await Promise.all([loadVeiculos(), loadLocacoes(), loadLocacoesCompletas()]);
-    renderDashboard(); renderVeiculos(); renderLocacoes();
-  }catch(e){
-    notify('Erro ao confirmar devolução: '+e.message,'error');
-  }
-}
-
-
-
-// ══ EXTENSÃO clientes.js — Condutores e Cartões no perfil ══
-// Adicionar ao final do clientes.js existente
-
-// ══ PERFIL EXPANDIDO COM ABAS ══
 async function _renderPerfilCliente(c){
   document.getElementById('perfil-cliente-body').innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:14px">
@@ -181,14 +443,26 @@ async function _renderPerfilCliente(c){
   const totalGasto=(locs||[]).reduce((acc,l)=>acc+(l.total||0),0);
   const locAtiva=(locs||[]).find(l=>l.status==='ativa');
 
+  // Telefones e emails (múltiplos)
+  let tels = [];
+  try{ tels = c.telefones ? JSON.parse(c.telefones) : (c.telefone?[{tipo:'Principal',numero:c.telefone}]:[]); }catch(_){}
+  let mails = [];
+  try{ mails = c.emails ? JSON.parse(c.emails) : (c.email?[{tipo:'Principal',email:c.email}]:[]); }catch(_){}
+
+  // Anexos
+  let anexos = [];
+  try{ anexos = c.anexos_urls ? (Array.isArray(c.anexos_urls)?c.anexos_urls:JSON.parse(c.anexos_urls)) : []; }catch(_){}
+
   const html = `
-  <!-- HEADER -->
   <div style="padding:20px 20px 0">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
       <div class="cavatar" style="width:52px;height:52px;font-size:18px;background:rgba(37,99,235,.12);color:#2563EB">${ini}</div>
       <div style="flex:1">
-        <div style="font-size:17px;font-weight:700">${c.nome}</div>
-        <div style="font-size:12px;color:var(--muted)">${c.email||'sem email'}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:17px;font-weight:700">${c.nome}</span>
+          ${_statusBadge(c.status_analise||'em_analise')}
+        </div>
+        <div style="font-size:12px;color:var(--muted)">${mails[0]?.email||c.email||'sem email'}</div>
       </div>
       <button class="btn btn-ghost" style="font-size:12px" onclick="editarCliente('${c.id}');closeModal('perfil-cliente')">✏️ Editar</button>
     </div>
@@ -208,13 +482,12 @@ async function _renderPerfilCliente(c){
     </div>
   </div>
 
-  <!-- ABAS -->
   <div style="display:flex;border-bottom:2px solid var(--border2);padding:0 20px;gap:0">
     ${[
-      {id:'tab-dados',    label:'👤 Dados'},
-      {id:'tab-locacoes', label:`📋 Locações (${(locs||[]).length})`},
+      {id:'tab-dados',     label:'👤 Dados'},
+      {id:'tab-locacoes',  label:`📋 Locações (${(locs||[]).length})`},
       {id:'tab-condutores',label:`🧑‍💼 Condutores (${(condutores||[]).length})`},
-      {id:'tab-cartoes',  label:`💳 Cartões (${(cartoes||[]).length})`},
+      {id:'tab-cartoes',   label:`💳 Cartões (${(cartoes||[]).length})`},
     ].map((t,i)=>`
       <button id="${t.id}" class="perfil-tab" onclick="showPerfilTab('${t.id.replace('tab-','')}')"
         style="padding:10px 14px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;
@@ -225,13 +498,48 @@ async function _renderPerfilCliente(c){
 
   <!-- PAINEL DADOS -->
   <div id="painel-dados" style="padding:16px 20px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">CPF</div><div style="font-size:13px;font-weight:500">${c.cpf||'—'}</div></div>
-      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Telefone</div><div style="font-size:13px;font-weight:500">${c.telefone||'—'}</div></div>
-      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">CNH</div><div style="font-size:13px;font-weight:500">${c.cnh||'—'}</div></div>
-      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Validade CNH</div><div style="font-size:13px">${cnhStatus}</div></div>
-      ${c.endereco?`<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;grid-column:1/-1"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Endereço</div><div style="font-size:13px">${c.endereco}</div></div>`:''}
+      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Nascimento</div><div style="font-size:13px">${c.data_nascimento?fmtData(c.data_nascimento):'—'}</div></div>
+      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Origem</div><div style="font-size:13px">${c.origem||'—'}</div></div>
+      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Status análise</div><div>${_statusBadge(c.status_analise||'em_analise')}</div></div>
     </div>
+
+    ${tels.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">📱 Telefones</div>
+      ${tels.map(t=>`<div style="font-size:13px;margin-bottom:3px"><span style="color:var(--muted);font-size:11px">${t.tipo}: </span>${t.numero}</div>`).join('')}
+    </div>` : ''}
+
+    ${mails.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">✉️ Emails</div>
+      ${mails.map(e=>`<div style="font-size:13px;margin-bottom:3px"><span style="color:var(--muted);font-size:11px">${e.tipo}: </span>${e.email}</div>`).join('')}
+    </div>` : ''}
+
+    <div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">🪪 CNH</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
+        <div><span style="color:var(--muted)">Nº CNH: </span>${c.cnh||'—'}</div>
+        <div><span style="color:var(--muted)">Categoria: </span>${c.cnh_categoria||'—'}</div>
+        <div><span style="color:var(--muted)">Validade: </span>${cnhStatus}</div>
+        <div><span style="color:var(--muted)">Emissão: </span>${c.cnh_emissao?fmtData(c.cnh_emissao):'—'}</div>
+        <div><span style="color:var(--muted)">Pai: </span>${c.nome_pai||'—'}</div>
+        <div><span style="color:var(--muted)">Mãe: </span>${c.nome_mae||'—'}</div>
+      </div>
+    </div>
+
+    ${c.endereco||c.endereco_rua ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:3px">📍 Endereço</div>
+      <div style="font-size:13px">${c.endereco||[c.endereco_rua,c.endereco_numero,c.endereco_bairro,c.endereco_cidade].filter(Boolean).join(', ')}</div>
+    </div>` : ''}
+
+    ${anexos.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">📎 Documentos</div>
+      ${anexos.map(u=>{
+        const name=decodeURIComponent(u.split('/').pop().split('?')[0]);
+        return `<a href="${u}" target="_blank" style="display:flex;align-items:center;gap:6px;color:var(--accent);font-size:12px;text-decoration:none;margin-bottom:4px">📄 ${name}</a>`;
+      }).join('')}
+    </div>` : ''}
+
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost" style="flex:1" onclick="irParaChat('${c.id}');closeModal('perfil-cliente')">💬 Chat</button>
       <button class="btn btn-primary" style="flex:1" onclick="closeModal('perfil-cliente')">Fechar</button>
@@ -292,7 +600,7 @@ async function _renderPerfilCliente(c){
     <div id="cartoes-perfil-lista">
       ${(cartoes||[]).length>0 ? (cartoes||[]).map(ct=>`
         <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:8px">
-          <div style="font-size:22px">${ct.bandeira==='Visa'?'💳':ct.bandeira==='Mastercard'?'💳':'💳'}</div>
+          <div style="font-size:22px">💳</div>
           <div style="flex:1">
             <div style="font-weight:600;font-size:13px">${ct.bandeira} •••• ${(ct.numero||'').slice(-4)||'????'}</div>
             <div style="font-size:11px;color:var(--muted)">${ct.titular} · Val: ${ct.validade||'—'}</div>
@@ -333,7 +641,7 @@ function showPerfilTab(tab){
   });
 }
 
-// ══ SALVAR CONDUTOR ══
+// ══ CONDUTORES ══
 async function _salvarCondutor(clienteId){
   const nome = document.getElementById('novo-cond-nome')?.value.trim();
   const cpf  = document.getElementById('novo-cond-cpf')?.value.trim();
@@ -357,7 +665,7 @@ async function _excluirCondutor(id, clienteId){
   if(c) await _renderPerfilCliente(c);
 }
 
-// ══ SALVAR CARTÃO ══
+// ══ CARTÕES ══
 async function _salvarCartao(clienteId){
   const titular  = document.getElementById('novo-cart-titular')?.value.trim();
   const numero   = document.getElementById('novo-cart-numero')?.value.trim();
@@ -379,4 +687,32 @@ async function _excluirCartao(id, clienteId){
   notify('Cartão removido','success');
   const c = allClientes.find(x=>x.id===clienteId);
   if(c) await _renderPerfilCliente(c);
+}
+
+// ══ DEVOLUÇÃO ══
+async function confirmarDevolucao(locId, veiculoId, nomeVeiculo){
+  const kmFinal = prompt(`Confirmar devolução de ${nomeVeiculo}\n\nInforme o KM final (ou deixe vazio):`, '');
+  if(kmFinal === null) return;
+  try{
+    const updateObj = {status:'encerrada'};
+    if(kmFinal && !isNaN(parseInt(kmFinal))) updateObj.km_final = parseInt(kmFinal);
+    const {error:e1} = await sb.from('locacoes').update(updateObj).eq('id',locId);
+    if(e1) throw e1;
+    const kmUpdate = {status:'disponivel'};
+    if(kmFinal && !isNaN(parseInt(kmFinal))) kmUpdate.km_atual = parseInt(kmFinal);
+    const {error:e2} = await sb.from('veiculos').update(kmUpdate).eq('id',veiculoId);
+    if(e2) throw e2;
+    notify('Devolução confirmada! Veículo disponível. ✅','success');
+    await Promise.all([loadVeiculos(), loadLocacoes(), loadLocacoesCompletas()]);
+    renderDashboard(); renderVeiculos(); renderLocacoes();
+  }catch(e){
+    notify('Erro ao confirmar devolução: '+e.message,'error');
+  }
+}
+
+// ══ MASK CEP ══
+function maskCEP(el){
+  let v = el.value.replace(/\D/g,'').slice(0,8);
+  if(v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
+  el.value = v;
 }
