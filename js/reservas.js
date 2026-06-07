@@ -143,9 +143,9 @@ async function salvarReserva(){
       const f = window._resAnexoFile;
       const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
       const path = `reservas/${resData.id}/${Date.now()}_${safeName}`;
-      const {error:errUp} = await sb.storage.from('reservas-docs').upload(path, f, {upsert:false});
+      const {error:errUp} = await sb.storage.from('clientes-docs').upload(path, f, {upsert:false});
       if(!errUp){
-        const {data:pub} = sb.storage.from('reservas-docs').getPublicUrl(path);
+        const {data:pub} = sb.storage.from('clientes-docs').getPublicUrl(path);
         await sb.from('reservas').update({comprovante_url: pub.publicUrl}).eq('id', resData.id);
       }
     }
@@ -214,7 +214,7 @@ async function converterReservaContrato(id){
         selVei.insertBefore(opt, selVei.firstChild);
       }
       selVei.value = r.veiculo_id;
-      autoFillDiaria();
+      if(typeof previewContrato==='function') previewContrato();
     }
 
     // Datas — extrai só a parte da data (YYYY-MM-DD)
