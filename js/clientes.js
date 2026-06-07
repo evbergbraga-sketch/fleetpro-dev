@@ -136,6 +136,24 @@ function _renderEmails(prefix){
 }
 
 // ══ ANEXOS CLIENTES ══
+
+// Extrai nome limpo do arquivo a partir da URL do Supabase
+// Remove prefixo de timestamp e hash: "1780800997521_5tl6ou8izux_NomeReal.pdf" -> "NomeReal.pdf"
+function _nomeArquivo(url){
+  const raw = decodeURIComponent((url||'').split('/').pop().split('?')[0]);
+  // Remove prefixo: timestamp(13 dígitos) + _ + hash(10+ chars) + _
+  const match = raw.match(/^\d{13}_[a-z0-9]+_(.+)$/i);
+  return match ? match[1] : raw;
+}
+
+function _iconeArquivo(nome){
+  const ext = (nome||'').split('.').pop().toLowerCase();
+  if(ext==='pdf') return '📄';
+  if(['jpg','jpeg','png','webp','gif'].includes(ext)) return '🖼️';
+  if(['doc','docx'].includes(ext)) return '📝';
+  return '📎';
+}
+
 function _previewAnexosCli(prefix, files){
   if(!_cliAnexos[prefix]) _cliAnexos[prefix] = [];
   Array.from(files).forEach(f=>{
@@ -173,15 +191,16 @@ function _renderAnexosCliExistentes(prefix, urls){
   let arr = [];
   try{ arr = urls ? (Array.isArray(urls)?urls:JSON.parse(urls)) : []; }catch(_){}
   const existHtml = arr.map((u,i)=>{
-    const name = decodeURIComponent(u.split('/').pop().split('?')[0]);
+    const name = _nomeArquivo(u);
+    const icon = _iconeArquivo(name);
     return `<div class="cli-anexo-existente" style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:6px">
-      <span style="font-size:18px">${_fileIcon?_fileIcon(name):'📎'}</span>
+      <span style="font-size:20px">${icon}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
         <div style="font-size:10px;color:var(--muted)">Arquivo salvo</div>
       </div>
-      <a href="${u}" target="_blank" style="color:var(--accent);font-size:13px;text-decoration:none">🔗</a>
-      <button onclick="_removAnexoCliExistente('${prefix}','${u}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+      <a href="${u}" target="_blank" style="color:var(--accent);font-size:13px;text-decoration:none" title="Abrir">🔗</a>
+      <button onclick="_removAnexoCliExistente('${prefix}','${u}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px" title="Remover">✕</button>
     </div>`;
   }).join('');
   lista.innerHTML = existHtml;
@@ -537,8 +556,13 @@ async function _renderPerfilCliente(c){
     ${anexos.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
       <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">📎 Documentos</div>
       ${anexos.map(u=>{
-        const name=decodeURIComponent(u.split('/').pop().split('?')[0]);
-        return `<a href="${u}" target="_blank" style="display:flex;align-items:center;gap:6px;color:var(--accent);font-size:12px;text-decoration:none;margin-bottom:4px">📄 ${name}</a>`;
+        const name=_nomeArquivo(u);
+        const icon=_iconeArquivo(name);
+        return `<a href="${u}" target="_blank" style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:12px;text-decoration:none;margin-bottom:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;transition:.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)'">
+          <span style="font-size:16px">${icon}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+          <span style="color:var(--accent);font-size:11px;flex-shrink:0">🔗 Abrir</span>
+        </a>`;
       }).join('')}
     </div>` : ''}
 

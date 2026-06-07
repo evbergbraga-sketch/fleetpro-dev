@@ -45,7 +45,10 @@ function _renderAnexosExistentes(prefix, urls){
   let arr = [];
   try{ arr = urls ? (Array.isArray(urls) ? urls : JSON.parse(urls)) : []; }catch(_){}
   const existHtml = arr.map((u,i)=>{
-    const name = decodeURIComponent(u.split('/').pop().split('?')[0]);
+    // Remove prefixo timestamp_hash_ do nome do arquivo
+    const rawName = decodeURIComponent(u.split('/').pop().split('?')[0]);
+    const matchName = rawName.match(/^\d{13}_[a-z0-9]+_(.+)$/i);
+    const name = matchName ? matchName[1] : rawName;
     return `<div class="anexo-existente" data-idx="${i}" style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:6px">
       <span style="font-size:18px">${_fileIcon(name)}</span>
       <div style="flex:1;min-width:0">
