@@ -32,10 +32,21 @@ function setWppStatus(ok, msg){
   const txt   = document.getElementById('wpp-status-txt');
   const badge = document.getElementById('wpp-status-badge');
   const hdr   = document.getElementById('chat-wpp-status');
-  if(dot)   dot.style.background = ok ? 'var(--green)' : 'var(--red)';
-  if(txt){  txt.textContent = ok ? 'WhatsApp conectado' : (msg||'Desconectado'); txt.style.color = ok ? 'var(--green)' : 'var(--red)'; }
-  if(badge){ badge.style.background = ok ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)'; badge.style.borderColor = ok ? 'rgba(34,197,94,.2)' : 'rgba(239,68,68,.2)'; }
-  if(hdr){  hdr.textContent = ok ? '● Conectado' : '● Desconectado'; hdr.style.color = ok ? 'var(--green)' : 'var(--red)'; }
+  if(dot){
+    dot.style.background = ok ? '#00a884' : '#ef4444';
+    dot.style.animation  = ok ? 'pulse 2s infinite' : 'none';
+  }
+  if(txt){ txt.textContent = ok ? 'WhatsApp conectado' : (msg||'Desconectado'); txt.style.color = ok ? '#00a884' : '#8696a0'; }
+  if(badge){
+    badge.style.background   = ok ? 'rgba(0,168,132,.1)'  : 'rgba(239,68,68,.08)';
+    badge.style.borderColor  = ok ? 'rgba(0,168,132,.25)' : 'rgba(239,68,68,.2)';
+    badge.style.color        = ok ? '#00a884' : '#8696a0';
+  }
+  if(hdr){
+    hdr.innerHTML = ok
+      ? '<div class="wdot"></div>Conectado'
+      : '<div class="wdot" style="background:#8696a0;animation:none"></div>Desconectado';
+  }
 }
 
 // ── ESCAPE HTML (anti-XSS) ──
@@ -428,11 +439,7 @@ function _fmtDateSeparator(dateStr){
 }
 
 function _dateSeparatorHtml(label){
-  return `<div style="display:flex;align-items:center;gap:8px;margin:12px 16px;">
-    <div style="flex:1;height:1px;background:var(--border2)"></div>
-    <div style="font-size:11px;color:var(--muted);background:var(--bg2);padding:2px 10px;border-radius:99px;border:1px solid var(--border2);white-space:nowrap">${label}</div>
-    <div style="flex:1;height:1px;background:var(--border2)"></div>
-  </div>`;
+  return `<div class="chat-date-sep"><span>${label}</span></div>`;
 }
 
 // ── RENDER ──
@@ -485,8 +492,9 @@ function renderMsgItem(m){
     corpo = '<div style="white-space:pre-wrap">'+txt+'</div>';
   }
   const saraBadge = isSara ? '<div style="font-size:9px;color:#f0c040;font-weight:700;margin-bottom:3px;letter-spacing:.5px">🤖 SARA</div>' : '';
-  const bgSara = isSara ? 'background:rgba(240,192,64,.12);border:1px solid rgba(240,192,64,.2);' : '';
-  return '<div class="msg '+(out?'msg-out':'msg-in')+'" data-msg-date="'+msgDate+'" style="'+bgSara+'">'+saraBadge+corpo+'<div class="msg-time">'+t+'</div></div>';
+  const bgSara = isSara ? 'background:rgba(240,192,64,.10);border:1px solid rgba(240,192,64,.2);' : '';
+  const checkMark = out ? '<span class="msg-check" style="color:rgba(233,237,239,0.55)">✓✓</span>' : '';
+  return '<div class="msg '+(out?'msg-out':'msg-in')+'" data-msg-date="'+msgDate+'" style="'+bgSara+'">'+saraBadge+corpo+'<div class="msg-time">'+t+' '+checkMark+'</div></div>';
 }
 
 async function renderChatMsgs(cid){
@@ -562,10 +570,24 @@ function renderChatContacts(){
     const lastMsg = (chatMsgs[c.id]||[]).slice(-1)[0];
     const preview = lastMsg?.texto||lastMsg?.text||(lastMsg?.tipo==='audio'||lastMsg?.tipo==='audioMessage'?'🎵 Áudio':lastMsg?.tipo==='image'||lastMsg?.tipo==='imageMessage'?'🖼️ Imagem':lastMsg?.tipo==='document'?'📎 Documento':'Toque para abrir');
     const nl = unread[c.id]||0;
-    const badge = nl>0?`<div style="min-width:20px;height:20px;background:#22c55e;color:#fff;border-radius:99px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px">${nl}</div>`:'';
+    const badge = nl>0?`<div class="chat-unread-badge">${nl}</div>`:'';
     const ativo = activeChatId===c.id?'active':'';
-    return `<div class="chat-item ${ativo}" onclick="abrirChat('${c.id}')"><div class="cavatar">${ini}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:${nl>0?700:500}">${c.nome}</div><div style="font-size:11px;color:${nl>0?'var(--text)':'var(--muted)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${preview}</div></div>${badge}</div>`;
-  }).join('')||'<div style="padding:16px;font-size:12px;color:var(--muted)">Sem contatos</div>';
+    const timeStr = lastMsg?.created_at ? new Date(lastMsg.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    const previewIcon = lastMsg?.direcao==='saida'||lastMsg?.out ? '<span style="color:#8696a0;margin-right:3px">✓✓</span>' : '';
+    return `<div class="chat-item ${ativo}" onclick="abrirChat('${c.id}')">
+      <div class="cavatar">${ini}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px">
+          <div style="font-size:14px;font-weight:${nl>0?700:500};color:#e9edef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${_esc(c.nome)}</div>
+          <div class="chat-item-time ${nl>0?'unread':''}" style="flex-shrink:0">${timeStr}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:2px">
+          <div style="font-size:12px;color:${nl>0?'#e9edef':'#8696a0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${previewIcon}${_esc(String(preview).slice(0,40))}</div>
+          ${badge}
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<div style="padding:24px 16px;font-size:13px;color:#8696a0;text-align:center">Sem conversas ainda</div>';
 }
 function filtrarContatos(){ renderChatContacts(); }
 

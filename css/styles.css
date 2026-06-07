@@ -236,32 +236,81 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 .dots { display:flex; gap:2px; }
 .dot  { width:4px; height:4px; border-radius:50%; }
 
-.chat-layout { display:grid; grid-template-columns:260px 1fr 220px; gap:14px; height:calc(100vh - 108px); min-height:0; }
-.chat-list { background:rgba(79,70,229,0.05); border:1px solid var(--border); border-radius:12px; overflow-y:auto; }
-.chat-list-hdr { padding:14px 16px; border-bottom:1px solid var(--border2); font-family:var(--font-display); font-size:14px; font-weight:700; color:var(--text); background:rgba(79,70,229,0.08); position:sticky; top:0; z-index:1; }
-.chat-item { display:flex; align-items:center; gap:12px; padding:11px 16px; cursor:pointer; border-bottom:1px solid var(--border); transition:background .1s; }
-.chat-item:hover { background:rgba(79,70,229,0.08); }
-.chat-item.active { background:var(--accent); border-left:3px solid var(--accent2); }
-.chat-item.active .cavatar { background:rgba(255,255,255,0.2); color:#fff; }
-.chat-item.active div { color:#fff !important; }
-.cavatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; background:rgba(79,70,229,0.15); color:#818CF8; }
-.chat-window { background:rgba(79,70,229,0.05); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
-.chat-top { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border2); background:rgba(79,70,229,0.08); }
-.chat-msgs { flex:1; overflow-y:auto; min-height:0; padding:18px; display:flex; flex-direction:column; gap:8px; background:var(--bg); }
-.msg { max-width:70%; padding:10px 14px; border-radius:12px; font-size:13px; line-height:1.5; }
-.msg-in  { background:rgba(79,70,229,0.12); border:1px solid var(--border2); align-self:flex-start; border-bottom-left-radius:4px; color:var(--text); }
-.msg-out { background:var(--accent); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
-.msg-out .msg-time { color:rgba(255,255,255,0.6); }
-.msg-time { font-size:10px; color:var(--muted); margin-top:4px; }
-.chat-input-area { padding:12px 18px; border-top:1px solid var(--border2); display:flex; gap:10px; background:rgba(79,70,229,0.06); }
-.chat-input { flex:1; background:var(--bg3); border:1.5px solid var(--border2); border-radius:8px; padding:9px 14px; font-size:13px; color:var(--text); font-family:var(--font-body); outline:none; transition:border-color .15s; }
-.chat-input:focus { border-color:var(--accent); }
-.chat-side { background:rgba(79,70,229,0.05); border:1px solid var(--border); border-radius:12px; padding:16px; overflow-y:auto; }
-.cst { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted2); margin-bottom:8px; }
-.qr { background:rgba(79,70,229,0.08); border:1.5px solid var(--border2); border-radius:8px; padding:8px 10px; font-size:12px; cursor:pointer; margin-bottom:6px; transition:border-color .15s, background .15s; line-height:1.4; color:var(--text2); }
-.qr:hover { border-color:var(--accent); color:#818CF8; background:rgba(79,70,229,0.12); }
-.wpp-ok { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:8px; background:var(--green-bg); border:1px solid var(--green-border); font-size:12px; color:#4ade80; margin-bottom:12px; }
-.wdot { width:7px; height:7px; border-radius:50%; background:#22c55e; animation:pulse 2s infinite; }
+/* ══ CHAT WHATSAPP — REDESIGN ══ */
+.chat-layout { display:grid; grid-template-columns:300px 1fr 240px; gap:0; height:calc(100vh - 68px); min-height:0; border-radius:14px; overflow:hidden; border:1px solid var(--border); }
+
+/* ── Lista de contatos ── */
+.chat-list { background:#111b21; border-right:1px solid rgba(255,255,255,0.06); overflow-y:auto; display:flex; flex-direction:column; }
+.chat-list-hdr { padding:14px 16px 10px; border-bottom:1px solid rgba(255,255,255,0.06); font-size:19px; font-weight:700; color:#e9edef; background:#202c33; position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; }
+.chat-list-hdr-title { display:flex; align-items:center; gap:8px; }
+.chat-search-wrap { padding:8px 12px; background:#111b21; position:sticky; top:57px; z-index:1; }
+.chat-search-wrap input { width:100%; background:#202c33; border:none; border-radius:8px; padding:8px 14px 8px 36px; font-size:13px; color:#e9edef; outline:none; }
+.chat-search-wrap input::placeholder { color:#8696a0; }
+.chat-item { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); transition:background .1s; position:relative; }
+.chat-item:hover { background:#202c33; }
+.chat-item.active { background:#2a3942; }
+.chat-item.active div { color:#e9edef !important; }
+.chat-item-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+.chat-item-time { font-size:11px; color:#8696a0; }
+.chat-item-time.unread { color:#00a884; }
+.chat-unread-badge { min-width:20px; height:20px; background:#00a884; color:#111b21; border-radius:99px; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 5px; }
+
+/* ── Avatar ── */
+.cavatar { width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; flex-shrink:0; background:#2a3942; color:#8696a0; }
+
+/* ── Janela de chat ── */
+.chat-window { background:#0b141a; display:flex; flex-direction:column; min-height:0; overflow:hidden; position:relative; }
+/* Fundo com textura sutil igual WPP */
+.chat-window::before { content:''; position:absolute; inset:0; background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.015) 1px, transparent 0); background-size:24px 24px; pointer-events:none; z-index:0; }
+
+/* ── Header da conversa ── */
+.chat-top { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid rgba(255,255,255,0.06); background:#202c33; position:relative; z-index:1; }
+.chat-top-info { flex:1; min-width:0; }
+.chat-top-name { font-size:15px; font-weight:600; color:#e9edef; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chat-top-sub { font-size:12px; color:#8696a0; margin-top:1px; }
+.chat-top-actions { display:flex; gap:6px; align-items:center; }
+
+/* ── Área de mensagens ── */
+.chat-msgs { flex:1; overflow-y:auto; min-height:0; padding:16px 8%; display:flex; flex-direction:column; gap:2px; background:transparent; position:relative; z-index:1; }
+
+/* ── Balões de mensagem ── */
+.msg { max-width:65%; padding:7px 12px 22px; border-radius:8px; font-size:13.5px; line-height:1.55; position:relative; word-break:break-word; }
+.msg-in  { background:#202c33; color:#e9edef; align-self:flex-start; border-top-left-radius:2px; margin-bottom:2px; }
+.msg-out { background:#005c4b; color:#e9edef; align-self:flex-end; border-top-right-radius:2px; margin-bottom:2px; }
+/* Cauda do balão */
+.msg-in::before  { content:''; position:absolute; top:0; left:-8px; width:0; height:0; border-top:8px solid #202c33; border-left:8px solid transparent; }
+.msg-out::after  { content:''; position:absolute; top:0; right:-8px; width:0; height:0; border-top:8px solid #005c4b; border-right:8px solid transparent; }
+/* Timestamp dentro do balão */
+.msg-time { font-size:11px; color:rgba(233,237,239,0.6); position:absolute; bottom:5px; right:10px; display:flex; align-items:center; gap:3px; white-space:nowrap; }
+.msg-check { font-size:12px; }
+
+/* ── Input de mensagem ── */
+.chat-input-area { padding:8px 12px; display:flex; gap:8px; align-items:flex-end; background:#202c33; border-top:none; position:relative; z-index:1; }
+.chat-input-wrap { flex:1; background:#2a3942; border-radius:10px; display:flex; align-items:center; padding:4px 6px; gap:6px; }
+.chat-input { flex:1; background:transparent; border:none; padding:7px 8px; font-size:14px; color:#e9edef; font-family:var(--font-body); outline:none; resize:none; max-height:120px; line-height:1.5; }
+.chat-input::placeholder { color:#8696a0; }
+.chat-btn-send { width:42px; height:42px; border-radius:50%; background:#00a884; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s; flex-shrink:0; }
+.chat-btn-send:hover { background:#00c49a; }
+.chat-btn-send svg { width:20px; height:20px; fill:#fff; }
+.chat-tool-btn { background:none; border:none; cursor:pointer; padding:7px; border-radius:50%; color:#8696a0; font-size:18px; transition:color .15s, background .15s; display:flex; align-items:center; }
+.chat-tool-btn:hover { color:#e9edef; background:rgba(255,255,255,0.08); }
+
+/* ── Painel lateral direito ── */
+.chat-side { background:#111b21; border-left:1px solid rgba(255,255,255,0.06); padding:0; overflow-y:auto; display:flex; flex-direction:column; }
+.chat-side-section { padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.cst { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#8696a0; margin-bottom:8px; }
+
+/* ── Status WPP ── */
+.wpp-ok { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:8px; background:rgba(0,168,132,0.1); border:1px solid rgba(0,168,132,0.25); font-size:12px; color:#00a884; margin-bottom:0; }
+.wdot { width:8px; height:8px; border-radius:50%; background:#00a884; animation:pulse 2s infinite; flex-shrink:0; }
+
+/* ── Respostas rápidas ── */
+.qr { background:#202c33; border:1px solid rgba(255,255,255,0.07); border-radius:8px; padding:8px 10px; font-size:12px; cursor:pointer; margin-bottom:6px; transition:border-color .15s, background .15s; line-height:1.4; color:#e9edef; }
+.qr:hover { border-color:#00a884; color:#00a884; background:rgba(0,168,132,0.06); }
+
+/* ── Separador de data ── */
+.chat-date-sep { display:flex; align-items:center; justify-content:center; margin:10px 0 6px; }
+.chat-date-sep span { font-size:11.5px; color:#e9edef; background:#182229; padding:5px 12px; border-radius:8px; font-weight:500; }
 
 .contract-preview { background:#fff; color:#111; padding:28px; border-radius:8px; font-size:12.5px; line-height:1.8; font-family:'Georgia',serif; border:1px solid #ddd; }
 .contract-preview h2 { text-align:center; font-size:14px; margin-bottom:4px; }

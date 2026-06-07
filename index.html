@@ -717,44 +717,72 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="page" id="page-chat" style="height:100%;overflow:hidden;padding:0;">
         <div class="chat-layout" style="height:calc(100vh - 130px);">
           <div class="chat-list">
-            <div class="chat-list-hdr">💬 WhatsApp<div id="chat-wpp-status" style="font-size:11px;font-weight:400;color:var(--muted);margin-top:2px">● Desconectado</div></div>
-            <div style="padding:10px"><input type="text" id="chat-search" placeholder="🔍  Buscar..." oninput="filtrarContatos()" style="width:100%;font-size:12px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:8px;outline:none"></div>
+            <div class="chat-list-hdr">
+              <div class="chat-list-hdr-title">
+                <div class="cavatar" style="width:36px;height:36px;font-size:13px;background:#2a3942;color:#8696a0">FP</div>
+                <span style="font-size:16px;font-weight:700;color:#e9edef">WhatsApp</span>
+              </div>
+              <div id="chat-wpp-status" style="font-size:11px;color:#8696a0;display:flex;align-items:center;gap:5px">
+                <div class="wdot" style="background:#8696a0;animation:none"></div>Desconectado
+              </div>
+            </div>
+            <div class="chat-search-wrap" style="position:relative">
+              <svg style="position:absolute;left:24px;top:50%;transform:translateY(-50%);width:16px;height:16px;fill:#8696a0" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+              <input type="text" id="chat-search" placeholder="Pesquisar ou começar nova conversa" oninput="filtrarContatos()" style="padding-left:36px">
+            </div>
             <div id="chat-contacts"></div>
           </div>
           <div class="chat-window">
             <div class="chat-top">
-              <div class="cavatar" id="chat-av">?</div>
-              <div><div style="font-size:13px;font-weight:600" id="chat-name">Selecione</div><div style="font-size:11px;color:var(--muted)" id="chat-info">—</div></div>
-              <div style="margin-left:auto;display:flex;gap:8px">
-                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="verPerfilCliente()">Perfil</button>
-                <button id="btn-sara-toggle" onclick="toggleSara()" style="font-size:11px;padding:5px 10px;background:rgba(139,92,246,.15);color:#8b5cf6;border:1px solid rgba(139,92,246,.3);border-radius:8px;cursor:pointer;font-weight:600">🤖 Pausar SARA</button>
-                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:none" id="btn-cadastrar-chat" onclick="abrirCadastroClienteChat()">👤 Cadastrar</button>
-                <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="goPage('contratos')">Gerar contrato</button>
+              <div class="cavatar" id="chat-av" style="width:40px;height:40px;font-size:14px">?</div>
+              <div class="chat-top-info">
+                <div class="chat-top-name" id="chat-name">Selecione uma conversa</div>
+                <div class="chat-top-sub" id="chat-info">—</div>
+              </div>
+              <div class="chat-top-actions">
+                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="verPerfilCliente()">👤 Perfil</button>
+                <button id="btn-sara-toggle" onclick="toggleSara()" style="font-size:11px;padding:5px 10px;background:rgba(0,168,132,.15);color:#00a884;border:1px solid rgba(0,168,132,.3);border-radius:8px;cursor:pointer;font-weight:600">🤖 Pausar SARA</button>
+                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:none" id="btn-cadastrar-chat" onclick="abrirCadastroClienteChat()">➕ Cadastrar</button>
+                <button class="btn btn-primary" style="font-size:11px;padding:5px 10px;background:#00a884;border-color:#00a884" onclick="goPage('contratos')">📄 Contrato</button>
               </div>
             </div>
             <div class="chat-msgs scrollbar-thin" id="chat-msgs"><div style="text-align:center;font-size:12px;color:var(--muted2);margin:20px 0">Selecione uma conversa</div></div>
-            <div class="chat-input-area" style="flex-direction:column;gap:8px">
-              <div style="display:flex;gap:6px;align-items:center">
-                <label title="Enviar imagem" style="cursor:pointer;padding:6px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:16px;display:flex;align-items:center">🖼️<input type="file" accept="image/*" style="display:none" onchange="enviarArquivo(this,'image')"></label>
-                <label title="Enviar documento" style="cursor:pointer;padding:6px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:16px;display:flex;align-items:center">📎<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="enviarArquivo(this,'document')"></label>
-                <label title="Enviar arquivo de áudio" style="cursor:pointer;padding:6px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:16px;display:flex;align-items:center">🎵<input type="file" accept="audio/*" style="display:none" onchange="enviarArquivo(this,'audio')"></label>
-                <button id="btn-mic" onmousedown="iniciarGravacao(event)" onmouseup="pararGravacao()" onmouseleave="pararGravacaoSemEnviar()" ontouchstart="iniciarGravacao(event)" ontouchend="pararGravacao()" style="cursor:pointer;padding:6px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;font-size:16px;transition:all .2s;user-select:none" title="Segurar para gravar, soltar para enviar">🎙️</button>
-                <button title="Enviar contrato pelo WhatsApp" onclick="enviarContratoWpp()" style="cursor:pointer;padding:6px 10px;background:rgba(79,70,229,.1);border:1px solid rgba(79,70,229,.3);border-radius:8px;font-size:16px">📄</button>
-                <input class="chat-input" id="chat-msg-input" placeholder="Digite uma mensagem..." style="flex:1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
-                <button class="btn btn-primary" onclick="sendMsg()">Enviar</button>
+            <div class="chat-input-area">
+              <div id="media-preview" style="display:none;font-size:12px;color:#8696a0;padding:6px 12px;background:#182229;border-radius:8px;align-items:center;gap:8px;margin-bottom:4px;position:absolute;bottom:70px;left:12px;right:12px;z-index:2;border:1px solid rgba(255,255,255,0.08)">
+                <span id="media-preview-txt" style="flex:1"></span>
+                <button onclick="cancelarMidia()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px">✕</button>
               </div>
-              <div id="media-preview" style="display:none;font-size:12px;color:var(--muted);padding:4px 8px;background:var(--bg3);border-radius:6px;align-items:center;gap:8px">
-                <span id="media-preview-txt"></span>
-                <button onclick="cancelarMidia()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button>
+              <!-- Ferramentas à esquerda -->
+              <div style="display:flex;gap:2px;align-items:center">
+                <button class="chat-tool-btn" title="Enviar contrato" onclick="enviarContratoWpp()">📄</button>
+                <label class="chat-tool-btn" title="Enviar imagem">
+                  📷<input type="file" accept="image/*" style="display:none" onchange="enviarArquivo(this,'image')">
+                </label>
+                <label class="chat-tool-btn" title="Enviar documento">
+                  📎<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="enviarArquivo(this,'document')">
+                </label>
               </div>
+              <!-- Campo de texto -->
+              <div class="chat-input-wrap">
+                <label class="chat-tool-btn" title="Enviar áudio" style="padding:4px">
+                  🎵<input type="file" accept="audio/*" style="display:none" onchange="enviarArquivo(this,'audio')">
+                </label>
+                <input class="chat-input" id="chat-msg-input" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
+                <button id="btn-mic" class="chat-tool-btn" onmousedown="iniciarGravacao(event)" onmouseup="pararGravacao()" onmouseleave="pararGravacaoSemEnviar()" ontouchstart="iniciarGravacao(event)" ontouchend="pararGravacao()" title="Segurar para gravar" style="padding:4px">🎙️</button>
+              </div>
+              <!-- Botão enviar -->
+              <button class="chat-btn-send" onclick="sendMsg()" title="Enviar">
+                <svg viewBox="0 0 24 24"><path d="M1.101 21.757 23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"/></svg>
+              </button>
             </div>
           </div>
           <div class="chat-side scrollbar-thin">
-            <div id="wpp-status-badge" class="wpp-ok" style="cursor:pointer" onclick="document.getElementById('wpp-cfg-body').style.display=document.getElementById('wpp-cfg-body').style.display==='none'?'block':'none'">
-              <div class="wdot" id="wpp-dot"></div><span id="wpp-status-txt">Desconectado</span> <span style="font-size:10px;color:var(--muted)">⚙</span>
-            </div>
-            <div style="margin-bottom:14px">
-              <div class="cst" style="cursor:pointer" onclick="document.getElementById('wpp-cfg-body').style.display=document.getElementById('wpp-cfg-body').style.display==='none'?'block':'none'">Conexão WPP <span style="color:var(--accent)">⚙ configurar</span></div>
+            <div class="chat-side-section">
+              <div id="wpp-status-badge" class="wpp-ok" style="cursor:pointer;margin-bottom:10px" onclick="document.getElementById('wpp-cfg-body').style.display=document.getElementById('wpp-cfg-body').style.display==='none'?'block':'none'">
+                <div class="wdot" id="wpp-dot"></div><span id="wpp-status-txt" style="flex:1">Desconectado</span>
+                <span style="font-size:10px;color:#8696a0">⚙ configurar</span>
+              </div>
+              <div class="cst" style="cursor:pointer" onclick="document.getElementById('wpp-cfg-body').style.display=document.getElementById('wpp-cfg-body').style.display==='none'?'block':'none'">CONEXÃO WPP <span style="color:#00a884">⚙</span></div>
               <div id="wpp-cfg-body" style="display:none">
                 <div class="form-group" style="margin-bottom:6px"><label>URL Evolution API</label><input type="text" id="wpp-url" placeholder="https://evo.seudominio.com" style="width:100%;font-size:12px"></div>
                 <div class="form-group" style="margin-bottom:6px"><label>API Key</label><input type="text" id="wpp-apikey" placeholder="sua-api-key" style="width:100%;font-size:12px"></div>
