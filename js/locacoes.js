@@ -274,12 +274,12 @@ function _renderFormChecklist(tipo, locId, loc){
       <div class="form-group">
         <label>Nível de combustível</label>
         <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px">
-          <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:6px" id="gauge-${tipo}">
-            ${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'].map((v,i)=>`
-              <div onclick="_selecionarComb('${tipo}','${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}')" data-val="${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}"
+          <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:6px" id="gauge-${tipo}">
+            ${['Reserva','1/8','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'].map((v,i)=>`
+              <div onclick="_selecionarComb('${tipo}','${['Reserva','1/8','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}')" data-val="${['Reserva','1/8','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}"
                 style="height:28px;border-radius:4px;cursor:pointer;transition:.15s;border:2px solid transparent;
                 background:${i===0?'#ef4444':i<3?'#f59e0b':i<6?'#22c55e':'#16a34a'}22"
-                title="${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}">
+                title="${['Reserva','1/8','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}">
               </div>`).join('')}
           </div>
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted2);padding:0 2px">
@@ -381,7 +381,7 @@ function _selecionarComb(tipo, valor){
   if(lbl) lbl.textContent = valor;
   if(gauge){
     const cells = gauge.querySelectorAll('div[data-val]');
-    const niveis = ['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'];
+    const niveis = ['Reserva','1/8','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'];
     const idx = niveis.indexOf(valor);
     cells.forEach((cell,i)=>{
       const isActive = i <= idx;
