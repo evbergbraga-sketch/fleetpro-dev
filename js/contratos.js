@@ -179,10 +179,9 @@ function _preencherCamposClienteContrato(){
   sv('c-condutor-cnh-cat',  opt.dataset.cnhCat);
   sv('c-condutor-cnh-val',  opt.dataset.cnhVal);
   sv('c-condutor-cnh-seg',  opt.dataset.cnhSeg||'');
-  // Carrega condutores e cartões do cliente
+  // Carrega condutores e cartões do cliente (sem chamar previewContrato para evitar loop)
   _carregarCondutoresCliente();
   _carregarCartoesCliente();
-  previewContrato();
 }
 
 async function _carregarCartoesCliente(){
@@ -220,8 +219,7 @@ function populateContratosSelects(){
       >${c.nome}${c.status_analise==='aprovado'?' ✅':''}</option>`;
     }).join('');
     // Preenche campos do cliente ao trocar o select
-    cs.addEventListener('change', _preencherCamposClienteContrato);
-    _preencherCamposClienteContrato();
+    cs.onchange = function(){ _preencherCamposClienteContrato(); previewContrato(); };
   }
 
   const vs = document.getElementById('c-vei');
@@ -267,8 +265,6 @@ function autoFillContrato(){
 function previewContrato(){
   const cOpt  = document.getElementById('c-cli')?.selectedOptions[0];
   const vOpt  = document.getElementById('c-vei')?.selectedOptions[0];
-  // Atualiza campos visíveis do cliente no formulário
-  if(cOpt) _preencherCamposClienteContrato();
   const ini   = document.getElementById('c-ini')?.value||'';
   const fim   = document.getElementById('c-fim')?.value||'';
   const dia   = parseFloat(document.getElementById('c-dia')?.value)||0;
