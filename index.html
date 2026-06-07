@@ -777,40 +777,91 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
           </div>
           <div class="chat-side scrollbar-thin">
-            <div class="chat-side-section">
-              <div id="wpp-status-badge" class="wpp-ok" style="cursor:pointer;margin-bottom:10px" onclick="document.getElementById('wpp-cfg-body').style.display=document.getElementById('wpp-cfg-body').style.display==='none'?'block':'none'">
-                <div class="wdot" id="wpp-dot"></div><span id="wpp-status-txt" style="flex:1">Desconectado</span>
-                <span style="font-size:10px;color:#8696a0">⚙ configurar</span>
+
+            <!-- STATUS WPP -->
+            <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div id="wpp-status-badge" class="wpp-ok" style="cursor:pointer" onclick="_toggleSideSection('wpp-cfg-body')">
+                <div class="wdot" id="wpp-dot"></div>
+                <span id="wpp-status-txt" style="flex:1;font-size:13px;font-weight:500">Desconectado</span>
+                <span id="wpp-cfg-arrow" style="font-size:10px;color:#8696a0;transition:.2s">▼</span>
               </div>
-              <div class="cst" style="cursor:pointer" onclick="document.getElementById('wpp-cfg-body').style.display=document.getElementById('wpp-cfg-body').style.display==='none'?'block':'none'">CONEXÃO WPP <span style="color:#00a884">⚙</span></div>
-              <div id="wpp-cfg-body" style="display:none">
-                <div class="form-group" style="margin-bottom:6px"><label>URL Evolution API</label><input type="text" id="wpp-url" placeholder="https://evo.seudominio.com" style="width:100%;font-size:12px"></div>
-                <div class="form-group" style="margin-bottom:6px"><label>API Key</label><input type="text" id="wpp-apikey" placeholder="sua-api-key" style="width:100%;font-size:12px"></div>
-                <div class="form-group" style="margin-bottom:6px"><label>Instância</label><input type="text" id="wpp-inst" placeholder="royalevo" style="width:100%;font-size:12px"></div>
-                <div class="form-group" style="margin-bottom:6px"><label>URL Bridge Server</label><input type="text" id="wpp-bridge" placeholder="https://bridge.seudominio.com" style="width:100%;font-size:12px"></div>
-                <div class="form-group" style="margin-bottom:8px"><label>Secret</label><input type="text" id="wpp-secret" placeholder="FleetPro2025" style="width:100%;font-size:12px"></div>
-                <button class="btn btn-primary" style="width:100%;font-size:12px;margin-bottom:10px" onclick="conectarWpp()">⚡ Conectar / Ver QR</button>
-                <!-- QR Code Panel -->
-                <div id="wpp-qr-painel" style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;margin-bottom:8px;overflow:hidden">
-                  <div style="text-align:center;padding:12px;font-size:12px;color:var(--muted)">Configure acima e clique em "Conectar / Ver QR"</div>
+            </div>
+
+            <!-- CONFIGURAÇÃO WPP (colapsável) -->
+            <div id="wpp-cfg-body" style="display:none;border-bottom:1px solid rgba(255,255,255,0.06);background:#0d1117">
+              <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                <div>
+                  <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">URL Evolution API</div>
+                  <input type="text" id="wpp-url" placeholder="https://evo.seudominio.com" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none">
                 </div>
-                <div style="font-size:10px;color:var(--muted2);line-height:1.4" id="webhook-url-display"></div>
+                <div>
+                  <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">API Key</div>
+                  <input type="text" id="wpp-apikey" placeholder="sua-api-key" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <div>
+                    <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">Instância</div>
+                    <input type="text" id="wpp-inst" placeholder="royalevo" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none">
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">Secret</div>
+                    <input type="text" id="wpp-secret" placeholder="FleetPro2025" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none">
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">URL Bridge Server</div>
+                  <input type="text" id="wpp-bridge" placeholder="https://bridge.seudominio.com" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none">
+                </div>
+                <button style="width:100%;padding:10px;background:#00a884;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s" onmouseover="this.style.background='#00c49a'" onmouseout="this.style.background='#00a884'" onclick="conectarWpp()">⚡ Conectar</button>
+                <div id="wpp-qr-painel" style="background:#202c33;border:1px solid rgba(255,255,255,0.06);border-radius:10px;overflow:hidden">
+                  <div style="text-align:center;padding:12px;font-size:12px;color:#8696a0">Configure acima e clique em Conectar</div>
+                </div>
+                <div style="font-size:10px;color:#8696a0;line-height:1.5;word-break:break-all" id="webhook-url-display"></div>
               </div>
             </div>
-            <div style="margin-bottom:14px">
-              <div class="cst" style="display:flex;justify-content:space-between;align-items:center">
-                Respostas rápidas
-                <span style="font-size:10px;color:var(--accent);cursor:pointer;font-weight:500" onclick="gerenciarRespostas()">✏️ editar</span>
+
+            <!-- RESPOSTAS RÁPIDAS -->
+            <div style="border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div onclick="_toggleSideSection('side-respostas')" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='none'">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:14px">⚡</span>
+                  <span style="font-size:13px;font-weight:600;color:#e9edef">Respostas rápidas</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <button onclick="event.stopPropagation();gerenciarRespostas()" style="background:rgba(0,168,132,0.15);border:1px solid rgba(0,168,132,0.3);color:#00a884;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-weight:500">✏️ Editar</button>
+                  <span style="font-size:10px;color:#8696a0">▼</span>
+                </div>
               </div>
-              <div id="chat-respostas-rapidas"></div>
+              <div id="side-respostas" style="padding:0 12px 12px">
+                <div id="chat-respostas-rapidas"></div>
+              </div>
             </div>
-            <div>
-              <div class="cst">Assinatura</div>
-              <div class="form-group" style="margin-bottom:8px"><label>Nome da locadora</label><input type="text" id="wpp-nome-locadora" value="FleetPro Locadora" style="width:100%;font-size:12px"></div>
-              <div class="form-group" style="margin-bottom:8px"><label>Assinatura automática</label><textarea id="wpp-assinatura" rows="2" style="width:100%;font-size:12px;resize:none">— Equipe FleetPro 🚗🏍️</textarea></div>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:8px"><input type="checkbox" id="wpp-usar-assin" checked> Adicionar assinatura</label>
-              <button class="btn btn-ghost" style="width:100%;font-size:12px" onclick="salvarPersonalizacao()">Salvar</button>
+
+            <!-- ASSINATURA -->
+            <div style="border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div onclick="_toggleSideSection('side-assinatura')" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='none'">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:14px">✍️</span>
+                  <span style="font-size:13px;font-weight:600;color:#e9edef">Assinatura</span>
+                </div>
+                <span style="font-size:10px;color:#8696a0">▼</span>
+              </div>
+              <div id="side-assinatura" style="padding:0 16px 14px;display:none">
+                <div style="margin-bottom:10px">
+                  <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">Nome da locadora</div>
+                  <input type="text" id="wpp-nome-locadora" value="FleetPro Locadora" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none">
+                </div>
+                <div style="margin-bottom:10px">
+                  <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">Texto da assinatura</div>
+                  <textarea id="wpp-assinatura" rows="2" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none;resize:none">— Equipe FleetPro 🚗🏍️</textarea>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#8696a0;cursor:pointer;margin-bottom:12px">
+                  <input type="checkbox" id="wpp-usar-assin" checked style="accent-color:#00a884"> Adicionar assinatura automática
+                </label>
+                <button onclick="salvarPersonalizacao()" style="width:100%;padding:9px;background:#202c33;border:1px solid rgba(255,255,255,0.1);color:#e9edef;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:.15s" onmouseover="this.style.borderColor='#00a884'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">💾 Salvar</button>
+              </div>
             </div>
+
           </div>
         </div>
       </div>

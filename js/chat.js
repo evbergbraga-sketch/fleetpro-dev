@@ -199,6 +199,25 @@ async function desconectarWpp(){
   notify('WhatsApp desconectado','info');
 }
 
+// ── TOGGLE SEÇÕES DA SIDEBAR DIREITA ──
+function _toggleSideSection(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : '';
+  // Atualiza seta do header
+  const parent = el.previousElementSibling;
+  if(parent){
+    const arrow = parent.querySelector('span:last-child');
+    if(arrow && (arrow.textContent==='▼'||arrow.textContent==='▲'))
+      arrow.textContent = isOpen ? '▼' : '▲';
+  }
+  // Caso especial: status WPP usa arrow próprio
+  const cfgArrow = document.getElementById('wpp-cfg-arrow');
+  if(id==='wpp-cfg-body' && cfgArrow)
+    cfgArrow.textContent = isOpen ? '▼' : '▲';
+}
+
 // ── SSE ──
 let _sseRetryDelay = 5000;
 let _sseRetryTimer = null;
@@ -701,13 +720,17 @@ async function _carregarFotosEmBackground(msgs){
   const fila = [];
   const vistos = new Set();
 
-  // Clientes cadastrados
+  // Clientes cadastrados — suporta telefone legado e telefones JSON
   allClientes.forEach(c=>{
-    if(!c.telefone) return;
-    const num = c.telefone.replace(/\D/g,'').slice(-11);
+    let tel = c.telefone || null;
+    if(!tel && c.telefones){
+      try{ const arr=JSON.parse(c.telefones); if(arr&&arr.length) tel=arr[0].numero; }catch(_){}
+    }
+    if(!tel) return;
+    const num = tel.replace(/\D/g,'').slice(-11);
     if(vistos.has(num)) return;
     vistos.add(num);
-    fila.push({ cid: c.id, numero: c.telefone, nome: c.nome });
+    fila.push({ cid: c.id, numero: tel, nome: c.nome });
   });
 
   // Desconhecidos do banco
