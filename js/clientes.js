@@ -46,6 +46,7 @@ function renderClientes(){
         <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="verPerfilClienteById('${c.id}')">👤 Perfil</button>
         <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="irParaChat('${c.id}')">💬 Chat</button>
         <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="editarCliente('${c.id}')">✏️ Editar</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red);border-color:var(--red)" onclick="excluirCliente('${c.id}','${c.nome.replace(/'/g,"\\'") }')">🗑️</button>
       </div></td>
     </tr>`;
   }).join(''):'<tr class="empty-row"><td colspan="6">Nenhum cliente encontrado</td></tr>';
@@ -568,6 +569,7 @@ async function _renderPerfilCliente(c){
 
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost" style="flex:1" onclick="irParaChat('${c.id}');closeModal('perfil-cliente')">💬 Chat</button>
+      <button class="btn btn-ghost" style="color:var(--red);border-color:var(--red)" onclick="excluirCliente('${c.id}','${c.nome}');closeModal('perfil-cliente')">🗑️ Excluir</button>
       <button class="btn btn-primary" style="flex:1" onclick="closeModal('perfil-cliente')">Fechar</button>
     </div>
   </div>
@@ -713,6 +715,24 @@ async function _excluirCartao(id, clienteId){
   notify('Cartão removido','success');
   const c = allClientes.find(x=>x.id===clienteId);
   if(c) await _renderPerfilCliente(c);
+}
+
+// ══ EXCLUIR CLIENTE ══
+async function excluirCliente(id, nome){
+  if(!confirm(`Excluir o cliente "${nome}"?
+
+Essa ação não pode ser desfeita.
+Locações e contratos vinculados serão mantidos.`)) return;
+  try{
+    const {error} = await sb.from('clientes').delete().eq('id', id);
+    if(error) throw error;
+    notify('Cliente excluído.', 'success');
+    await loadClientes();
+    renderClientes();
+    renderDashboard();
+  }catch(e){
+    notify('Erro ao excluir: ' + e.message, 'error');
+  }
 }
 
 // ══ DEVOLUÇÃO ══
