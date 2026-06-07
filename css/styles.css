@@ -240,12 +240,13 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 .chat-layout { display:grid; grid-template-columns:300px 1fr 240px; gap:0; height:calc(100vh - 68px); min-height:0; border-radius:14px; overflow:hidden; border:1px solid var(--border); }
 
 /* ── Lista de contatos ── */
-.chat-list { background:#111b21; border-right:1px solid rgba(255,255,255,0.06); overflow-y:auto; display:flex; flex-direction:column; }
-.chat-list-hdr { padding:14px 16px 10px; border-bottom:1px solid rgba(255,255,255,0.06); font-size:19px; font-weight:700; color:#e9edef; background:#202c33; position:sticky; top:0; z-index:2; display:flex; align-items:center; justify-content:space-between; }
+.chat-list { background:#111b21; border-right:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; overflow:hidden; }
+.chat-list-hdr { padding:14px 16px 10px; border-bottom:1px solid rgba(255,255,255,0.06); font-size:19px; font-weight:700; color:#e9edef; background:#202c33; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
 .chat-list-hdr-title { display:flex; align-items:center; gap:8px; }
-.chat-search-wrap { padding:8px 12px; background:#111b21; position:sticky; top:57px; z-index:1; }
+.chat-search-wrap { padding:8px 12px; background:#111b21; flex-shrink:0; }
 .chat-search-wrap input { width:100%; background:#202c33; border:none; border-radius:8px; padding:8px 14px 8px 36px; font-size:13px; color:#e9edef; outline:none; }
 .chat-search-wrap input::placeholder { color:#8696a0; }
+#chat-contacts { flex:1; overflow-y:auto; }
 .chat-item { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); transition:background .1s; position:relative; }
 .chat-item:hover { background:#202c33; }
 .chat-item.active { background:#2a3942; }
