@@ -1143,7 +1143,7 @@ async function toggleSara(){
   try{
     const r = await fetch((cfg.bridgeUrl||'').replace(/\/$/,'')+endpoint, {
       method:'POST',
-      headers:{'Content-Type':'application/json','x-secret': (JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}').secret||'')},
+      headers:{'Content-Type':'application/json','x-secret': (JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}').secret||'FleetPro2025')},
       body: JSON.stringify({ numero: numLimpo })
     });
     const data = await r.json();
@@ -1158,9 +1158,10 @@ async function _checarStatusSara(telefone){
   const raw = (String(telefone)||'').replace(/\D/g,'');
   if(!raw){ _renderBotaoSara(false); return; }
   const numChave = raw.startsWith('55') ? raw : '55' + raw.slice(-11);
-  const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+  const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
+  const secret = cfg.secret || 'FleetPro2025';
   try{
-    const r = await fetch((cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'')+'/sara-status/'+numChave+'?secret='+encodeURIComponent(cfg.secret||''));
+    const r = await fetch((cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'')+'/sara-status/'+numChave+'?secret='+encodeURIComponent(secret));
     const data = await r.json();
     if(data.bloqueada) _saraBloqueadas.add(numChave);
     else _saraBloqueadas.delete(numChave);
