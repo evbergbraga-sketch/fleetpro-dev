@@ -383,14 +383,22 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           .form-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:14px 0 8px;border-bottom:1px solid var(--border2);padding-bottom:4px}
         </style>
 
+        <!-- Abas Novo Contrato / Checklist / Histórico -->
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
           <div class="tipo-contrato-wrap">
             <button class="btn-tipo-contrato active" data-tipo="moto" onclick="selecionarTipoContrato('moto')">🏍️ Moto</button>
             <button class="btn-tipo-contrato" data-tipo="carro" onclick="selecionarTipoContrato('carro')">🚗 Carro</button>
           </div>
           <span id="c-num-display" class="contrato-num-chip">Contrato #1</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button id="ct-tab-novo" onclick="_ctTab('novo')" class="btn btn-primary" style="font-size:12px;padding:7px 14px">📄 Novo contrato</button>
+            <button id="ct-tab-checklist" onclick="_ctTab('checklist')" class="btn btn-ghost" style="font-size:12px;padding:7px 14px">📋 Checklist</button>
+            <button id="ct-tab-historico" onclick="_ctTab('historico')" class="btn btn-ghost" style="font-size:12px;padding:7px 14px">🗂️ Histórico</button>
+          </div>
         </div>
 
+        <!-- PAINEL: NOVO CONTRATO -->
+        <div id="ct-painel-novo">
         <div class="grid2">
           <div class="card" style="overflow-y:auto;max-height:calc(100vh - 200px)">
             <div class="card-header"><span class="card-title">Dados do contrato</span></div>
@@ -408,21 +416,42 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
 
             <div class="form-section-title">🧑‍💼 Condutores</div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Condutor principal (nome)</label>
-                <input type="text" id="c-condutor" placeholder="Igual ao cliente se vazio" style="width:100%" oninput="previewContrato()">
-              </div>
-              <div class="form-group">
-                <label>CPF do condutor principal</label>
-                <input type="text" id="c-condutor-cpf" placeholder="000.000.000-00" style="width:100%" oninput="if(typeof maskCPF==='function')maskCPF(this);previewContrato()">
+            <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px">⭐ Condutor Principal</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Nome</label>
+                  <input type="text" id="c-condutor" placeholder="Igual ao cliente se vazio" style="width:100%" oninput="previewContrato()">
+                </div>
+                <div class="form-group">
+                  <label>CPF</label>
+                  <input type="text" id="c-condutor-cpf" placeholder="000.000.000-00" style="width:100%" oninput="if(typeof maskCPF==='function')maskCPF(this);previewContrato()">
+                </div>
+                <div class="form-group">
+                  <label>Nº CNH</label>
+                  <input type="text" id="c-condutor-cnh" placeholder="00000000000" style="width:100%" oninput="previewContrato()">
+                </div>
+                <div class="form-group">
+                  <label>Categoria CNH</label>
+                  <select id="c-condutor-cnh-cat" style="width:100%" onchange="previewContrato()">
+                    <option value="">—</option>
+                    <option>A</option><option>B</option><option>AB</option><option>C</option><option>D</option><option>E</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Validade CNH</label>
+                  <input type="date" id="c-condutor-cnh-val" style="width:100%" oninput="previewContrato()">
+                </div>
+                <div class="form-group">
+                  <label>Nº Segurança CNH</label>
+                  <input type="text" id="c-condutor-cnh-seg" placeholder="00000000000" style="width:100%" oninput="previewContrato()">
+                </div>
               </div>
             </div>
-
             <div id="condutores-lista" style="margin-bottom:8px"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:12px;align-items:end">
               <div class="form-group" style="margin:0">
-                <label>+ Condutor adicional</label>
+                <label>+ Condutor adicional (nome)</label>
                 <input type="text" id="novo-condutor-nome" placeholder="Nome completo" style="width:100%">
               </div>
               <div class="form-group" style="margin:0">
@@ -451,8 +480,9 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 </select>
               </div>
               <div class="form-group">
-                <label>Km saída</label>
-                <input type="text" id="c-km" placeholder="0 km" style="width:100%" oninput="previewContrato()">
+                <label id="label-periodo">Período (calculado automaticamente)</label>
+                <input type="text" id="c-periodo-display" readonly style="width:100%;background:var(--bg2);color:var(--muted)" placeholder="Preencha as datas acima">
+                <input type="hidden" id="c-periodo" value="1">
               </div>
             </div>
 
@@ -463,55 +493,80 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <input type="number" id="c-dia" placeholder="0,00" step="0.01" style="width:100%" oninput="previewContrato()">
               </div>
               <div class="form-group">
-                <label id="label-periodo">Período (semanas)</label>
-                <input type="number" id="c-periodo" value="1" min="1" style="width:100%" oninput="previewContrato()">
-              </div>
-              <div class="form-group">
                 <label>Caução / Garantia (R$)</label>
                 <input type="number" id="c-caucao" placeholder="600,00" step="0.01" style="width:100%" oninput="previewContrato()">
               </div>
               <div class="form-group">
-                <label>Forma de pagamento</label>
+                <label>Forma de pagamento do contrato</label>
                 <select id="c-pgto" style="width:100%" onchange="_toggleCamposCartao();previewContrato()">
                   <option value="PIX">PIX</option>
                   <option value="Cartão de Crédito">Cartão de Crédito</option>
                   <option value="Cartão de Débito">Cartão de Débito</option>
-                  <option value="Boleto">Boleto</option>
                   <option value="Dinheiro">Dinheiro</option>
+                  <option value="Boleto">Boleto</option>
+                  <option value="Transferência">Transferência</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Forma de pagamento da caução</label>
+                <select id="c-pgto-caucao" style="width:100%" onchange="previewContrato()">
+                  <option value="PIX">PIX</option>
+                  <option value="Cartão de Crédito">Cartão de Crédito</option>
+                  <option value="Cartão de Débito">Cartão de Débito</option>
+                  <option value="Dinheiro">Dinheiro</option>
+                  <option value="Transferência">Transferência</option>
                 </select>
               </div>
             </div>
 
+            <!-- CARTÕES (múltiplos, salvos no perfil) -->
+            <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+              <span>💳 Cartões de crédito/débito</span>
+              <button onclick="_adicionarCartaoContrato()" type="button" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;border:none;cursor:pointer">+ Adicionar cartão</button>
+            </div>
+            <div id="cartoes-contrato-lista" style="margin-bottom:8px">
+              <div style="font-size:12px;color:var(--muted2);padding:4px 0">Clique em "Adicionar cartão" para vincular ao perfil do cliente.</div>
+            </div>
             <div id="campos-cartao" style="display:none">
-              <div class="form-section-title">💳 Dados do cartão</div>
-              <div class="form-grid">
-                <div class="form-group full">
-                  <label>Titular do cartão</label>
-                  <input type="text" id="c-cartao-titular" placeholder="Nome como no cartão" style="width:100%">
+              <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:10px">
+                <div class="form-grid">
+                  <div class="form-group full">
+                    <label>Titular do cartão</label>
+                    <input type="text" id="c-cartao-titular" placeholder="Nome como no cartão" style="width:100%">
+                  </div>
+                  <div class="form-group">
+                    <label>Número do cartão</label>
+                    <input type="text" id="c-cartao-numero" placeholder="0000 0000 0000 0000" maxlength="19" style="width:100%"
+                      oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{4})/g,'$1 ').trim().slice(0,19)">
+                  </div>
+                  <div class="form-group">
+                    <label>CPF do titular</label>
+                    <input type="text" id="c-cartao-cpf" placeholder="000.000.000-00" style="width:100%">
+                  </div>
+                  <div class="form-group">
+                    <label>Validade</label>
+                    <input type="text" id="c-cartao-validade" placeholder="MM/AA" maxlength="5" style="width:100%">
+                  </div>
+                  <div class="form-group">
+                    <label>Código de segurança (CVV)</label>
+                    <input type="text" id="c-cartao-cvv" placeholder="000" maxlength="4" style="width:100%">
+                  </div>
+                  <div class="form-group">
+                    <label>Bandeira</label>
+                    <select id="c-cartao-bandeira" style="width:100%">
+                      <option value="Visa">Visa</option>
+                      <option value="Mastercard">Mastercard</option>
+                      <option value="Elo">Elo</option>
+                      <option value="American Express">American Express</option>
+                      <option value="Hipercard">Hipercard</option>
+                      <option value="Outra">Outra</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Número do cartão</label>
-                  <input type="text" id="c-cartao-numero" placeholder="0000 0000 0000 0000" maxlength="19" style="width:100%"
-                    oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{4})/g,'$1 ').trim().slice(0,19)">
+                <div style="font-size:11px;color:var(--muted);background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.15);border-radius:6px;padding:8px 10px;margin-bottom:8px">
+                  🔒 Dados salvos com segurança no perfil do cliente. Não aparecem no contrato.
                 </div>
-                <div class="form-group">
-                  <label>Validade</label>
-                  <input type="text" id="c-cartao-validade" placeholder="MM/AA" maxlength="5" style="width:100%">
-                </div>
-                <div class="form-group">
-                  <label>Bandeira</label>
-                  <select id="c-cartao-bandeira" style="width:100%">
-                    <option value="Visa">Visa</option>
-                    <option value="Mastercard">Mastercard</option>
-                    <option value="Elo">Elo</option>
-                    <option value="American Express">American Express</option>
-                    <option value="Hipercard">Hipercard</option>
-                    <option value="Outra">Outra</option>
-                  </select>
-                </div>
-              </div>
-              <div style="font-size:11px;color:var(--muted);background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.15);border-radius:6px;padding:8px 10px;margin-bottom:8px">
-                🔒 Dados do cartão armazenados com segurança para uso exclusivo em cobranças futuras.
+                <button onclick="_salvarCartaoContrato()" type="button" class="btn btn-primary" style="width:100%;font-size:12px">💾 Salvar cartão no perfil</button>
               </div>
             </div>
 
@@ -533,25 +588,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <div class="form-section-title">🚗 Específico — Carro</div>
               <div class="form-grid">
                 <div class="form-group">
-                  <label>Grupo do veículo</label>
-                  <input type="text" id="c-grupo" placeholder="Ex: Grupo J – SUV Automático" style="width:100%" oninput="previewContrato()">
-                </div>
-                <div class="form-group">
-                  <label>Tanque saída</label>
-                  <select id="c-tanque" style="width:100%" onchange="previewContrato()">
-                    <option>Cheio</option><option>3/4</option><option>1/2</option><option>1/4</option>
-                  </select>
-                </div>
-                <div class="form-group">
                   <label>Proteção</label>
-                  <select id="c-protecao" style="width:100%" onchange="previewContrato()">
-                    <option value="Basica">Básica (franquia 12%)</option>
-                    <option value="Completa">Completa (franquia 6%)</option>
+                  <select id="c-protecao" style="width:100%" onchange="_toggleProtecaoCompleta();previewContrato()">
+                    <option value="Basica">Básica (inclusa na diária)</option>
+                    <option value="Completa">Completa</option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label>Taxa de locação (%)</label>
-                  <input type="number" id="c-taxa-loc" value="6" step="0.1" style="width:100%" oninput="previewContrato()">
+                <div class="form-group" id="c-protecao-completa-wrap" style="display:none">
+                  <label>Valor proteção completa (R$)</label>
+                  <input type="number" id="c-protecao-valor" value="0" step="0.01" style="width:100%" oninput="previewContrato()">
                 </div>
                 <div class="form-group">
                   <label>Lavagem antecipada (R$)</label>
@@ -563,6 +608,12 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 </div>
               </div>
             </div>
+
+            <!-- Campo oculto para compatibilidade -->
+            <input type="hidden" id="c-km" value="0">
+            <input type="hidden" id="c-grupo" value="">
+            <input type="hidden" id="c-tanque" value="Cheio">
+            <input type="hidden" id="c-taxa-loc" value="0">
 
             <div class="form-section-title">🔧 Serviços / Taxas adicionais</div>
             <div id="servicos-lista" style="margin-bottom:8px"></div>
@@ -876,6 +927,46 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
           </div>
         </div>
+        </div><!-- fim ct-painel-novo -->
+
+        <!-- PAINEL: CHECKLIST -->
+        <div id="ct-painel-checklist" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📋 Checklist de Vistoria</span>
+            </div>
+            <div style="margin-bottom:12px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted2);display:block;margin-bottom:6px">Selecione o contrato</label>
+              <select id="ct-chk-locacao-sel" style="width:100%;max-width:400px" onchange="_ctChecklistCarregar()">
+                <option value="">— Selecione um contrato ativo —</option>
+              </select>
+            </div>
+            <div id="ct-chk-body">
+              <div style="text-align:center;padding:40px;color:var(--muted2)">Selecione um contrato acima para fazer o checklist</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAINEL: HISTÓRICO -->
+        <div id="ct-painel-historico" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🗂️ Histórico de Contratos</span>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="text" id="ct-hist-busca" placeholder="Buscar por nome, placa..." style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text);width:200px" oninput="_ctHistoricoFiltrar()">
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="table">
+                <thead><tr>
+                  <th>#</th><th>Cliente</th><th>Veículo</th><th>Período</th><th>Total</th><th>Status</th><th>Ações</th>
+                </tr></thead>
+                <tbody id="tb-historico-contratos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- USUÁRIOS -->
