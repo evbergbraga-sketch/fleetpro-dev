@@ -581,9 +581,20 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
                 <div class="form-group" style="margin:0"><label>Km saída</label><input type="number" id="ctchk-km" placeholder="0" style="width:100%"></div>
                 <div class="form-group" style="margin:0"><label>Nível combustível</label>
-                  <select id="ctchk-comb" style="width:100%">
-                    <option>Cheio</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Reserva</option>
-                  </select>
+                  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px">
+                    <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:4px" id="ctchk-gauge">
+                      <div onclick="_selecionarCombInline('Reserva')" data-val="Reserva" style="height:20px;border-radius:3px;cursor:pointer;background:#ef444422;border:2px solid transparent" title="Reserva"></div>
+                      <div onclick="_selecionarCombInline('2/8')" data-val="2/8" style="height:20px;border-radius:3px;cursor:pointer;background:#f59e0b22;border:2px solid transparent" title="2/8"></div>
+                      <div onclick="_selecionarCombInline('3/8')" data-val="3/8" style="height:20px;border-radius:3px;cursor:pointer;background:#f59e0b22;border:2px solid transparent" title="3/8"></div>
+                      <div onclick="_selecionarCombInline('4/8')" data-val="4/8" style="height:20px;border-radius:3px;cursor:pointer;background:#fbbf2422;border:2px solid transparent" title="4/8"></div>
+                      <div onclick="_selecionarCombInline('5/8')" data-val="5/8" style="height:20px;border-radius:3px;cursor:pointer;background:#22c55e22;border:2px solid transparent" title="5/8"></div>
+                      <div onclick="_selecionarCombInline('6/8')" data-val="6/8" style="height:20px;border-radius:3px;cursor:pointer;background:#22c55e22;border:2px solid transparent" title="6/8"></div>
+                      <div onclick="_selecionarCombInline('7/8')" data-val="7/8" style="height:20px;border-radius:3px;cursor:pointer;background:#16a34a22;border:2px solid transparent" title="7/8"></div>
+                      <div onclick="_selecionarCombInline('Cheio')" data-val="Cheio" style="height:20px;border-radius:3px;cursor:pointer;background:#16a34a;border:2px solid #16a34a" title="Cheio"></div>
+                    </div>
+                    <div id="ctchk-comb-label" style="text-align:center;font-size:11px;font-weight:700;color:var(--accent)">Cheio</div>
+                    <input type="hidden" id="ctchk-comb" value="Cheio">
+                  </div>
                 </div>
                 <div class="form-group" style="margin:0"><label>Horário da vistoria</label><input type="datetime-local" id="ctchk-hora" style="width:100%"></div>
               </div>

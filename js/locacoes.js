@@ -231,7 +231,7 @@ function _renderChecklistExistente(check){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
       ${itens.map(it=>{
         const cor = it.status==='ok'?'#16a34a':it.status==='avaria'?'#dc2626':'#64748b';
-        const icon = it.status==='ok'?'✓':it.status==='avaria'?'✕':'—';
+        const icon = it.status==='ok'?'✓ Sem avaria':it.status==='avaria'?'✕ Com avaria':'—';
         return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
           <span style="color:${cor};font-weight:700;width:14px">${icon}</span>
           <span style="flex:1">${it.descricao}</span>
@@ -273,9 +273,21 @@ function _renderFormChecklist(tipo, locId, loc){
       </div>
       <div class="form-group">
         <label>Nível de combustível</label>
-        <select id="chk-comb-${tipo}" style="width:100%">
-          <option>Cheio</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Reserva</option>
-        </select>
+        <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px">
+          <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-bottom:6px" id="gauge-${tipo}">
+            ${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'].map((v,i)=>`
+              <div onclick="_selecionarComb('${tipo}','${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}')" data-val="${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}"
+                style="height:28px;border-radius:4px;cursor:pointer;transition:.15s;border:2px solid transparent;
+                background:${i===0?'#ef4444':i<3?'#f59e0b':i<6?'#22c55e':'#16a34a'}22"
+                title="${['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'][i]}">
+              </div>`).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted2);padding:0 2px">
+            <span>Reserva</span><span>Cheio</span>
+          </div>
+          <div id="comb-label-${tipo}" style="text-align:center;font-size:12px;font-weight:700;color:var(--accent);margin-top:4px">Cheio</div>
+          <input type="hidden" id="chk-comb-${tipo}" value="Cheio">
+        </div>
       </div>
       <div class="form-group">
         <label>Horário da vistoria</label>
@@ -346,14 +358,11 @@ function _renderItensNosFormularios(){
           <div style="background:var(--bg2);border-radius:8px;padding:8px 10px">
             <div style="font-size:12px;font-weight:500;margin-bottom:6px">${it.descricao}</div>
             <div style="display:flex;gap:4px">
-              <label style="flex:1;text-align:center;padding:5px 2px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;border:2px solid #16a34a;color:#16a34a;background:#fff;transition:all .15s" onclick="_selectItem(this,'ok')">
-                <input type="radio" name="chk-${tipo}-${it.id}" value="ok" style="display:none"> ✓ OK
+              <label style="flex:1;text-align:center;padding:5px 2px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;border:2px solid #16a34a;color:#16a34a;background:rgba(22,163,74,.08);transition:all .15s" onclick="_selectItem(this,'ok')">
+                <input type="radio" name="chk-${tipo}-${it.id}" value="ok" style="display:none" checked> ✓ Sem avaria
               </label>
               <label style="flex:1;text-align:center;padding:5px 2px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;border:2px solid #dc2626;color:#dc2626;background:#fff;transition:all .15s" onclick="_selectItem(this,'avaria')">
-                <input type="radio" name="chk-${tipo}-${it.id}" value="avaria" style="display:none"> ✕ Avaria
-              </label>
-              <label style="flex:1;text-align:center;padding:5px 2px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;border:2px solid #94a3b8;color:#64748b;background:#fff;transition:all .15s" onclick="_selectItem(this,'nao_verificado')">
-                <input type="radio" name="chk-${tipo}-${it.id}" value="nao_verificado" style="display:none"> — N/V
+                <input type="radio" name="chk-${tipo}-${it.id}" value="avaria" style="display:none"> ✕ Com avaria
               </label>
             </div>
             <input type="text" placeholder="Obs (opcional)" style="width:100%;font-size:11px;margin-top:4px;padding:3px 6px;border-radius:4px"
@@ -364,16 +373,35 @@ function _renderItensNosFormularios(){
   });
 }
 
+function _selecionarComb(tipo, valor){
+  const inp = document.getElementById('chk-comb-'+tipo);
+  const lbl = document.getElementById('comb-label-'+tipo);
+  const gauge = document.getElementById('gauge-'+tipo);
+  if(inp) inp.value = valor;
+  if(lbl) lbl.textContent = valor;
+  if(gauge){
+    const cells = gauge.querySelectorAll('div[data-val]');
+    const niveis = ['Reserva','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'];
+    const idx = niveis.indexOf(valor);
+    cells.forEach((cell,i)=>{
+      const isActive = i <= idx;
+      const baseColor = i===0?'#ef4444':i<3?'#f59e0b':i<6?'#22c55e':'#16a34a';
+      cell.style.background = isActive ? baseColor : baseColor+'22';
+      cell.style.border = isActive ? '2px solid '+baseColor : '2px solid transparent';
+    });
+  }
+}
+
 function _selectItem(label, status){
   const parent = label.closest('div[style*="display:flex"]');
   if(!parent) return;
   // Reset todos
   parent.querySelectorAll('label').forEach(l=>{
-    const isOk = l.textContent.includes('OK');
-    const isAv = l.textContent.includes('Avaria');
-    l.style.background = isOk?'rgba(22,163,74,.08)':isAv?'rgba(220,38,38,.08)':'rgba(100,116,139,.08)';
-    l.style.color = isOk?'#16a34a':isAv?'#dc2626':'#64748b';
-    l.style.borderColor = isOk?'#16a34a':isAv?'#dc2626':'#64748b';
+    const isOk = l.textContent.includes('Sem avaria');
+    const isAv = l.textContent.includes('Com avaria');
+    l.style.background = isOk?'rgba(22,163,74,.08)':'rgba(220,38,38,.08)';
+    l.style.color = isOk?'#16a34a':'#dc2626';
+    l.style.borderColor = isOk?'#16a34a':'#dc2626';
     l.style.borderWidth='2px';
     l.style.opacity='1';
     l.style.boxShadow='none';
