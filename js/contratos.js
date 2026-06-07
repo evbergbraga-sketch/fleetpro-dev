@@ -114,10 +114,47 @@ function _removerServico(i){
 }
 
 // ══ POPULA SELECTS ══
+// Preenche campos visíveis do cliente ao selecionar no contrato
+function _preencherCamposClienteContrato(){
+  const opt = document.getElementById('c-cli')?.selectedOptions[0];
+  if(!opt) return;
+  // Preenche campos se existirem no formulário
+  const sv = (id, val) => { const e=document.getElementById(id); if(e&&val) e.value=val; };
+  sv('c-condutor', opt.dataset.nome);
+  sv('c-condutor-cpf', opt.dataset.cpf);
+  // Carrega condutores do cliente
+  _carregarCondutoresCliente();
+}
+
 function populateContratosSelects(){
   const cs = document.getElementById('c-cli');
-  if(cs) cs.innerHTML = allClientes.map(c=>
-    `<option value="${c.id}" data-nome="${c.nome}" data-cpf="${c.cpf||''}" data-tel="${c.telefone||''}">${c.nome}</option>`).join('');
+  if(cs){
+    const aprovados = allClientes.filter(c=>!c.status_analise || c.status_analise === 'aprovado');
+    cs.innerHTML = aprovados.map(c=>{
+      // Pega telefone principal (legado ou JSON)
+      let tel = c.telefone || '';
+      if(!tel && c.telefones){ try{ const a=JSON.parse(c.telefones); if(a?.length) tel=a[0].numero; }catch(_){} }
+      // Pega email principal
+      let email = c.email || '';
+      if(!email && c.emails){ try{ const a=JSON.parse(c.emails); if(a?.length) email=a[0].email; }catch(_){} }
+      return `<option value="${c.id}"
+        data-nome="${c.nome}"
+        data-cpf="${c.cpf||''}"
+        data-tel="${tel}"
+        data-email="${email}"
+        data-cnh="${c.cnh||''}"
+        data-cnh-val="${c.cnh_validade||''}"
+        data-cnh-cat="${c.cnh_categoria||''}"
+        data-nasc="${c.data_nascimento||''}"
+        data-end="${c.endereco||[c.endereco_rua,c.endereco_numero,c.endereco_bairro,c.endereco_cidade,c.endereco_uf].filter(Boolean).join(', ')}"
+        data-pai="${c.nome_pai||''}"
+        data-mae="${c.nome_mae||''}"
+      >${c.nome}${c.status_analise==='aprovado'?' ✅':''}</option>`;
+    }).join('');
+    // Preenche campos do cliente ao trocar o select
+    cs.addEventListener('change', _preencherCamposClienteContrato);
+    _preencherCamposClienteContrato();
+  }
 
   const vs = document.getElementById('c-vei');
   const disp = allVeiculos.filter(v=>v.status==='disponivel'||v.status==='reservado');
@@ -162,6 +199,8 @@ function autoFillContrato(){
 function previewContrato(){
   const cOpt  = document.getElementById('c-cli')?.selectedOptions[0];
   const vOpt  = document.getElementById('c-vei')?.selectedOptions[0];
+  // Atualiza campos visíveis do cliente no formulário
+  if(cOpt) _preencherCamposClienteContrato();
   const ini   = document.getElementById('c-ini')?.value||'';
   const fim   = document.getElementById('c-fim')?.value||'';
   const dia   = parseFloat(document.getElementById('c-dia')?.value)||0;
@@ -202,6 +241,12 @@ function previewContrato(){
   const nomeCli     = cOpt?.dataset.nome||'___';
   const cpfCli      = cOpt?.dataset.cpf||'___';
   const telCli      = cOpt?.dataset.tel||'___';
+  const emailCli    = cOpt?.dataset.email||'';
+  const cnhCli      = cOpt?.dataset.cnh||'';
+  const cnhValCli   = cOpt?.dataset.cnhVal||'';
+  const cnhCatCli   = cOpt?.dataset.cnhCat||'';
+  const endCli      = cOpt?.dataset.end||'';
+  const nascCli     = cOpt?.dataset.nasc||'';
   const placa       = vOpt?.dataset.placa||'___';
   const modelo      = vOpt?.dataset.modelo||'___';
   const atendente   = currentPerfil?.nome||'—';
@@ -246,6 +291,7 @@ function previewContrato(){
   }
 
   return {totalBruto, totalLiq, valorPago, nomeCli, cpfCli, telCli,
+    emailCli, cnhCli, cnhValCli, cnhCatCli, endCli, nascCli,
     placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
     pgto, caucao, numCtrato, periodoVal, ini, fim, localRet,
@@ -456,7 +502,12 @@ async function gerarPdfContrato(numContrato, d){
   let cy=y+8;
   txt(d.nomeCli,M+2,cy,{size:8,bold:true}); cy+=5;
   txt(`CPF: ${d.cpfCli}`,M+2,cy,{size:7.5}); cy+=4;
-  txt(`Tel: ${d.telCli}`,M+2,cy,{size:7.5}); cy+=5;
+  txt(`Tel: ${d.telCli}`,M+2,cy,{size:7.5}); cy+=4;
+  if(d.nascCli) { txt(`Nasc: ${d.nascCli.split('-').reverse().join('/')}`,M+2,cy,{size:7}); cy+=4; }
+  if(d.cnhCli)  { txt(`CNH: ${d.cnhCli}${d.cnhCatCli?' (Cat. '+d.cnhCatCli+')':''}`,M+2,cy,{size:7}); cy+=4; }
+  if(d.cnhValCli){ txt(`Val. CNH: ${d.cnhValCli.split('-').reverse().join('/')}`,M+2,cy,{size:7}); cy+=4; }
+  if(d.endCli)  { const endLines=doc.splitTextToSize(`End: ${d.endCli}`,CW/3-6); txt(endLines[0],M+2,cy,{size:7}); cy+=4; }
+  cy+=1;
   txt('CONDUTOR(ES):',M+2,cy,{size:7,bold:true,color:'#555'}); cy+=4;
   todosCond.forEach(c=>{ txt(c.nome,M+2,cy,{size:7.5}); cy+=4; txt(`CPF: ${c.cpf||'—'}`,M+2,cy,{size:7}); cy+=4; });
 

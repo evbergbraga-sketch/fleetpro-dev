@@ -225,7 +225,7 @@ async function converterReservaContrato(id){
     if(elIni) elIni.value = dataIni;
     if(elFim) elFim.value = dataFim;
 
-    // Observações — menciona valor já pago
+    // Observações — menciona valor já pago e dados da reserva
     const elObs = document.getElementById('c-obs');
     let obsTexto = 'Veículo em perfeito estado. Cliente responsável por multas.';
     if(r.valor_pago > 0){
@@ -233,6 +233,17 @@ async function converterReservaContrato(id){
     }
     if(r.observacoes) obsTexto += `\n${r.observacoes}`;
     if(elObs) elObs.value = obsTexto;
+
+    // Local de retirada da reserva
+    const elLocalRet = document.getElementById('c-local-ret');
+    if(elLocalRet && r.local_retirada) elLocalRet.value = r.local_retirada;
+
+    // Valor cotado da reserva
+    const elDia = document.getElementById('c-dia');
+    if(elDia && r.valor_cotado && !elDia.value) elDia.value = r.valor_cotado;
+
+    // Preenche dados do cliente a partir do perfil
+    if(typeof _preencherCamposClienteContrato === 'function') _preencherCamposClienteContrato();
 
     // Sinaliza reserva de origem para abater no total
     window._reservaOrigemId    = id;
