@@ -207,3 +207,19 @@ function setMsg(txt){
     };
   });
 })();
+
+function _toggleSideSection(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : '';
+  const parent = el.previousElementSibling;
+  if(parent){
+    const arrow = parent.querySelector('span:last-child');
+    if(arrow && (arrow.textContent==='▼'||arrow.textContent==='▲'))
+      arrow.textContent = isOpen ? '▼' : '▲';
+  }
+  const cfgArrow = document.getElementById('wpp-cfg-arrow');
+  if(id==='wpp-cfg-body' && cfgArrow)
+    cfgArrow.textContent = isOpen ? '▼' : '▲';
+}
