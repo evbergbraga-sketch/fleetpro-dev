@@ -32,64 +32,10 @@ function selecionarTipoContrato(tipo){
 
 // ══ CARTÃO — mostra/esconde campos ══
 function _toggleCamposCartao(){
-  // Campos de cartão agora aparecem via botão dedicado
-  // mantido para compatibilidade mas não oculta/mostra automaticamente
-}
-
-function _toggleProtecaoCompleta(){
-  const sel = document.getElementById('c-protecao')?.value;
-  const wrap = document.getElementById('c-protecao-completa-wrap');
-  if(wrap) wrap.style.display = sel==='Completa' ? '' : 'none';
-}
-
-// Gerenciamento de múltiplos cartões no contrato
-let _cartoesContratoLista = [];
-
-function _adicionarCartaoContrato(){
+  const pgto = document.getElementById('c-pgto')?.value||'';
+  const isCard = pgto.toLowerCase().includes('cartão') || pgto.toLowerCase().includes('cartao');
   const el = document.getElementById('campos-cartao');
-  if(el) el.style.display = el.style.display==='none' ? '' : 'none';
-}
-
-async function _salvarCartaoContrato(){
-  const cid = document.getElementById('c-cli')?.value;
-  if(!cid){ notify('Selecione um cliente primeiro','error'); return; }
-  const titular  = document.getElementById('c-cartao-titular')?.value?.trim();
-  const numero   = document.getElementById('c-cartao-numero')?.value?.trim();
-  const cpf      = document.getElementById('c-cartao-cpf')?.value?.trim();
-  const validade = document.getElementById('c-cartao-validade')?.value?.trim();
-  const cvv      = document.getElementById('c-cartao-cvv')?.value?.trim();
-  const bandeira = document.getElementById('c-cartao-bandeira')?.value||'';
-  if(!titular||!numero){ notify('Preencha titular e número do cartão','error'); return; }
-  const {data, error} = await sb.from('cartoes').insert({
-    cliente_id:cid, titular, numero, cpf:cpf||null, validade, cvv:cvv||null, bandeira
-  }).select().single();
-  if(error){ notify('Erro: '+error.message,'error'); return; }
-  _cartoesContratoLista.push(data);
-  notify('Cartão salvo no perfil do cliente ✓','success');
-  // Limpa campos
-  ['c-cartao-titular','c-cartao-numero','c-cartao-cpf','c-cartao-validade','c-cartao-cvv'].forEach(id=>{
-    const e=document.getElementById(id); if(e) e.value='';
-  });
-  document.getElementById('campos-cartao').style.display='none';
-  _renderCartoesContrato();
-}
-
-function _renderCartoesContrato(){
-  const wrap = document.getElementById('cartoes-contrato-lista');
-  if(!wrap) return;
-  if(!_cartoesContratoLista.length){
-    wrap.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px 0">Nenhum cartão adicionado. Dados salvos ficam no perfil do cliente.</div>';
-    return;
-  }
-  wrap.innerHTML = _cartoesContratoLista.map((c,i)=>`
-    <div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:6px">
-      <span style="font-size:18px">💳</span>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:600">${c.bandeira} •••• ${(c.numero||'').replace(/\s/g,'').slice(-4)}</div>
-        <div style="font-size:11px;color:var(--muted)">${c.titular} · Val: ${c.validade||'—'}</div>
-      </div>
-      <span style="font-size:10px;color:var(--green);background:rgba(22,163,74,.1);padding:2px 8px;border-radius:99px">✓ Salvo</span>
-    </div>`).join('');
+  if(el) el.style.display = isCard ? '' : 'none';
 }
 
 // ══ CONDUTORES ADICIONAIS ══
@@ -172,25 +118,12 @@ function _removerServico(i){
 function _preencherCamposClienteContrato(){
   const opt = document.getElementById('c-cli')?.selectedOptions[0];
   if(!opt) return;
+  // Preenche campos se existirem no formulário
   const sv = (id, val) => { const e=document.getElementById(id); if(e&&val) e.value=val; };
-  sv('c-condutor',          opt.dataset.nome);
-  sv('c-condutor-cpf',      opt.dataset.cpf);
-  sv('c-condutor-cnh',      opt.dataset.cnh);
-  sv('c-condutor-cnh-cat',  opt.dataset.cnhCat);
-  sv('c-condutor-cnh-val',  opt.dataset.cnhVal);
-  sv('c-condutor-cnh-seg',  opt.dataset.cnhSeg||'');
-  // Carrega condutores e cartões do cliente (sem chamar previewContrato para evitar loop)
+  sv('c-condutor', opt.dataset.nome);
+  sv('c-condutor-cpf', opt.dataset.cpf);
+  // Carrega condutores do cliente
   _carregarCondutoresCliente();
-  _carregarCartoesCliente();
-}
-
-async function _carregarCartoesCliente(){
-  _cartoesContratoLista = [];
-  const cid = document.getElementById('c-cli')?.value;
-  if(!cid||!sb) return;
-  const {data} = await sb.from('cartoes').select('*').eq('cliente_id',cid).order('created_at',{ascending:false});
-  _cartoesContratoLista = data||[];
-  _renderCartoesContrato();
 }
 
 function populateContratosSelects(){
@@ -204,24 +137,23 @@ function populateContratosSelects(){
       // Pega email principal
       let email = c.email || '';
       if(!email && c.emails){ try{ const a=JSON.parse(c.emails); if(a?.length) email=a[0].email; }catch(_){} }
-      const _e = s => (s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-      const endStr = c.endereco||[c.endereco_rua,c.endereco_numero,c.endereco_bairro,c.endereco_cidade,c.endereco_uf].filter(Boolean).join(', ');
       return `<option value="${c.id}"
-        data-nome="${_e(c.nome)}"
-        data-cpf="${_e(c.cpf)}"
-        data-tel="${_e(tel)}"
-        data-email="${_e(email)}"
-        data-cnh="${_e(c.cnh)}"
-        data-cnh-val="${_e(c.cnh_validade)}"
-        data-cnh-cat="${_e(c.cnh_categoria)}"
-        data-nasc="${_e(c.data_nascimento)}"
-        data-end="${_e(endStr)}"
-        data-pai="${_e(c.nome_pai)}"
-        data-mae="${_e(c.nome_mae)}"
-      >${_e(c.nome)}${c.status_analise==='aprovado'?' ✅':''}</option>`;
+        data-nome="${c.nome}"
+        data-cpf="${c.cpf||''}"
+        data-tel="${tel}"
+        data-email="${email}"
+        data-cnh="${c.cnh||''}"
+        data-cnh-val="${c.cnh_validade||''}"
+        data-cnh-cat="${c.cnh_categoria||''}"
+        data-nasc="${c.data_nascimento||''}"
+        data-end="${c.endereco||[c.endereco_rua,c.endereco_numero,c.endereco_bairro,c.endereco_cidade,c.endereco_uf].filter(Boolean).join(', ')}"
+        data-pai="${c.nome_pai||''}"
+        data-mae="${c.nome_mae||''}"
+      >${c.nome}${c.status_analise==='aprovado'?' ✅':''}</option>`;
     }).join('');
     // Preenche campos do cliente ao trocar o select
-    cs.onchange = function(){ _preencherCamposClienteContrato(); previewContrato(); };
+    cs.addEventListener('change', _preencherCamposClienteContrato);
+    _preencherCamposClienteContrato();
   }
 
   const vs = document.getElementById('c-vei');
@@ -267,6 +199,8 @@ function autoFillContrato(){
 function previewContrato(){
   const cOpt  = document.getElementById('c-cli')?.selectedOptions[0];
   const vOpt  = document.getElementById('c-vei')?.selectedOptions[0];
+  // Atualiza campos visíveis do cliente no formulário
+  if(cOpt) _preencherCamposClienteContrato();
   const ini   = document.getElementById('c-ini')?.value||'';
   const fim   = document.getElementById('c-fim')?.value||'';
   const dia   = parseFloat(document.getElementById('c-dia')?.value)||0;
@@ -277,47 +211,27 @@ function previewContrato(){
   const condutor    = document.getElementById('c-condutor')?.value||'';
   const condutorCpf = document.getElementById('c-condutor-cpf')?.value||'';
   const localRet    = document.getElementById('c-local-ret')?.value||'Loja';
+  const periodoVal  = parseInt(document.getElementById('c-periodo')?.value)||1;
   const isMoto      = _tipoContrato === 'moto';
-
-  // Calcula período automaticamente pelas datas
-  let periodoVal = 1;
-  let days = 1;
-  if(ini && fim){
-    const diffMs = new Date(fim) - new Date(ini);
-    if(isMoto){
-      periodoVal = Math.max(1, Math.ceil(diffMs / (7*86400000)));
-    } else {
-      days = Math.max(1, Math.ceil(diffMs / 86400000));
-      periodoVal = days;
-    }
-  }
-  // Atualiza display do período
-  const periodoDisplayEl = document.getElementById('c-periodo-display');
-  if(periodoDisplayEl){
-    if(ini && fim){
-      periodoDisplayEl.value = isMoto ? `${periodoVal} semana${periodoVal!==1?'s':''}` : `${days} dia${days!==1?'s':''}`;
-    } else {
-      periodoDisplayEl.value = '';
-    }
-  }
-  const hiddenPeriodo = document.getElementById('c-periodo');
-  if(hiddenPeriodo) hiddenPeriodo.value = periodoVal;
 
   // Cálculo total
   const totalServicos = _servicosLista.reduce((acc,s)=>acc+(parseFloat(s.valor)||0),0);
   let totalBruto = 0;
   let diasLabel  = '';
+  let days = 1;
 
   if(isMoto){
     totalBruto = dia * periodoVal;
     diasLabel  = `${periodoVal} semana${periodoVal!==1?'s':''}`;
   } else {
+    days = ini&&fim
+      ? Math.max(1,Math.ceil((new Date(fim)-new Date(ini))/86400000))
+      : periodoVal;
     totalBruto = dia * days;
     diasLabel  = `${days} dia${days!==1?'s':''}`;
+    const taxaLoc = parseFloat(document.getElementById('c-taxa-loc')?.value)||0;
     const lavagem = parseFloat(document.getElementById('c-lavagem')?.value)||0;
-    const protValor = document.getElementById('c-protecao')?.value==='Completa'
-      ? parseFloat(document.getElementById('c-protecao-valor')?.value)||0 : 0;
-    totalBruto += lavagem + protValor;
+    totalBruto += (totalBruto * taxaLoc/100) + lavagem;
   }
   totalBruto += totalServicos;
 
@@ -351,8 +265,8 @@ function previewContrato(){
   _set('ct-cli2', nomeCli);
   _set('ct-cpf', cpfCli);
   _set('ct-tel', telCli);
-  _set('ct-condutor', todosCond.map((c,i)=>i===0?`⭐ ${c.nome}`:c.nome).join(' | '));
-  _set('ct-condutor-cpf', todosCond.map(c=>c.cpf).filter(Boolean).join(' | '));
+  _set('ct-condutor', todosCond.map(c=>c.nome).join(', '));
+  _set('ct-condutor-cpf', todosCond.map(c=>c.cpf).filter(Boolean).join(', '));
   _set('ct-placa', placa);
   _set('ct-modelo', modelo);
   _set('ct-local-ret', localRet);
@@ -376,19 +290,11 @@ function previewContrato(){
     if(valorPago>0) avisoEl.innerHTML = `⚠️ Valor já pago na reserva: <strong>R$ ${valorPago.toFixed(2).replace('.',',')}</strong> · Total ajustado: <strong>R$ ${totalLiq.toFixed(2).replace('.',',')}</strong>`;
   }
 
-  const condutorPrincipal = todosCond[0]||{};
-  const condutorCnh     = document.getElementById('c-condutor-cnh')?.value||cnhCli||'';
-  const condutorCnhCat  = document.getElementById('c-condutor-cnh-cat')?.value||cnhCatCli||'';
-  const condutorCnhVal  = document.getElementById('c-condutor-cnh-val')?.value||cnhValCli||'';
-  const condutorCnhSeg  = document.getElementById('c-condutor-cnh-seg')?.value||'';
-  const pgtoCalcao      = document.getElementById('c-pgto-caucao')?.value||pgto;
   return {totalBruto, totalLiq, valorPago, nomeCli, cpfCli, telCli,
     emailCli, cnhCli, cnhValCli, cnhCatCli, endCli, nascCli,
-    placa, modelo, atendente, diasLabel, dia, km, obs,
-    condutor: condutorPrincipal.nome, condutorCpf: condutorPrincipal.cpf,
-    condutorCnh, condutorCnhCat, condutorCnhVal, condutorCnhSeg,
-    todosCondutores: todosCond,
-    pgto, pgtoCalcao, caucao, numCtrato, periodoVal, ini, fim, localRet,
+    placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
+    condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
+    pgto, caucao, numCtrato, periodoVal, ini, fim, localRet,
     totalServicos, servicos: _servicosLista, days};
 }
 
@@ -598,16 +504,12 @@ async function gerarPdfContrato(numContrato, d){
   txt(`CPF: ${d.cpfCli}`,M+2,cy,{size:7.5}); cy+=4;
   txt(`Tel: ${d.telCli}`,M+2,cy,{size:7.5}); cy+=4;
   if(d.nascCli) { txt(`Nasc: ${d.nascCli.split('-').reverse().join('/')}`,M+2,cy,{size:7}); cy+=4; }
+  if(d.cnhCli)  { txt(`CNH: ${d.cnhCli}${d.cnhCatCli?' (Cat. '+d.cnhCatCli+')':''}`,M+2,cy,{size:7}); cy+=4; }
+  if(d.cnhValCli){ txt(`Val. CNH: ${d.cnhValCli.split('-').reverse().join('/')}`,M+2,cy,{size:7}); cy+=4; }
   if(d.endCli)  { const endLines=doc.splitTextToSize(`End: ${d.endCli}`,CW/3-6); txt(endLines[0],M+2,cy,{size:7}); cy+=4; }
   cy+=1;
   txt('CONDUTOR(ES):',M+2,cy,{size:7,bold:true,color:'#555'}); cy+=4;
-  todosCond.forEach((c,ci)=>{
-    if(ci===0) txt('⭐ Principal',M+2,cy,{size:6.5,color:'#006400',bold:true}); cy+=3.5;
-    txt(c.nome,M+2,cy,{size:7.5,bold:ci===0}); cy+=4;
-    txt(`CPF: ${c.cpf||'—'}`,M+2,cy,{size:7}); cy+=4;
-    if(ci===0 && d.condutorCnh){ txt(`CNH: ${d.condutorCnh}${d.condutorCnhCat?' Cat.'+d.condutorCnhCat:''}`,M+2,cy,{size:7}); cy+=4; }
-    if(ci===0 && d.condutorCnhVal){ txt(`Val: ${d.condutorCnhVal.split('-').reverse().join('/')}`,M+2,cy,{size:7}); cy+=4; }
-  });
+  todosCond.forEach(c=>{ txt(c.nome,M+2,cy,{size:7.5}); cy+=4; txt(`CPF: ${c.cpf||'—'}`,M+2,cy,{size:7}); cy+=4; });
 
   // Col 2 — Retirada
   const x2=M+CW/3+1;
@@ -659,36 +561,39 @@ async function gerarPdfContrato(numContrato, d){
     rowMoto.forEach((v,i)=>{ txt(v,cx2+1,y+5,{size:7}); cx2+=cols[i]; });
     y+=10;
     rect(M,y,CW,8,'#f9f9f9','#dddddd');
-    txt(`Pagamento Locação: ${d.pgto}`,M+2,y+3,{size:8,bold:true});
-    txt(`Caução/Garantia: R$ ${d.caucao.toFixed(2).replace('.',',')} — Pagamento: ${d.pgtoCalcao||d.pgto}`,M+2,y+7,{size:8});
+    txt(`Forma de Pagamento: ${d.pgto}`,M+2,y+3,{size:8,bold:true});
+    txt(`Caução/Garantia: ${d.pgto} — R$ ${d.caucao.toFixed(2).replace('.',',')}`,M+2,y+7,{size:8});
     y+=10;
   } else {
     const kmLivre=document.getElementById('c-km-livre')?.checked;
+    const tanque=document.getElementById('c-tanque')?.value||'Cheio';
     const protecao=document.getElementById('c-protecao')?.value||'Basica';
+    const taxaLoc=parseFloat(document.getElementById('c-taxa-loc')?.value)||6;
     const lavagem=parseFloat(document.getElementById('c-lavagem')?.value)||0;
-    const protValor=protecao==='Completa'?parseFloat(document.getElementById('c-protecao-valor')?.value)||0:0;
+    const grupo=document.getElementById('c-grupo')?.value||'';
     const days2=d.days||1;
     const totalDiarias=(d.dia||0)*days2;
-    txt(`Km Livre: ${kmLivre?'Sim':'Não'}  |  Proteção: ${protecao}  |  Período: ${days2} dia${days2!==1?'s':''}`,M,y+4,{size:7.5});
+    const totalTaxa=totalDiarias*taxaLoc/100;
+    txt(`Grupo: ${grupo}  |  Km Livre: ${kmLivre?'Sim':'Não'}  |  Tanque Saída: ${tanque}  |  Km Saída: ${d.km} km`,M,y+4,{size:7.5});
     y+=7;
     rect(M,y,CW,6,'#006400','#006400');
-    const hCarro=['Descrição','Qtd','Valor Unit.','Total'];
-    const wCarro=[90,20,35,35];
+    const hCarro=['Valores da Locação','Qtd','Valor Unit.','Desconto','Valor Total'];
+    const wCarro=[70,15,35,25,35];
     let ccx=M;
     hCarro.forEach((h,i)=>{ txt(h,ccx+1,y+4,{size:6.5,bold:true,color:'#ffffff'}); ccx+=wCarro[i]; });
     y+=6;
     const rowsCarro=[
-      [`Diária (${d.placa}):`,days2,`R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,`R$ ${totalDiarias.toFixed(2).replace('.',',')}`],
-      protValor>0?['Proteção Completa:',1,`R$ ${protValor.toFixed(2).replace('.',',')}`,`R$ ${protValor.toFixed(2).replace('.',',')}`]:null,
-      lavagem>0?['Lavagem Antecipada:',1,`R$ ${lavagem.toFixed(2).replace('.',',')}`,`R$ ${lavagem.toFixed(2).replace('.',',')}`]:null,
+      ['Diária:',days2,`R$ ${(d.dia||0).toFixed(2).replace('.',',')}` ,'—',`R$ ${totalDiarias.toFixed(2).replace('.',',')}`],
+      ['Taxa de Locação:',1,`${taxaLoc}%`,'—',`R$ ${totalTaxa.toFixed(2).replace('.',',')}`],
+      lavagem>0?['Lavagem Antecipada:',1,`R$ ${lavagem.toFixed(2).replace('.',',')}`,'—',`R$ ${lavagem.toFixed(2).replace('.',',')}`]:null,
     ].filter(Boolean);
     rowsCarro.forEach((row,ri)=>{
       rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
       ccx=M; row.forEach((v2,i)=>{ txt(String(v2),ccx+1,y+5,{size:7.5,bold:i===0}); ccx+=wCarro[i]; }); y+=7;
     });
     const protText=protecao==='Completa'
-      ?'Proteção Completa: cobertura ampla, danos a terceiros até R$ 50.000, vidros e pneus incluídos.'
-      :'Proteção Básica: já inclusa no valor da diária. Cobre casco e roubo/furto total.';
+      ?'Proteção Completa: cobertura ampla, franquia 6% FIPE, vidros e pneus incluídos, danos a terceiros até R$ 50.000'
+      :'Proteção Básica: Casco franquia 12% FIPE; Furto/roubo coparticipação 12%; Vidros e pneus não incluídos';
     rect(M,y,CW,9,'#fff8e1','#dddddd');
     doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
     doc.text(doc.splitTextToSize(protText,CW-4),M+2,y+4);
@@ -697,10 +602,10 @@ async function gerarPdfContrato(numContrato, d){
     txt('VALOR TOTAL DO CONTRATO:',M+4,y+5,{size:9,bold:true,color:'#006400'});
     txt(`R$ ${d.totalLiq.toFixed(2).replace('.',',')}`,PW-M,y+5,{size:11,bold:true,color:'#006400',align:'right'});
     y+=10;
-    rect(M,y,CW,10,'#f9f9f9','#dddddd');
-    txt(`Pagamento Locação: ${d.pgto}`,M+2,y+3.5,{size:8,bold:true});
-    txt(`Caução/Garantia: ${d.caucao.toFixed(2).replace('.',',')} — Pagamento: ${d.pgtoCalcao||d.pgto}`,M+2,y+7.5,{size:7.5});
-    y+=12;
+    rect(M,y,CW,8,'#f9f9f9','#dddddd');
+    txt(`Forma de Pagamento Locação: ${d.pgto}`,M+2,y+3.5,{size:8,bold:true});
+    txt(`Forma de Pagamento Garantia: ${d.pgto} — Caução R$ ${d.caucao.toFixed(2).replace('.',',')}`,M+2,y+7.5,{size:7.5});
+    y+=10;
   }
 
   // ── SERVIÇOS ADICIONAIS ──
@@ -921,173 +826,4 @@ async function calSelectDay(d){
     const lb=v.status==='manutencao'?'Manutenção':locIds.includes(v.id)?'Alugado':resIds.includes(v.id)?'Reservado':'Disponível';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${v.tipo==='carro'?'🚗':'🏍️'}</div><div><div style="font-size:13px;font-weight:500">${v.marca} ${v.modelo}</div><div style="font-size:11px;color:var(--muted)">${v.placa}</div></div></div><span class="badge ${b}">${lb}</span></div>`;
   }).join('')||'<p style="color:var(--muted2)">Sem veículos.</p>';
-}
-
-
-// ══ ABAS DA PÁGINA DE CONTRATOS ══
-function _ctTab(tab){
-  ['novo','checklist','historico'].forEach(t=>{
-    const painel = document.getElementById(`ct-painel-${t}`);
-    const btn    = document.getElementById(`ct-tab-${t}`);
-    if(painel) painel.style.display = t===tab ? '' : 'none';
-    if(btn){
-      btn.className = t===tab ? 'btn btn-primary' : 'btn btn-ghost';
-      btn.style.fontSize = '12px';
-      btn.style.padding = '7px 14px';
-    }
-  });
-  if(tab==='checklist') _ctChecklistInit();
-  if(tab==='historico') _ctHistoricoInit();
-}
-
-// ══ CHECKLIST INTEGRADO NA ABA CONTRATOS ══
-async function _ctChecklistInit(){
-  if(!sb) return;
-  const sel = document.getElementById('ct-chk-locacao-sel');
-  if(!sel) return;
-  const {data} = await sb.from('locacoes')
-    .select('id,num_contrato,clientes(nome),veiculos(marca,modelo,placa)')
-    .eq('status','ativa')
-    .order('created_at',{ascending:false})
-    .limit(50);
-  sel.innerHTML = '<option value="">— Selecione um contrato ativo —</option>' +
-    (data||[]).map(l=>`<option value="${l.id}">Contrato #${l.num_contrato||'—'} — ${l.clientes?.nome||'—'} — ${l.veiculos?.placa||'—'}</option>`).join('');
-}
-
-async function _ctChecklistCarregar(){
-  const locId = document.getElementById('ct-chk-locacao-sel')?.value;
-  const body  = document.getElementById('ct-chk-body');
-  if(!locId||!body) return;
-  body.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted2)">⏳ Carregando...</div>';
-  // Reutiliza a função de locacoes.js
-  if(typeof abrirModalLocacao !== 'function') return;
-  // Busca locação completa e checklists
-  const {data:loc} = await sb.from('locacoes')
-    .select('*,veiculos(*),clientes(*)')
-    .eq('id',locId).single();
-  const {data:checks} = await sb.from('checklists')
-    .select('*,perfis(nome)').eq('locacao_id',locId);
-  const checkSaida   = checks?.find(c=>c.tipo==='saida');
-  const checkEntrada = checks?.find(c=>c.tipo==='entrada');
-  if(!loc){ body.innerHTML='<div style="color:var(--red);padding:16px">Erro ao carregar locação.</div>'; return; }
-  body.innerHTML = `
-    <div style="margin-bottom:16px;background:var(--bg2);border-radius:10px;padding:14px">
-      <div style="font-weight:700;font-size:14px">${loc.clientes?.nome||'—'}</div>
-      <div style="font-size:12px;color:var(--muted)">${loc.veiculos?.marca||''} ${loc.veiculos?.modelo||''} — ${loc.veiculos?.placa||''}</div>
-    </div>
-    <div style="display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:16px">
-      <button class="loc-tab" id="ct-tab-saida" onclick="ctShowCheckTab('saida')" style="padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px">Saída</button>
-      <button class="loc-tab" id="ct-tab-entrada" onclick="ctShowCheckTab('entrada')" style="padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">Entrada</button>
-    </div>
-    <div id="ct-chk-saida">${checkSaida ? _renderChecklistExistente(checkSaida) : _renderFormChecklist('saida', locId, loc)}</div>
-    <div id="ct-chk-entrada" style="display:none">${checkEntrada ? _renderChecklistExistente(checkEntrada) : (checkSaida ? _renderFormChecklist('entrada', locId, loc) : '<div style="text-align:center;padding:30px;color:var(--muted2)">⚠️ Faça o checklist de saída primeiro.</div>')}</div>`;
-  if(typeof _carregarItensChecklist === 'function') await _carregarItensChecklist();
-}
-
-function ctShowCheckTab(tab){
-  document.getElementById('ct-chk-saida').style.display   = tab==='saida'   ? '' : 'none';
-  document.getElementById('ct-chk-entrada').style.display = tab==='entrada' ? '' : 'none';
-  document.getElementById('ct-tab-saida').style.color = tab==='saida' ? 'var(--accent)' : 'var(--muted)';
-  document.getElementById('ct-tab-saida').style.borderBottomColor = tab==='saida' ? 'var(--accent)' : 'transparent';
-  document.getElementById('ct-tab-entrada').style.color = tab==='entrada' ? 'var(--accent)' : 'var(--muted)';
-  document.getElementById('ct-tab-entrada').style.borderBottomColor = tab==='entrada' ? 'var(--accent)' : 'transparent';
-}
-
-// ══ HISTÓRICO DE CONTRATOS ══
-let _historicoContratos = [];
-
-async function _ctHistoricoInit(){
-  if(_historicoContratos.length){ _ctHistoricoRender(); return; }
-  const tb = document.getElementById('tb-historico-contratos');
-  if(tb) tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted2)">⏳ Carregando...</td></tr>';
-  const {data} = await sb.from('locacoes')
-    .select('*,veiculos(marca,modelo,placa,tipo),clientes(nome,telefone)')
-    .order('created_at',{ascending:false})
-    .limit(200);
-  _historicoContratos = data||[];
-  _ctHistoricoRender();
-}
-
-function _ctHistoricoFiltrar(){
-  _ctHistoricoRender(document.getElementById('ct-hist-busca')?.value||'');
-}
-
-function _ctHistoricoRender(filtro=''){
-  const tb = document.getElementById('tb-historico-contratos');
-  if(!tb) return;
-  const f = filtro.toLowerCase();
-  const lista = f
-    ? _historicoContratos.filter(l=>
-        (l.clientes?.nome||'').toLowerCase().includes(f)||
-        (l.veiculos?.placa||'').toLowerCase().includes(f)||
-        String(l.num_contrato||'').includes(f))
-    : _historicoContratos;
-  if(!lista.length){
-    tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum contrato encontrado</td></tr>';
-    return;
-  }
-  tb.innerHTML = lista.map(l=>{
-    const badge = l.status==='ativa'
-      ? '<span class="badge badge-green">Ativo</span>'
-      : l.status==='encerrada'
-      ? '<span class="badge badge-blue">Encerrado</span>'
-      : '<span class="badge badge-red">Cancelado</span>';
-    const icone = l.veiculos?.tipo==='moto'?'🏍️':'🚗';
-    return `<tr>
-      <td style="font-weight:700;color:var(--accent)">#${l.num_contrato||'—'}</td>
-      <td>
-        <div style="font-weight:500">${l.clientes?.nome||'—'}</div>
-        <div style="font-size:11px;color:var(--muted)">${l.clientes?.telefone||''}</div>
-      </td>
-      <td>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span>${icone}</span>
-          <div>
-            <div style="font-weight:500">${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}</div>
-            <div style="font-size:11px;color:var(--muted)">${l.veiculos?.placa||''}</div>
-          </div>
-        </div>
-      </td>
-      <td>
-        <div>${fmtData(l.data_inicio)}</div>
-        <div style="font-size:11px;color:var(--muted)">${fmtData(l.data_fim)}</div>
-      </td>
-      <td style="font-weight:600;color:var(--green)">R$ ${(l.total||0).toFixed(2).replace('.',',')}</td>
-      <td>${badge}</td>
-      <td>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="_ctHistoricoRegerarPdf('${l.id}')">⬇️ PDF</button>
-          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="_ctHistoricoVer('${l.id}')">👁️ Ver</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-async function _ctHistoricoRegerarPdf(locId){
-  const l = _historicoContratos.find(x=>x.id===locId);
-  if(!l){ notify('Contrato não encontrado','error'); return; }
-  const c = allClientes.find(x=>x.id===l.cliente_id);
-  const v = allVeiculos.find(x=>x.id===l.veiculo_id);
-  const d = {
-    nomeCli: c?.nome||'—', cpfCli: c?.cpf||'—', telCli: c?.telefone||'—',
-    emailCli:'', cnhCli: c?.cnh||'', cnhValCli:'', cnhCatCli:'', endCli:'', nascCli:'',
-    placa: v?.placa||'—', modelo: `${v?.marca||''} ${v?.modelo||''}`,
-    atendente:'—', diasLabel:'—', dia: l.diaria||0, km:'—',
-    obs: l.observacoes||'', condutor: c?.nome||'—', condutorCpf: c?.cpf||'—',
-    condutorCnh:'', condutorCnhCat:'', condutorCnhVal:'', condutorCnhSeg:'',
-    todosCondutores:[{nome:c?.nome||'—', cpf:c?.cpf||'—'}],
-    pgto: l.forma_pgto||'PIX', pgtoCalcao: l.forma_pgto||'PIX',
-    caucao: 0, numCtrato: l.num_contrato||1,
-    periodoVal:1, ini: l.data_inicio_hora||l.data_inicio,
-    fim: l.data_fim_hora||l.data_fim, localRet: l.local_retirada||'Loja',
-    totalServicos:0, servicos:[], days:1,
-    totalLiq: l.total||0, totalBruto: l.total||0, valorPago:0
-  };
-  _tipoContrato = l.tipo_contrato||'moto';
-  await gerarPdfContrato(l.num_contrato||1, d);
-}
-
-async function _ctHistoricoVer(locId){
-  if(typeof abrirModalLocacao === 'function') abrirModalLocacao(locId);
 }
