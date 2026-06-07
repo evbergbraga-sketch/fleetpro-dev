@@ -283,7 +283,11 @@ function receberMsgSSE(msg){
   const prev = msg.texto ? msg.texto.slice(0,40) : '(mídia)';
   notify('💬 '+nome+': '+prev,'success');
   document.title = '(!) FleetPro — '+nome;
-  setTimeout(()=>document.title='FleetPro — Sistema de Locadora', 8000);
+  setTimeout(()=>document.title='FleetPro | Plataforma de Locadoras', 8000);
+  // Persistir mensagem recebida no banco (fire-and-forget com handler)
+  const clienteIdParaSalvar = cidPorId || (cidPorNumero && cidPorNumero !== msg.numero ? cidPorNumero : null);
+  salvarMsgDB(clienteIdParaSalvar, msg.numero||cid, msgObj.texto, msgObj.tipo, msgObj.direcao, msgObj.media_url)
+    .catch(e=>console.warn('[chat] salvarMsgDB incoming:', e.message));
 }
 
 function encontrarClientePorNumero(numero){
@@ -366,47 +370,70 @@ function salvarPersonalizacao(){
 }
 
 // ── DB ──
-async function carregarMsgsDB(clienteId){
+// Paginação: quantas mensagens carregar por vez
+const MSGS_POR_PAGINA = 60;
+// Rastreia offset de paginação por conversa: { cid: number }
+const _msgOffset = {};
+
+async function carregarMsgsDB(clienteId, offset=0){
   if(!sb) return [];
   const isNumero = clienteId && !clienteId.includes('-');
+  let query;
   if(isNumero){
-    const numLimpo = clienteId.replace(/\D/g,'');
-    const num11 = numLimpo.slice(-11);
-    const num13 = numLimpo.length >= 13 ? numLimpo.slice(-13) : num11;
-    const {data} = await sb.from('wpp_mensagens')
-      .select('*').or('numero.ilike.%'+num11+',numero.ilike.%'+num13)
-      .order('created_at',{ascending:true}).limit(200);
-    return data||[];
+    const num11 = clienteId.replace(/\D/g,'').slice(-11);
+    query = sb.from('wpp_mensagens')
+      .select('id,cliente_id,numero,texto,tipo,direcao,media_url,created_at')
+      .ilike('numero','%'+num11);
+  } else {
+    const cliente = allClientes.find(c=>c.id===clienteId);
+    const num11   = (cliente?.telefone||'').replace(/\D/g,'').slice(-11);
+    // Uma query só: por cliente_id OU por número (OR)
+    const filtro = num11
+      ? `cliente_id.eq.${clienteId},numero.ilike.%25${num11}`
+      : `cliente_id.eq.${clienteId}`;
+    query = sb.from('wpp_mensagens')
+      .select('id,cliente_id,numero,texto,tipo,direcao,media_url,created_at')
+      .or(filtro);
+    // Associar órfãos em background (não bloqueia o render)
+    if(num11){
+      sb.from('wpp_mensagens')
+        .update({cliente_id:clienteId})
+        .is('cliente_id',null)
+        .ilike('numero','%'+num11)
+        .then(()=>{})
+        .catch(()=>{});
+    }
   }
-  const {data:byId} = await sb.from('wpp_mensagens')
-    .select('*').eq('cliente_id',clienteId)
-    .order('created_at',{ascending:true}).limit(200);
-  const cliente = allClientes.find(c=>c.id===clienteId);
-  let byNumero = [];
-  if(cliente?.telefone){
-    const numLimpo = cliente.telefone.replace(/\D/g,'').slice(-11);
-    const {data:d} = await sb.from('wpp_mensagens')
-      .select('*').ilike('numero','%'+numLimpo)
-      .order('created_at',{ascending:true}).limit(200);
-    byNumero = (d||[]).filter(m=>!m.cliente_id || m.cliente_id!==clienteId);
-    const semCliente = byNumero.filter(m=>!m.cliente_id).map(m=>m.id);
-    if(semCliente.length>0)
-      sb.from('wpp_mensagens').update({cliente_id:clienteId}).in('id',semCliente).then(()=>{});
-  }
+  const { data, error } = await query
+    .order('created_at',{ascending:false})
+    .range(offset, offset + MSGS_POR_PAGINA - 1);
+  if(error){ console.warn('[chat] carregarMsgsDB:', error.message); return []; }
+  // Deduplica por id e retorna em ordem cronológica
   const vistos = new Set();
-  return [...(byId||[]),...byNumero]
+  return (data||[])
     .filter(m=>{ if(vistos.has(m.id)) return false; vistos.add(m.id); return true; })
-    .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    .reverse();
 }
 
 async function salvarMsgDB(clienteId, numero, texto, tipo, direcao, mediaUrl){
   if(!sb) return;
   try{
+    // Usa upsert com constraint de deduplicação para evitar duplicatas
+    // (o ON CONFLICT é gerenciado pelo índice único no banco)
     await sb.from('wpp_mensagens').insert({
-      cliente_id:clienteId||null, numero, texto, tipo, direcao,
-      media_url:mediaUrl||null, created_at:new Date().toISOString()
+      cliente_id: clienteId||null,
+      numero:     numero||null,
+      texto:      texto||null,
+      tipo:       tipo||'text',
+      direcao:    direcao||'entrada',
+      media_url:  mediaUrl||null,
+      created_at: new Date().toISOString()
     });
-  }catch(e){ console.warn('salvarMsgDB:', e.message); }
+  }catch(e){
+    // Ignora silenciosamente erros de duplicata (código 23505 = unique_violation)
+    if(!e.message?.includes('duplicate') && !e.code?.includes('23505'))
+      console.warn('[chat] salvarMsgDB:', e.message);
+  }
 }
 
 // ── ENVIO TEXTO ──
@@ -500,35 +527,89 @@ function renderMsgItem(m){
 async function renderChatMsgs(cid){
   const area = document.getElementById('chat-msgs');
   if(!area) return;
+  _msgOffset[cid] = 0;
+  // Mostra memória imediatamente enquanto busca no banco
   const memMsgs = chatMsgs[cid]||[];
   if(memMsgs.length){
     area.innerHTML = _buildMsgsHtml(memMsgs);
     area.scrollTop = area.scrollHeight;
-  }
-  if(!memMsgs.length){
-    area.innerHTML = '<div style="text-align:center;font-size:12px;color:var(--muted2);padding:20px">⏳ Buscando mensagens...</div>';
+  } else {
+    area.innerHTML = '<div style="text-align:center;font-size:12px;color:#8696a0;padding:20px">⏳ Buscando mensagens...</div>';
   }
   try{
-    const dbMsgs = await carregarMsgsDB(cid);
-    if(dbMsgs.length > 0){
-      if(!chatMsgs[cid]) chatMsgs[cid] = [];
-      dbMsgs.forEach(m=>{
-        const jatem = chatMsgs[cid].some(x=>x.id===m.id||(x.created_at===m.created_at&&x.texto===m.texto));
-        if(!jatem) chatMsgs[cid].push(m);
-      });
-    }
-    const visto = new Set(dbMsgs.map(m=>m.created_at+'|'+(m.texto||'')));
-    const extras = memMsgs.filter(m=>!visto.has((m.created_at||'')+'|'+(m.texto||m.text||'')));
-    const todas = [...dbMsgs,...extras].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+    const dbMsgs = await carregarMsgsDB(cid, 0);
+    // Mescla com memória sem duplicatas
+    const vistos = new Set(dbMsgs.map(m=>m.id||(m.created_at+'|'+m.texto)));
+    const extras = memMsgs.filter(m=>!vistos.has(m.id||(m.created_at+'|'+(m.texto||m.text||''))));
+    const todas  = [...dbMsgs,...extras].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+    // Atualiza cache em memória
+    _atualizarCacheChat(cid, todas);
+    // Botão "carregar mais" se retornou página cheia
+    const temMais = dbMsgs.length >= MSGS_POR_PAGINA;
+    const headerHtml = temMais
+      ? `<div style="text-align:center;padding:8px">
+           <button id="btn-carregar-mais" onclick="carregarMaisMsgs('${cid}')" style="font-size:12px;padding:5px 16px;background:#202c33;border:1px solid rgba(255,255,255,0.1);border-radius:99px;color:#8696a0;cursor:pointer">⬆ Carregar mensagens anteriores</button>
+         </div>`
+      : '';
     area.innerHTML = todas.length
-      ? _buildMsgsHtml(todas)
-      : '<div data-placeholder style="text-align:center;font-size:12px;color:var(--muted2);padding:30px">Sem mensagens ainda.</div>';
+      ? headerHtml + _buildMsgsHtml(todas)
+      : '<div data-placeholder style="text-align:center;font-size:12px;color:#8696a0;padding:30px">Sem mensagens ainda.</div>';
   }catch(e){
-    console.error('renderChatMsgs erro:', e);
+    console.warn('[chat] renderChatMsgs:', e.message);
     if(!memMsgs.length)
-      area.innerHTML = '<div style="text-align:center;font-size:12px;color:var(--muted2);padding:30px">Sem mensagens ainda.</div>';
+      area.innerHTML = '<div style="text-align:center;font-size:12px;color:#8696a0;padding:30px">Sem mensagens ainda.</div>';
   }
   area.scrollTop = area.scrollHeight;
+}
+
+async function carregarMaisMsgs(cid){
+  const btn = document.getElementById('btn-carregar-mais');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Carregando...'; }
+  const area = document.getElementById('chat-msgs');
+  const offset = (_msgOffset[cid]||0) + MSGS_POR_PAGINA;
+  _msgOffset[cid] = offset;
+  try{
+    const antigas = await carregarMsgsDB(cid, offset);
+    if(!antigas.length){
+      if(btn) btn.remove();
+      return;
+    }
+    _atualizarCacheChat(cid, antigas);
+    const temMais = antigas.length >= MSGS_POR_PAGINA;
+    const novoHeader = temMais
+      ? `<div style="text-align:center;padding:8px">
+           <button id="btn-carregar-mais" onclick="carregarMaisMsgs('${cid}')" style="font-size:12px;padding:5px 16px;background:#202c33;border:1px solid rgba(255,255,255,0.1);border-radius:99px;color:#8696a0;cursor:pointer">⬆ Carregar mensagens anteriores</button>
+         </div>`
+      : '';
+    // Insere antes do conteúdo existente preservando scroll
+    const scrollBefore = area.scrollHeight - area.scrollTop;
+    const antigasHtml = novoHeader + _buildMsgsHtml(antigas);
+    if(btn) btn.closest('div').outerHTML = antigasHtml;
+    else area.insertAdjacentHTML('afterbegin', antigasHtml);
+    area.scrollTop = area.scrollHeight - scrollBefore;
+  }catch(e){
+    console.warn('[chat] carregarMaisMsgs:', e.message);
+    if(btn){ btn.disabled=false; btn.textContent='⬆ Carregar mensagens anteriores'; }
+  }
+}
+
+// Limita chatMsgs a 50 conversas em memória (LRU simples)
+const _cacheOrder = [];
+function _atualizarCacheChat(cid, msgs){
+  if(!chatMsgs[cid]) chatMsgs[cid] = [];
+  const vistos = new Set(chatMsgs[cid].map(m=>m.id||(m.created_at+'|'+m.texto)));
+  msgs.forEach(m=>{
+    if(!vistos.has(m.id||(m.created_at+'|'+(m.texto||'')))) chatMsgs[cid].push(m);
+  });
+  // LRU: move para o fim
+  const idx = _cacheOrder.indexOf(cid);
+  if(idx !== -1) _cacheOrder.splice(idx,1);
+  _cacheOrder.push(cid);
+  // Remove o mais antigo se passar de 50
+  if(_cacheOrder.length > 50){
+    const removido = _cacheOrder.shift();
+    if(removido !== activeChatId) delete chatMsgs[removido];
+  }
 }
 
 function _buildMsgsHtml(msgs){

@@ -77,9 +77,13 @@ async function carregarTudo(){
   const loading = document.getElementById('app-loading');
   if(loading) loading.style.display='none';
   if(sb){
+    // Busca números distintos sem cliente_id associado (contatos desconhecidos)
     const {data} = await sb.from('wpp_mensagens')
-      .select('numero').is('cliente_id',null)
-      .order('created_at',{ascending:false}).limit(500);
+      .select('numero')
+      .is('cliente_id',null)
+      .not('numero','is',null)
+      .order('created_at',{ascending:false})
+      .limit(200);
     window._wppNumsDB = [...new Set((data||[]).map(m=>m.numero).filter(Boolean))];
     if(window._wppNumsDB.length > 0) renderChatContacts();
   }
