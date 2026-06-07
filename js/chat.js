@@ -749,44 +749,53 @@ const _fotoCache = {}; // { numero: url|null }
 
 async function _buscarFotoPerfil(numero){
   if(!numero) return null;
-  // Normaliza: remove não-dígitos, garante 55+DDD+número
   let numLimpo = String(numero).replace(/\D/g,'');
-  // Remove 55 se já vier com DDI para recalcular corretamente
   if(numLimpo.startsWith('55') && numLimpo.length > 11) numLimpo = numLimpo.slice(2);
-  // Garante 11 dígitos (DDD + número)
-  numLimpo = numLimpo.slice(-11);
-  // Chave de cache sem DDI
+  numLimpo = numLimpo.slice(-11); // 11 dígitos: DDD + 9 dígitos
   const cacheKey = numLimpo;
   if(_fotoCache[cacheKey] !== undefined) return _fotoCache[cacheKey];
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   if(!cfg.apiUrl || !cfg.apiKey || !cfg.instancia){ _fotoCache[cacheKey]=null; return null; }
   const base = cfg.apiUrl.replace(/\/$/,'');
   const headers = {'apikey': cfg.apiKey, 'Content-Type':'application/json'};
-  // Número com DDI Brasil para a API
-  const numComDDI = '55' + numLimpo;
-  try{
+
+  // Gera variações do número para contornar diferenças de registro no WhatsApp:
+  // 1) com DDI: 5521990331398
+  // 2) sem nono dígito: 552190331398 (números antigos RJ/SP)
+  // 3) sem DDI: 21990331398
+  const ddd   = numLimpo.slice(0,2);
+  const corpo = numLimpo.slice(2); // 9 dígitos
+  const corpoSem9 = corpo.length===9 ? corpo.slice(1) : corpo; // 8 dígitos
+  const variações = [
+    '55' + ddd + corpo,          // padrão: 5521990331398
+    '55' + ddd + corpoSem9,      // sem nono: 552190331398
+    numLimpo,                    // sem DDI: 21990331398
+  ];
+
+  const _fetchFoto = async (num) => {
     const ctrl = new AbortController();
-    const timer = setTimeout(()=>ctrl.abort(), 8000);
-    const r = await fetch(base+'/chat/fetchProfilePictureUrl/'+cfg.instancia, {
-      method: 'POST',
-      headers,
-      signal: ctrl.signal,
-      body: JSON.stringify({ number: numComDDI })
-    });
-    clearTimeout(timer);
-    if(r.ok){
+    const timer = setTimeout(()=>ctrl.abort(), 6000);
+    try{
+      const r = await fetch(base+'/chat/fetchProfilePictureUrl/'+cfg.instancia, {
+        method:'POST', headers, signal:ctrl.signal,
+        body: JSON.stringify({ number: num })
+      });
+      clearTimeout(timer);
+      if(!r.ok) return null;
       const data = await r.json();
-      const url = data.profilePictureUrl || data.picture || data.url || null;
+      return data.profilePictureUrl || data.picture || data.url || null;
+    }catch(_){ clearTimeout(timer); return null; }
+  };
+
+  for(const v of variações){
+    const url = await _fetchFoto(v);
+    if(url){
       _fotoCache[cacheKey] = url;
       return url;
     }
-    // Se der 404/400, o contato pode não ter foto ou privacidade ativada
-    _fotoCache[cacheKey] = null;
-    return null;
-  }catch(e){
-    // Timeout ou erro de rede — não cacheia para tentar novamente depois
-    return null;
   }
+  _fotoCache[cacheKey] = null;
+  return null;
 }
 
 function _setAvatar(elId, nome, fotoUrl){
