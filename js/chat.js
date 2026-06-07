@@ -575,7 +575,7 @@ function renderChatContacts(){
     const timeStr = lastMsg?.created_at ? new Date(lastMsg.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
     const previewIcon = lastMsg?.direcao==='saida'||lastMsg?.out ? '<span style="color:#8696a0;margin-right:3px">✓✓</span>' : '';
     return `<div class="chat-item ${ativo}" onclick="abrirChat('${c.id}')">
-      <div class="cavatar">${ini}</div>
+      <div class="cavatar" id="cav-${c.id}" style="overflow:hidden;padding:0">${_avatarHtmlLista(c.id, ini)}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px">
           <div style="font-size:14px;font-weight:${nl>0?700:500};color:#e9edef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${_esc(c.nome)}</div>
@@ -591,15 +591,84 @@ function renderChatContacts(){
 }
 function filtrarContatos(){ renderChatContacts(); }
 
+// ── FOTO DE PERFIL WPP ──
+const _fotoCache = {}; // { numero: url|null }
+
+async function _buscarFotoPerfil(numero){
+  if(!numero) return null;
+  const numLimpo = numero.replace(/\D/g,'');
+  if(_fotoCache[numLimpo] !== undefined) return _fotoCache[numLimpo];
+  const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
+  if(!cfg.apiUrl || !cfg.apiKey || !cfg.instancia){ _fotoCache[numLimpo]=null; return null; }
+  try{
+    const ctrl = new AbortController();
+    setTimeout(()=>ctrl.abort(), 6000);
+    const r = await fetch(cfg.apiUrl+'/chat/fetchProfilePictureUrl/'+cfg.instancia, {
+      method: 'POST',
+      headers: {'apikey': cfg.apiKey, 'Content-Type':'application/json'},
+      body: JSON.stringify({number: numLimpo+'@s.whatsapp.net'}),
+      signal: ctrl.signal
+    });
+    if(!r.ok){ _fotoCache[numLimpo]=null; return null; }
+    const data = await r.json();
+    const url = data.profilePictureUrl || data.picture || null;
+    _fotoCache[numLimpo] = url;
+    return url;
+  }catch(e){ _fotoCache[numLimpo]=null; return null; }
+}
+
+function _setAvatar(elId, nome, fotoUrl){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(fotoUrl){
+    el.innerHTML = '';
+    el.style.background = 'transparent';
+    el.style.padding = '0';
+    el.style.overflow = 'hidden';
+    const img = document.createElement('img');
+    img.src = fotoUrl;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%';
+    img.onerror = ()=>{ el.innerHTML = _iniciais(nome); el.style.background='#2a3942'; };
+    el.appendChild(img);
+  } else {
+    el.innerHTML = _iniciais(nome);
+    el.style.background = '#2a3942';
+    el.style.color = '#8696a0';
+    el.style.overflow = '';
+  }
+}
+
+function _iniciais(nome){
+  return (nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+}
+
+
+function _avatarHtmlLista(cid, ini){
+  const tel = (allClientes.find(c=>c.id===cid)||{}).telefone;
+  const num = tel ? tel.replace(/\D/g,'') : cid.replace(/\D/g,'');
+  const url = _fotoCache[num];
+  if(url) return `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='${ini}'">`;
+  return ini;
+}
+
+function _atualizarAvatarLista(cid, fotoUrl, nome){
+  const el = document.getElementById('cav-'+cid);
+  if(!el) return;
+  if(fotoUrl){
+    const ini = _iniciais(nome);
+    el.style.padding = '0';
+    el.style.overflow = 'hidden';
+    el.innerHTML = `<img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='${ini}'">`;
+  }
+}
+
 function abrirChat(cid){
   activeChatId = cid;
   clearUnread(cid);
   atualizarBadgeNotif();
   const c = allClientes.find(x=>x.id===cid);
   if(!c){
-    document.getElementById('chat-av').textContent = '?';
-    document.getElementById('chat-av').style.background = 'rgba(139,139,139,0.2)';
-    document.getElementById('chat-av').style.color = 'var(--muted)';
+    _setAvatar('chat-av', '?', null);
     document.getElementById('chat-name').textContent = 'Desconhecido';
     document.getElementById('chat-info').textContent = cid+' · Clique em Cadastrar para registrar';
     const btnCad = document.getElementById('btn-cadastrar-chat');
@@ -609,12 +678,12 @@ function abrirChat(cid){
     _checarStatusSara(cid);
     renderChatMsgs(cid);
     renderChatContacts();
+    // Tenta buscar foto do número desconhecido
+    _buscarFotoPerfil(cid).then(url=>{ if(activeChatId===cid) _setAvatar('chat-av','?',url); });
     return;
   }
-  const ini = (c.nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-  document.getElementById('chat-av').textContent = ini;
-  document.getElementById('chat-av').style.background = 'rgba(245,166,35,.12)';
-  document.getElementById('chat-av').style.color = 'var(--accent)';
+  // Avatar: inicia com iniciais, depois busca foto
+  _setAvatar('chat-av', c.nome, null);
   document.getElementById('chat-name').textContent = c.nome;
   document.getElementById('chat-info').textContent = c.telefone ? '📱 '+c.telefone : 'Sem telefone';
   const btnCad = document.getElementById('btn-cadastrar-chat');
@@ -622,6 +691,14 @@ function abrirChat(cid){
   if(c.telefone) _checarStatusSara(c.telefone);
   renderChatMsgs(cid);
   renderChatContacts();
+  // Busca foto de perfil em background
+  if(c.telefone){
+    _buscarFotoPerfil(c.telefone).then(url=>{
+      if(activeChatId===cid) _setAvatar('chat-av', c.nome, url);
+      // Atualiza também o avatar na lista de contatos
+      _atualizarAvatarLista(cid, url, c.nome);
+    });
+  }
 }
 
 // ── ENVIAR MENSAGEM ──
