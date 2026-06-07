@@ -52,7 +52,7 @@ function _renderAnexosExistentes(prefix, urls){
         <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
         <div style="font-size:10px;color:var(--muted)">Arquivo salvo</div>
       </div>
-      <a href="${u}" target="_blank" style="color:var(--accent);font-size:13px;text-decoration:none">🔗</a>
+      <button onclick="_abrirAnexo('${u}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px" title="Abrir arquivo">🔗</button>
       <button onclick="_removeAnexoExistente('${prefix}','${u}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
     </div>`;
   }).join('');
@@ -87,6 +87,15 @@ function _fileIcon(name){
   if(['jpg','jpeg','png','webp','gif'].includes(ext)) return '🖼️';
   if(['doc','docx'].includes(ext)) return '📝';
   return '📎';
+}
+
+async function _abrirAnexo(url){
+  try{
+    const signed = await _getSignedUrl(url);
+    window.open(signed, '_blank');
+  }catch(e){
+    notify('Erro ao abrir arquivo','error');
+  }
 }
 
 async function _uploadAnexos(prefix, veiculoId){
