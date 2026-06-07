@@ -722,14 +722,22 @@ async function _carregarFotosEmBackground(msgs){
     fila.push({ cid: num, numero: num, nome: null });
   });
 
-  // Processa a fila com intervalo entre cada requisição
-  for(const item of fila){
-    // Pula se já está em cache
+  // Filtra só quem ainda não tem cache
+  const semCache = fila.filter(item=>{
     const numKey = item.numero.replace(/\D/g,'').slice(-11);
-    if(_fotoCache[numKey] !== undefined) continue;
-    await new Promise(r=>setTimeout(r, 400)); // throttle
-    const url = await _buscarFotoPerfil(item.numero);
-    if(url) _atualizarAvatarLista(item.cid, url, item.nome||item.numero);
+    return _fotoCache[numKey] === undefined;
+  });
+
+  // Busca em paralelo com janelas de 5 por vez (concorrência controlada)
+  const JANELA = 5;
+  for(let i = 0; i < semCache.length; i += JANELA){
+    const lote = semCache.slice(i, i + JANELA);
+    await Promise.all(lote.map(async item=>{
+      const url = await _buscarFotoPerfil(item.numero);
+      if(url) _atualizarAvatarLista(item.cid, url, item.nome||item.numero);
+    }));
+    // Pausa curta entre lotes para não sobrecarregar a API
+    if(i + JANELA < semCache.length) await new Promise(r=>setTimeout(r, 150));
   }
 }
 
