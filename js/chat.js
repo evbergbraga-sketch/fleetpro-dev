@@ -626,6 +626,68 @@ function _buildMsgsHtml(msgs){
   return html;
 }
 
+// ══ CARREGAR PREVIEWS DE TODAS AS CONVERSAS AO INICIAR ══
+// Uma query só que busca as últimas N mensagens distintas por conversa.
+// Isso alimenta o chatMsgs para que a lista já mostre preview ao carregar.
+async function _carregarPreviewsChat(){
+  if(!sb) return;
+  try{
+    // Busca as últimas 300 mensagens ordenadas por data desc
+    // O JS agrupa por conversa e pega só a última de cada uma
+    const { data, error } = await sb
+      .from('wpp_mensagens')
+      .select('id,cliente_id,numero,texto,tipo,direcao,media_url,created_at')
+      .order('created_at', { ascending: false })
+      .limit(300);
+
+    if(error || !data) return;
+
+    // Agrupa: para cada conversa (cliente_id ou numero), guarda a última mensagem
+    const vistosCliente = new Set();
+    const vistosNumero  = new Set();
+    const msgs = [];
+
+    data.forEach(m=>{
+      // Chave primária da conversa
+      const chaveCliente = m.cliente_id;
+      const chaveNum     = (m.numero||'').replace(/\D/g,'').slice(-11);
+
+      // Guarda a mensagem se ainda não vimos essa conversa
+      if(chaveCliente && !vistosCliente.has(chaveCliente)){
+        vistosCliente.add(chaveCliente);
+        msgs.push({ ...m, _chave: chaveCliente });
+      } else if(!chaveCliente && chaveNum && !vistosNumero.has(chaveNum)){
+        vistosNumero.add(chaveNum);
+        msgs.push({ ...m, _chave: chaveNum });
+      }
+    });
+
+    // Popula chatMsgs para que renderChatContacts mostre o preview
+    msgs.forEach(m=>{
+      const chave = m.cliente_id || m.numero;
+      if(!chave) return;
+      if(!chatMsgs[chave]) chatMsgs[chave] = [];
+      // Só adiciona se ainda não existe essa mensagem
+      const jatem = chatMsgs[chave].some(x=>
+        x.id === m.id || (x.created_at === m.created_at && x.texto === m.texto)
+      );
+      if(!jatem) chatMsgs[chave].push(m);
+    });
+
+    // Coleta números sem cliente_id para mostrar contatos desconhecidos
+    window._wppNumsDB = [...vistosNumero];
+
+    // Atualiza o badge de não lidos no topo
+    atualizarBadgeNotif();
+
+    // Re-renderiza a lista com os previews
+    renderChatContacts();
+
+  } catch(e){
+    console.warn('[chat] _carregarPreviewsChat:', e.message);
+  }
+}
+
 function renderChatContacts(){
   if(!allClientes || allClientes.length === 0) return;
   const s = (document.getElementById('chat-search')?.value||'').toLowerCase();

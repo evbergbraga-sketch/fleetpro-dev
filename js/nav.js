@@ -47,6 +47,8 @@ function goPage(id, navEl){
   if(id==='chat'){
     renderChatContacts();
     if(typeof renderRespostasRapidas === "function") renderRespostasRapidas();
+    // Atualiza previews em background sem bloquear a navegação
+    if(typeof _carregarPreviewsChat === 'function') _carregarPreviewsChat();
     if(activeChatId){
       const _cid = activeChatId;
       activeChatId = null;
@@ -77,15 +79,8 @@ async function carregarTudo(){
   const loading = document.getElementById('app-loading');
   if(loading) loading.style.display='none';
   if(sb){
-    // Busca números distintos sem cliente_id associado (contatos desconhecidos)
-    const {data} = await sb.from('wpp_mensagens')
-      .select('numero')
-      .is('cliente_id',null)
-      .not('numero','is',null)
-      .order('created_at',{ascending:false})
-      .limit(200);
-    window._wppNumsDB = [...new Set((data||[]).map(m=>m.numero).filter(Boolean))];
-    if(window._wppNumsDB.length > 0) renderChatContacts();
+    // Carrega a última mensagem de cada conversa para o preview da lista
+    await _carregarPreviewsChat();
   }
 }
 
