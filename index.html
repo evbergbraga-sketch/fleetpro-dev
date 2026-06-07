@@ -734,7 +734,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           </div>
           <div class="chat-window">
             <div class="chat-top">
-              <div class="cavatar" id="chat-av" style="width:40px;height:40px;font-size:14px">?</div>
+              <div class="cavatar" id="chat-av" style="width:40px;height:40px;font-size:14px;cursor:pointer" onclick="abrirModalContato()" title="Ver perfil">?</div>
               <div class="chat-top-info">
                 <div class="chat-top-name" id="chat-name">Selecione uma conversa</div>
                 <div class="chat-top-sub" id="chat-info">—</div>
@@ -1428,6 +1428,26 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(window.renderRQ, 800));
 })();
 </script>
+
+
+<!-- MODAL PERFIL DO CONTATO -->
+<div class="modal-overlay" id="m-contato-perfil">
+  <div class="modal" style="max-width:360px;background:#111b21;border:1px solid rgba(255,255,255,0.08)">
+    <div class="modal-header" style="background:#202c33;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <div class="modal-title" style="color:#e9edef">Perfil do contato</div>
+      <button class="modal-close" onclick="closeModal('contato-perfil')" style="color:#8696a0">✕</button>
+    </div>
+    <div style="padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div id="mc-foto-wrap" style="cursor:pointer"></div>
+      <div style="text-align:center">
+        <div id="mc-nome-contato" style="font-size:18px;font-weight:700;color:#e9edef;margin-bottom:4px">—</div>
+        <div id="mc-numero-contato" style="font-size:13px;color:#8696a0">—</div>
+      </div>
+      <div id="mc-info-extra" style="width:100%;background:#202c33;border-radius:10px;padding:12px 16px"></div>
+      <div id="mc-btns-contato" style="display:flex;gap:8px;width:100%;margin-top:4px"></div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

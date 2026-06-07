@@ -683,8 +683,49 @@ async function _carregarPreviewsChat(){
     // Re-renderiza a lista com os previews
     renderChatContacts();
 
+    // Busca fotos de perfil em background para todos os contatos com telefone
+    _carregarFotosEmBackground(msgs);
+
   } catch(e){
     console.warn('[chat] _carregarPreviewsChat:', e.message);
+  }
+}
+
+// Busca fotos de todos os contatos após carregar previews
+// Throttle: 1 foto a cada 400ms para não sobrecarregar a API
+async function _carregarFotosEmBackground(msgs){
+  const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
+  if(!cfg.apiUrl || !cfg.apiKey) return;
+
+  // Monta lista de {cid, numero, nome} únicos para buscar foto
+  const fila = [];
+  const vistos = new Set();
+
+  // Clientes cadastrados
+  allClientes.forEach(c=>{
+    if(!c.telefone) return;
+    const num = c.telefone.replace(/\D/g,'').slice(-11);
+    if(vistos.has(num)) return;
+    vistos.add(num);
+    fila.push({ cid: c.id, numero: c.telefone, nome: c.nome });
+  });
+
+  // Desconhecidos do banco
+  (window._wppNumsDB||[]).forEach(num=>{
+    const n = num.replace(/\D/g,'').slice(-11);
+    if(vistos.has(n)) return;
+    vistos.add(n);
+    fila.push({ cid: num, numero: num, nome: null });
+  });
+
+  // Processa a fila com intervalo entre cada requisição
+  for(const item of fila){
+    // Pula se já está em cache
+    const numKey = item.numero.replace(/\D/g,'').slice(-11);
+    if(_fotoCache[numKey] !== undefined) continue;
+    await new Promise(r=>setTimeout(r, 400)); // throttle
+    const url = await _buscarFotoPerfil(item.numero);
+    if(url) _atualizarAvatarLista(item.cid, url, item.nome||item.numero);
   }
 }
 
@@ -869,6 +910,53 @@ function _atualizarAvatarLista(cid, fotoUrl, nome){
     el.style.cssText = `background:${cor};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;border-radius:50%`;
     el.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${ini}</div>`;
   }
+}
+
+// ── MODAL DE PERFIL DO CONTATO (click na foto) ──
+function abrirModalContato(){
+  if(!activeChatId) return;
+  const c = allClientes.find(x=>x.id===activeChatId);
+  const numero = c?.telefone || (!activeChatId.includes('-') ? activeChatId : null);
+  const nome   = c?.nome || numero || 'Desconhecido';
+  const numKey = (numero||'').replace(/\D/g,'').slice(-11);
+  const fotoUrl = _fotoCache[numKey] || null;
+  const isCliente = !!c;
+
+  const el = document.getElementById('m-contato-perfil');
+  if(!el) return;
+
+  // Foto ampliada ou avatar colorido
+  const cor = _avatarCor(nome);
+  const ini = _iniciais(nome);
+  const fotoHtml = fotoUrl
+    ? `<img src="${fotoUrl}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;box-shadow:0 4px 20px rgba(0,0,0,0.4)" onerror="this.outerHTML='<div style=\"width:96px;height:96px;border-radius:50%;background:${cor};display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff\">${ini}</div>'">`
+    : `<div style="width:96px;height:96px;border-radius:50%;background:${cor};display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff">${ini}</div>`;
+
+  document.getElementById('mc-foto-wrap').innerHTML = fotoHtml;
+  document.getElementById('mc-nome-contato').textContent = nome;
+  document.getElementById('mc-numero-contato').textContent = numero ? '📱 +'+numero : 'Sem número';
+
+  // Info extra se for cliente
+  const infoEl = document.getElementById('mc-info-extra');
+  if(isCliente){
+    infoEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#e9edef;margin-top:4px">
+        ${c.cpf ? `<div style="color:#8696a0">CPF: <span style="color:#e9edef">${c.cpf}</span></div>` : ''}
+        ${c.email ? `<div style="color:#8696a0">Email: <span style="color:#e9edef">${c.email}</span></div>` : ''}
+        ${c.endereco ? `<div style="color:#8696a0">Endereço: <span style="color:#e9edef">${c.endereco}</span></div>` : ''}
+      </div>`;
+  } else {
+    infoEl.innerHTML = '<div style="font-size:12px;color:#8696a0;margin-top:4px">Número não cadastrado como cliente</div>';
+  }
+
+  // Botões
+  const btnsEl = document.getElementById('mc-btns-contato');
+  btnsEl.innerHTML = isCliente
+    ? `<button class="btn btn-ghost" style="flex:1" onclick="verPerfilCliente();closeModal('contato-perfil')">👤 Ver perfil completo</button>
+       <button class="btn btn-primary" style="flex:1;background:#00a884;border-color:#00a884" onclick="closeModal('contato-perfil');goPage('contratos')">📄 Gerar contrato</button>`
+    : `<button class="btn btn-primary" style="width:100%;background:#00a884;border-color:#00a884" onclick="closeModal('contato-perfil');abrirCadastroClienteChat()">➕ Cadastrar como cliente</button>`;
+
+  el.classList.add('show');
 }
 
 function abrirChat(cid){
