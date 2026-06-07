@@ -749,25 +749,45 @@ const _fotoCache = {}; // { numero: url|null }
 
 async function _buscarFotoPerfil(numero){
   if(!numero) return null;
-  const numLimpo = numero.replace(/\D/g,'');
+  // Normaliza: garante 55 + DDD + número (13 dígitos)
+  let numLimpo = numero.replace(/\D/g,'');
+  if(!numLimpo.startsWith('55')) numLimpo = '55' + numLimpo.slice(-11);
   if(_fotoCache[numLimpo] !== undefined) return _fotoCache[numLimpo];
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   if(!cfg.apiUrl || !cfg.apiKey || !cfg.instancia){ _fotoCache[numLimpo]=null; return null; }
-  try{
-    const ctrl = new AbortController();
-    setTimeout(()=>ctrl.abort(), 6000);
-    const r = await fetch(cfg.apiUrl+'/chat/fetchProfilePictureUrl/'+cfg.instancia, {
-      method: 'POST',
-      headers: {'apikey': cfg.apiKey, 'Content-Type':'application/json'},
-      body: JSON.stringify({number: numLimpo+'@s.whatsapp.net'}),
-      signal: ctrl.signal
-    });
-    if(!r.ok){ _fotoCache[numLimpo]=null; return null; }
-    const data = await r.json();
-    const url = data.profilePictureUrl || data.picture || null;
-    _fotoCache[numLimpo] = url;
-    return url;
-  }catch(e){ _fotoCache[numLimpo]=null; return null; }
+  const base = cfg.apiUrl.replace(/\/$/,'');
+  const headers = {'apikey': cfg.apiKey, 'Content-Type':'application/json'};
+  // Tenta v2 primeiro, depois v1 como fallback
+  const tentativas = [
+    // Evolution API v2
+    { url: base+'/chat/fetchProfilePictureUrl/'+cfg.instancia,
+      body: {number: numLimpo} },
+    // Evolution API v1 / alguns forks
+    { url: base+'/chat/fetchProfilePictureUrl/'+cfg.instancia,
+      body: {number: numLimpo+'@s.whatsapp.net'} },
+    // Endpoint alternativo encontrado em alguns deploys
+    { url: base+'/misc/profilePicture/'+cfg.instancia,
+      body: {number: numLimpo} },
+  ];
+  for(const t of tentativas){
+    try{
+      const ctrl = new AbortController();
+      setTimeout(()=>ctrl.abort(), 6000);
+      const r = await fetch(t.url, {
+        method: 'POST', headers, signal: ctrl.signal,
+        body: JSON.stringify(t.body)
+      });
+      if(!r.ok) continue;
+      const data = await r.json();
+      const url = data.profilePictureUrl || data.picture || data.url || null;
+      if(url){
+        _fotoCache[numLimpo] = url;
+        return url;
+      }
+    }catch(_){ continue; }
+  }
+  _fotoCache[numLimpo] = null;
+  return null;
 }
 
 function _setAvatar(elId, nome, fotoUrl){
