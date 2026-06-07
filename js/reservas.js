@@ -62,9 +62,14 @@ function renderReservas(){
 
 // ══ ABRIR MODAL NOVA RESERVA ══
 function abrirModalReserva(){
-  // Popula clientes
+  // Popula clientes — somente aprovados
   const selCli = document.getElementById('res-cli');
-  if(selCli) selCli.innerHTML = allClientes.map(c=>`<option value="${c.id}" data-tel="${c.telefone||''}">${c.nome}</option>`).join('');
+  if(selCli){
+    const aprovados = allClientes.filter(c=>c.status_analise==='aprovado');
+    selCli.innerHTML = aprovados.length
+      ? aprovados.map(c=>`<option value="${c.id}" data-tel="${c.telefone||''}">${c.nome}</option>`).join('')
+      : '<option value="">Nenhum cliente aprovado</option>';
+  }
 
   // Popula veículos disponíveis e reservados
   const selVei = document.getElementById('res-vei');
@@ -80,10 +85,19 @@ function abrirModalReserva(){
   const el = document.getElementById('res-ini');
   if(el) el.value = agoraStr;
 
-  // Limpa outros campos
-  ['res-fim','res-valor','res-obs'].forEach(id=>{
+  // Limpa todos os campos
+  ['res-fim','res-valor','res-valor-cotado','res-obs','res-local-custom'].forEach(id=>{
     const e = document.getElementById(id); if(e) e.value='';
   });
+  // Reset local de retirada para Loja
+  const radios = document.querySelectorAll('input[name="res-local-tipo"]');
+  if(radios.length) { radios[0].checked = true; _toggleLocalRetirada('loja'); }
+  // Limpa preview do anexo
+  const prev = document.getElementById('res-anexo-preview');
+  if(prev) prev.innerHTML = '';
+  const inp = document.getElementById('res-anexo-input');
+  if(inp) inp.value = '';
+  window._resAnexoFile = null;
 
   document.getElementById('m-reserva').classList.add('show');
 }
@@ -95,7 +109,14 @@ async function salvarReserva(){
   const ini    = document.getElementById('res-ini')?.value;
   const fim    = document.getElementById('res-fim')?.value;
   const valor  = parseFloat(document.getElementById('res-valor')?.value||'0')||0;
+  const valorCotado = parseFloat(document.getElementById('res-valor-cotado')?.value||'0')||0;
   const obs    = document.getElementById('res-obs')?.value||'';
+  // Local de retirada
+  const localTipo = document.querySelector('input[name="res-local-tipo"]:checked')?.value||'loja';
+  const localCustom = document.getElementById('res-local-custom')?.value||'';
+  let localRetirada = localTipo === 'loja' ? 'Loja'
+    : localTipo === 'endereco' ? (allClientes.find(c=>c.id===cid)?.endereco||'Endereço do cliente')
+    : localCustom;
 
   if(!cid||!vid||!ini||!fim){notify('Preencha cliente, veículo e datas','error');return;}
   if(new Date(fim)<=new Date(ini)){notify('Data fim deve ser após data início','error');return;}
@@ -104,17 +125,31 @@ async function salvarReserva(){
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
 
   try{
-    const {error:errRes} = await sb.from('reservas').insert({
+    const {data: resData, error:errRes} = await sb.from('reservas').insert({
       cliente_id: cid,
       veiculo_id: vid,
       data_inicio: ini,
       data_fim: fim,
       valor_pago: valor,
+      valor_cotado: valorCotado||null,
+      local_retirada: localRetirada||null,
       observacoes: obs,
       status: 'ativa',
       criado_por: currentUser?.id
-    });
+    }).select().single();
     if(errRes) throw errRes;
+    // Upload comprovante se houver
+    if(window._resAnexoFile && resData?.id){
+      const f = window._resAnexoFile;
+      const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = `reservas/${resData.id}/${Date.now()}_${safeName}`;
+      const {error:errUp} = await sb.storage.from('reservas-docs').upload(path, f, {upsert:false});
+      if(!errUp){
+        const {data:pub} = sb.storage.from('reservas-docs').getPublicUrl(path);
+        await sb.from('reservas').update({comprovante_url: pub.publicUrl}).eq('id', resData.id);
+      }
+    }
+    window._resAnexoFile = null;
 
     // Marca veículo como reservado
     await sb.from('veiculos').update({status:'reservado'}).eq('id',vid);
@@ -239,4 +274,33 @@ async function expirarReservas(){
     await carregarTudo();
     renderReservas();
   }
+}
+
+// ── HELPERS NOVOS CAMPOS ──
+function _toggleLocalRetirada(tipo){
+  const custom = document.getElementById('res-local-custom');
+  if(!custom) return;
+  custom.style.display = tipo === 'outro' ? '' : 'none';
+  if(tipo === 'endereco'){
+    const cid = document.getElementById('res-cli')?.value;
+    const cli = allClientes.find(c=>c.id===cid);
+    custom.style.display = '';
+    custom.value = cli?.endereco || '';
+  }
+}
+
+function _previewAnexoReserva(file){
+  window._resAnexoFile = file || null;
+  const prev = document.getElementById('res-anexo-preview');
+  if(!prev) return;
+  if(!file){ prev.innerHTML=''; return; }
+  const icon = file.name.endsWith('.pdf') ? '📄' : '🖼️';
+  prev.innerHTML = `<div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-top:6px">
+    <span style="font-size:18px">${icon}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${file.name}</div>
+      <div style="font-size:10px;color:var(--muted)">${(file.size/1024).toFixed(1)} KB</div>
+    </div>
+    <button onclick="window._resAnexoFile=null;document.getElementById('res-anexo-preview').innerHTML='';document.getElementById('res-anexo-input').value=''" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+  </div>`;
 }
