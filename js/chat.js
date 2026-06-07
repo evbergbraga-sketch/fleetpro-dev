@@ -1188,15 +1188,31 @@ function setMsg(t){ const i=document.getElementById('chat-msg-input'); if(i){i.v
 
 // ── RECONEXÃO AO VOLTAR PARA A ABA ──
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState !== 'visible') return;
+  if(document.visibilityState === 'hidden'){
+    // Salva estado ao sair da aba — para restaurar ao voltar
+    const pageAtiva = document.querySelector('.page.active')?.id?.replace('page-','');
+    if(pageAtiva) sessionStorage.setItem('fp_last_page', pageAtiva);
+    if(activeChatId) sessionStorage.setItem('fp_last_chat', activeChatId);
+    return;
+  }
 
-  // 1. Reconecta SSE se caiu
+  // Ao voltar para a aba: reconecta SSE se caiu
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   if(cfg.bridgeUrl){
     const sseCaiu = !sseSource || sseSource.readyState === EventSource.CLOSED;
-    if(sseCaiu){
-      console.log('[SSE] Reconectando após retorno à aba...');
-      conectarSSE(cfg.bridgeUrl, cfg.secret||'');
-    }
+    if(sseCaiu) conectarSSE(cfg.bridgeUrl, cfg.secret||'FleetPro2025');
+  }
+
+  // Restaura a página e chat — só se o app ainda não navegou sozinho
+  const lastPage = sessionStorage.getItem('fp_last_page');
+  const lastChat = sessionStorage.getItem('fp_last_chat');
+  if(lastPage && document.querySelector('.page#page-dashboard.active')){
+    // Só restaura se voltou pro dashboard (app reiniciou)
+    sessionStorage.removeItem('fp_last_page');
+    sessionStorage.removeItem('fp_last_chat');
+    setTimeout(()=>{
+      goPage(lastPage);
+      if(lastPage==='chat' && lastChat) setTimeout(()=>abrirChat(lastChat), 500);
+    }, 300);
   }
 });
