@@ -749,45 +749,44 @@ const _fotoCache = {}; // { numero: url|null }
 
 async function _buscarFotoPerfil(numero){
   if(!numero) return null;
-  // Normaliza: garante 55 + DDD + número (13 dígitos)
-  let numLimpo = numero.replace(/\D/g,'');
-  if(!numLimpo.startsWith('55')) numLimpo = '55' + numLimpo.slice(-11);
-  if(_fotoCache[numLimpo] !== undefined) return _fotoCache[numLimpo];
+  // Normaliza: remove não-dígitos, garante 55+DDD+número
+  let numLimpo = String(numero).replace(/\D/g,'');
+  // Remove 55 se já vier com DDI para recalcular corretamente
+  if(numLimpo.startsWith('55') && numLimpo.length > 11) numLimpo = numLimpo.slice(2);
+  // Garante 11 dígitos (DDD + número)
+  numLimpo = numLimpo.slice(-11);
+  // Chave de cache sem DDI
+  const cacheKey = numLimpo;
+  if(_fotoCache[cacheKey] !== undefined) return _fotoCache[cacheKey];
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
-  if(!cfg.apiUrl || !cfg.apiKey || !cfg.instancia){ _fotoCache[numLimpo]=null; return null; }
+  if(!cfg.apiUrl || !cfg.apiKey || !cfg.instancia){ _fotoCache[cacheKey]=null; return null; }
   const base = cfg.apiUrl.replace(/\/$/,'');
   const headers = {'apikey': cfg.apiKey, 'Content-Type':'application/json'};
-  // Tenta v2 primeiro, depois v1 como fallback
-  const tentativas = [
-    // Evolution API v2
-    { url: base+'/chat/fetchProfilePictureUrl/'+cfg.instancia,
-      body: {number: numLimpo} },
-    // Evolution API v1 / alguns forks
-    { url: base+'/chat/fetchProfilePictureUrl/'+cfg.instancia,
-      body: {number: numLimpo+'@s.whatsapp.net'} },
-    // Endpoint alternativo encontrado em alguns deploys
-    { url: base+'/misc/profilePicture/'+cfg.instancia,
-      body: {number: numLimpo} },
-  ];
-  for(const t of tentativas){
-    try{
-      const ctrl = new AbortController();
-      setTimeout(()=>ctrl.abort(), 6000);
-      const r = await fetch(t.url, {
-        method: 'POST', headers, signal: ctrl.signal,
-        body: JSON.stringify(t.body)
-      });
-      if(!r.ok) continue;
+  // Número com DDI Brasil para a API
+  const numComDDI = '55' + numLimpo;
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 8000);
+    const r = await fetch(base+'/chat/fetchProfilePictureUrl/'+cfg.instancia, {
+      method: 'POST',
+      headers,
+      signal: ctrl.signal,
+      body: JSON.stringify({ number: numComDDI })
+    });
+    clearTimeout(timer);
+    if(r.ok){
       const data = await r.json();
       const url = data.profilePictureUrl || data.picture || data.url || null;
-      if(url){
-        _fotoCache[numLimpo] = url;
-        return url;
-      }
-    }catch(_){ continue; }
+      _fotoCache[cacheKey] = url;
+      return url;
+    }
+    // Se der 404/400, o contato pode não ter foto ou privacidade ativada
+    _fotoCache[cacheKey] = null;
+    return null;
+  }catch(e){
+    // Timeout ou erro de rede — não cacheia para tentar novamente depois
+    return null;
   }
-  _fotoCache[numLimpo] = null;
-  return null;
 }
 
 function _setAvatar(elId, nome, fotoUrl){
@@ -867,6 +866,7 @@ function abrirChat(cid){
   // Busca foto de perfil em background
   if(c.telefone){
     _buscarFotoPerfil(c.telefone).then(url=>{
+      console.log('[foto]', c.telefone, '->', url ? 'OK' : 'sem foto');
       if(activeChatId===cid) _setAvatar('chat-av', c.nome, url);
       // Atualiza também o avatar na lista de contatos
       _atualizarAvatarLista(cid, url, c.nome);
