@@ -38,30 +38,190 @@ function setWppStatus(ok, msg){
   if(hdr){  hdr.textContent = ok ? '● Conectado' : '● Desconectado'; hdr.style.color = ok ? 'var(--green)' : 'var(--red)'; }
 }
 
+// ── ESCAPE HTML (anti-XSS) ──
+function _esc(str){
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── QR CODE WHATSAPP ──
+let _qrPollTimer = null;
+
+async function _verificarStatusWpp(){
+  const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
+  if(!cfg.apiUrl || !cfg.apiKey || !cfg.instancia) return 'sem_config';
+  try{
+    const ctrl = new AbortController();
+    setTimeout(()=>ctrl.abort(), 8000);
+    const r = await fetch(cfg.apiUrl+'/instance/connectionState/'+cfg.instancia, {
+      headers:{'apikey': cfg.apiKey},
+      signal: ctrl.signal
+    });
+    if(!r.ok) return 'erro';
+    const data = await r.json();
+    const state = (data.instance?.state || data.state || '').toLowerCase();
+    return state; // 'open' = conectado, 'close'/'connecting' = desconectado
+  }catch(e){ return 'erro'; }
+}
+
+async function _buscarQR(){
+  const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
+  if(!cfg.apiUrl || !cfg.apiKey || !cfg.instancia) return null;
+  try{
+    const ctrl = new AbortController();
+    setTimeout(()=>ctrl.abort(), 8000);
+    const r = await fetch(cfg.apiUrl+'/instance/connect/'+cfg.instancia, {
+      headers:{'apikey': cfg.apiKey},
+      signal: ctrl.signal
+    });
+    if(!r.ok) return null;
+    const data = await r.json();
+    return data.base64 || data.qrcode?.base64 || null;
+  }catch(e){ return null; }
+}
+
+function _atualizarQR(qrBase64){
+  const img = document.getElementById('wpp-qr-img');
+  const status = document.getElementById('wpp-qr-status');
+  if(img && qrBase64){
+    img.src = qrBase64.startsWith('data:') ? qrBase64 : 'data:image/png;base64,'+qrBase64;
+    img.style.display = 'block';
+    if(status) status.textContent = '📱 Escaneie com o WhatsApp do celular';
+  }
+}
+
+function _onWppConectado(){
+  clearInterval(_qrPollTimer); _qrPollTimer = null;
+  setWppStatus(true, 'Conectado');
+  _renderQrPanel('conectado');
+  notify('✅ WhatsApp conectado com sucesso!', 'success');
+}
+
+function _onWppDesconectado(){
+  setWppStatus(false, 'Desconectado');
+  _renderQrPanel('desconectado');
+}
+
+function _renderQrPanel(estado){
+  const painel = document.getElementById('wpp-qr-painel');
+  if(!painel) return;
+  if(estado === 'conectado'){
+    painel.innerHTML = `
+      <div style="text-align:center;padding:16px">
+        <div style="font-size:36px;margin-bottom:8px">✅</div>
+        <div style="font-weight:600;color:var(--green);margin-bottom:4px">WhatsApp Conectado</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Instância ativa e recebendo mensagens</div>
+        <button class="btn btn-ghost" style="font-size:12px;width:100%" onclick="desconectarWpp()">⚠️ Desconectar</button>
+      </div>`;
+  } else if(estado === 'carregando'){
+    painel.innerHTML = `
+      <div style="text-align:center;padding:16px">
+        <div style="font-size:28px;margin-bottom:8px;animation:spin 1s linear infinite">⏳</div>
+        <div style="font-size:12px;color:var(--muted)">Gerando QR Code...</div>
+      </div>`;
+  } else if(estado === 'sem_config'){
+    painel.innerHTML = `
+      <div style="text-align:center;padding:12px;font-size:12px;color:var(--muted)">
+        Configure a URL e API Key da Evolution API acima e clique em "Conectar".
+      </div>`;
+  } else {
+    // desconectado — mostrar QR
+    painel.innerHTML = `
+      <div style="text-align:center;padding:8px">
+        <div id="wpp-qr-status" style="font-size:11px;color:var(--muted);margin-bottom:8px">Aguardando QR Code...</div>
+        <div style="background:#fff;border-radius:12px;padding:8px;display:inline-block;margin-bottom:8px">
+          <img id="wpp-qr-img" src="" style="width:180px;height:180px;display:none;border-radius:4px">
+          <div id="wpp-qr-placeholder" style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#999">
+            <span style="animation:pulse 1.5s ease-in-out infinite">📱 Carregando...</span>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--muted2);line-height:1.5;margin-bottom:8px">
+          Abra o WhatsApp → Menu → Dispositivos conectados → Conectar dispositivo
+        </div>
+        <button class="btn btn-ghost" style="font-size:11px;width:100%" onclick="atualizarQrManual()">🔄 Atualizar QR</button>
+      </div>`;
+    _iniciarPollingQR();
+  }
+}
+
+async function _iniciarPollingQR(){
+  if(_qrPollTimer) clearInterval(_qrPollTimer);
+  // tenta imediato
+  await _tentarCarregarQR();
+  // depois a cada 20s (QR expira em ~60s)
+  _qrPollTimer = setInterval(async()=>{
+    const estado = await _verificarStatusWpp();
+    if(estado === 'open'){ _onWppConectado(); return; }
+    await _tentarCarregarQR();
+  }, 20000);
+}
+
+async function _tentarCarregarQR(){
+  const qr = await _buscarQR();
+  if(qr){
+    _atualizarQR(qr);
+    const ph = document.getElementById('wpp-qr-placeholder');
+    if(ph) ph.style.display = 'none';
+    const img = document.getElementById('wpp-qr-img');
+    if(img) img.style.display = 'block';
+  }
+}
+
+async function atualizarQrManual(){
+  const painel = document.getElementById('wpp-qr-painel');
+  const btn = painel?.querySelector('button');
+  if(btn){ btn.disabled=true; btn.textContent='🔄 Atualizando...'; }
+  await _tentarCarregarQR();
+  if(btn){ btn.disabled=false; btn.textContent='🔄 Atualizar QR'; }
+}
+
+async function desconectarWpp(){
+  if(!confirm('Desconectar o WhatsApp? Precisará escanear o QR novamente.')) return;
+  const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
+  try{
+    await fetch(cfg.apiUrl+'/instance/logout/'+cfg.instancia, {
+      method:'DELETE',
+      headers:{'apikey': cfg.apiKey}
+    });
+  }catch(_){}
+  setWppStatus(false,'Desconectado');
+  _renderQrPanel('desconectado');
+  notify('WhatsApp desconectado','info');
+}
+
 // ── SSE ──
+let _sseRetryDelay = 5000;
+let _sseRetryTimer = null;
+
 function conectarSSE(bridgeUrl, secret){
   if(sseSource){ sseSource.close(); sseSource = null; }
+  if(_sseRetryTimer){ clearTimeout(_sseRetryTimer); _sseRetryTimer = null; }
   const sseUrl = bridgeUrl.replace(/\/$/,'')+'/events?secret='+encodeURIComponent(secret);
   sseSource = new EventSource(sseUrl);
-  sseSource.onopen = ()=>{ console.log('[SSE] Conectado'); setWppStatus(true,'Conectado'); };
+  sseSource.onopen = ()=>{ _sseRetryDelay = 5000; setWppStatus(true,'Conectado'); };
   sseSource.onmessage = e=>{
     try{
       const msg = JSON.parse(e.data);
       if(msg.tipo==='wpp_msg_recebida') receberMsgSSE(msg);
       else if(msg.tipo==='sara_bloqueada')   _atualizarBotaoSara(msg.numero, true);
       else if(msg.tipo==='sara_desbloqueada') _atualizarBotaoSara(msg.numero, false);
+      else if(msg.tipo==='wpp_qr')           _atualizarQR(msg.qr);
+      else if(msg.tipo==='wpp_conectado')     _onWppConectado();
+      else if(msg.tipo==='wpp_desconectado')  _onWppDesconectado();
     }catch(_){}
   };
   sseSource.onerror = ()=>{
-    setWppStatus(false,'Reconectando...');
+    setWppStatus(false,'Reconectando em '+(Math.round(_sseRetryDelay/1000))+'s...');
     sseSource.close(); sseSource = null;
     const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
-    if(cfg.bridgeUrl) setTimeout(()=>conectarSSE(cfg.bridgeUrl, cfg.secret||'FleetPro2025'), 5000);
+    if(cfg.bridgeUrl){
+      _sseRetryTimer = setTimeout(()=>conectarSSE(cfg.bridgeUrl, cfg.secret||''), _sseRetryDelay);
+      _sseRetryDelay = Math.min(_sseRetryDelay * 2, 60000); // máx 60s
+    }
   };
 }
 
 function receberMsgSSE(msg){
-  console.log('[SSE] Mensagem chegou:', JSON.stringify(msg));
+  // [SSE] msg recebida — log removido em prod (PII)
   const cidPorId     = msg.clienteId||null;
   const cidPorNumero = encontrarClientePorNumero(msg.numero);
   const cid          = cidPorId || cidPorNumero || msg.numero;
@@ -140,8 +300,19 @@ async function conectarWpp(){
   const cfg = {apiUrl:evoUrl, apiKey, instancia:inst, bridgeUrl:bridge, secret};
   localStorage.setItem(EVO_CFG_KEY, JSON.stringify(cfg));
   conectarSSE(bridge, secret);
-  setWppStatus(true,'Conectado');
-  notify('WhatsApp conectado! SSE ativo.','success');
+
+  // Verificar status real da instância
+  _renderQrPanel('carregando');
+  const estado = await _verificarStatusWpp();
+  if(estado === 'open'){
+    setWppStatus(true,'Conectado');
+    _renderQrPanel('conectado');
+    notify('WhatsApp já conectado!','success');
+  } else {
+    setWppStatus(false,'Aguardando QR...');
+    _renderQrPanel('desconectado');
+    notify('Configure o WhatsApp escaneando o QR Code','info');
+  }
 
   const el = document.getElementById('webhook-url-display');
   if(el) el.textContent = bridge+'/webhook/wpp  (header x-secret: '+secret+')';
@@ -157,9 +328,13 @@ function preencherCamposWpp(){
   set('wpp-secret', cfg.secret);
   if(cfg.bridgeUrl){
     const el = document.getElementById('webhook-url-display');
-    if(el) el.textContent = cfg.bridgeUrl+'/webhook/wpp  (header x-secret: '+(cfg.secret||'FleetPro2025')+')';
-    conectarSSE(cfg.bridgeUrl, cfg.secret||'FleetPro2025');
-    setWppStatus(true,'Conectado');
+    if(el) el.textContent = cfg.bridgeUrl+'/webhook/wpp  (header x-secret: '+(cfg.secret||'')+')';
+    conectarSSE(cfg.bridgeUrl, cfg.secret||'');
+    // Verificar status real ao carregar
+    _verificarStatusWpp().then(estado=>{
+      if(estado==='open'){ setWppStatus(true,'Conectado'); _renderQrPanel('conectado'); }
+      else { setWppStatus(false,'Desconectado'); _renderQrPanel('desconectado'); }
+    });
     setTimeout(()=>{
       if(activeChatId){
         const c = allClientes.find(x=>x.id===activeChatId);
@@ -275,10 +450,10 @@ function renderMsgItem(m){
     if(mediaUrl){
       const mid = 'mi'+Date.now()+Math.random().toString(36).slice(2);
       corpo = '<img id="'+mid+'" src="" style="max-width:220px;border-radius:8px;display:block;margin-bottom:4px;cursor:pointer" onclick="window.open(this.src,\'_blank\')">';
-      if(m.texto) corpo += '<div style="font-size:12px">'+m.texto+'</div>';
+      if(m.texto) corpo += '<div style="font-size:12px">'+_esc(m.texto)+'</div>';
       setTimeout(async()=>{ const el=document.getElementById(mid); if(el){ const u=await _getSignedUrl(mediaUrl); el.src=u; el.onclick=()=>window.open(u,'_blank'); }},50);
     } else {
-      corpo = '<div style="font-size:12px;color:var(--muted)">🖼️ Imagem '+(m.texto||'')+'</div>';
+      corpo = '<div style="font-size:12px;color:var(--muted)">🖼️ Imagem '+_esc(m.texto||'')+'</div>';
     }
   } else if(tipo==='audio'||tipo==='ptt'||tipo==='audioMessage'||tipo==='pttMessage'){
     if(mediaUrl){
@@ -286,24 +461,24 @@ function renderMsgItem(m){
       corpo = '<audio id="'+aid+'" controls style="max-width:220px;min-width:160px"><source src="">Seu navegador nao suporta audio.</audio>';
       setTimeout(async()=>{ const el=document.getElementById(aid); if(el){ const u=await _getSignedUrl(mediaUrl); el.querySelector('source').src=u; el.load(); }},50);
     } else {
-      corpo = '<div style="font-size:12px;color:var(--muted)">🎵 Áudio '+(m.texto||'')+'</div>';
+      corpo = '<div style="font-size:12px;color:var(--muted)">🎵 Áudio '+_esc(m.texto||'')+'</div>';
     }
   } else if(tipo==='video'||tipo==='videoMessage'){
     if(mediaUrl){
       const vid = 'vi'+Date.now()+Math.random().toString(36).slice(2);
       corpo = '<video id="'+vid+'" controls style="max-width:280px;border-radius:8px;display:block"><source src="">Seu navegador não suporta vídeo.</video>';
-      if(m.texto && m.texto!=='Vídeo') corpo += '<div style="font-size:12px;margin-top:4px">'+m.texto+'</div>';
+      if(m.texto && m.texto!=='Vídeo') corpo += '<div style="font-size:12px;margin-top:4px">'+_esc(m.texto)+'</div>';
       setTimeout(async()=>{ const el=document.getElementById(vid); if(el){ const u=await _getSignedUrl(mediaUrl); el.querySelector('source').src=u; el.load(); }},50);
     } else {
-      corpo = '<div style="font-size:12px;color:var(--muted)">🎥 Vídeo '+(m.texto||'')+'</div>';
+      corpo = '<div style="font-size:12px;color:var(--muted)">🎥 Vídeo '+_esc(m.texto||'')+'</div>';
     }
   } else if(tipo==='document'||tipo==='documentMessage'){
     if(mediaUrl){
       const did = 'di'+Date.now()+Math.random().toString(36).slice(2);
-      corpo = '<div>📎 <a id="'+did+'" href="#" target="_blank" style="color:var(--accent)">'+(m.texto||'Abrir documento')+'</a></div>';
+      corpo = '<div>📎 <a id="'+did+'" href="#" target="_blank" style="color:var(--accent)">'+_esc(m.texto||'Abrir documento')+'</a></div>';
       setTimeout(async()=>{ const el=document.getElementById(did); if(el){ const u=await _getSignedUrl(mediaUrl); el.href=u; }},50);
     } else {
-      corpo = '<div style="font-size:12px;color:var(--muted)">📎 Documento '+(m.texto||'')+'</div>';
+      corpo = '<div style="font-size:12px;color:var(--muted)">📎 Documento '+_esc(m.texto||'')+'</div>';
     }
   } else {
     const txt = (m.texto||m.text||'').replace(/</g,'&lt;').replace(/\n/g,'<br>');
@@ -716,7 +891,7 @@ async function toggleSara(){
   try{
     const r = await fetch((cfg.bridgeUrl||'').replace(/\/$/,'')+endpoint, {
       method:'POST',
-      headers:{'Content-Type':'application/json','x-secret':'FleetPro2025'},
+      headers:{'Content-Type':'application/json','x-secret': (JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}').secret||'')},
       body: JSON.stringify({ numero: numLimpo })
     });
     const data = await r.json();
@@ -733,7 +908,7 @@ async function _checarStatusSara(telefone){
   const numChave = raw.startsWith('55') ? raw : '55' + raw.slice(-11);
   const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
   try{
-    const r = await fetch((cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'')+'/sara-status/'+numChave+'?secret=FleetPro2025');
+    const r = await fetch((cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'')+'/sara-status/'+numChave+'?secret='+encodeURIComponent(cfg.secret||''));
     const data = await r.json();
     if(data.bloqueada) _saraBloqueadas.add(numChave);
     else _saraBloqueadas.delete(numChave);
@@ -768,7 +943,7 @@ document.addEventListener('visibilitychange', ()=>{
     const sseCaiu = !sseSource || sseSource.readyState === EventSource.CLOSED;
     if(sseCaiu){
       console.log('[SSE] Reconectando após retorno à aba...');
-      conectarSSE(cfg.bridgeUrl, cfg.secret||'FleetPro2025');
+      conectarSSE(cfg.bridgeUrl, cfg.secret||'');
     }
   }
 });

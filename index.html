@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net unpkg.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; connect-src *; img-src * data: blob:; media-src * blob:;">
 <link rel="icon" href="data:image/svg+xml;charset=utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232563EB'/><rect x='9' y='9' width='5' height='14' rx='1.5' fill='white'/><rect x='9' y='9' width='14' height='5' rx='1.5' fill='white'/><rect x='9' y='15' width='11' height='4' rx='1.5' fill='white'/></svg>">
 <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#006400">
@@ -757,10 +758,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <div id="wpp-cfg-body" style="display:none">
                 <div class="form-group" style="margin-bottom:6px"><label>URL Evolution API</label><input type="text" id="wpp-url" placeholder="https://evo.seudominio.com" style="width:100%;font-size:12px"></div>
                 <div class="form-group" style="margin-bottom:6px"><label>API Key</label><input type="text" id="wpp-apikey" placeholder="sua-api-key" style="width:100%;font-size:12px"></div>
-                <div class="form-group" style="margin-bottom:6px"><label>Instância</label><input type="text" id="wpp-inst" placeholder="fleetpro" style="width:100%;font-size:12px"></div>
+                <div class="form-group" style="margin-bottom:6px"><label>Instância</label><input type="text" id="wpp-inst" placeholder="royalevo" style="width:100%;font-size:12px"></div>
                 <div class="form-group" style="margin-bottom:6px"><label>URL Bridge Server</label><input type="text" id="wpp-bridge" placeholder="https://bridge.seudominio.com" style="width:100%;font-size:12px"></div>
                 <div class="form-group" style="margin-bottom:8px"><label>Secret</label><input type="text" id="wpp-secret" placeholder="FleetPro2025" style="width:100%;font-size:12px"></div>
-                <button class="btn btn-primary" style="width:100%;font-size:12px;margin-bottom:6px" onclick="conectarWpp()">⚡ Conectar</button>
+                <button class="btn btn-primary" style="width:100%;font-size:12px;margin-bottom:10px" onclick="conectarWpp()">⚡ Conectar / Ver QR</button>
+                <!-- QR Code Panel -->
+                <div id="wpp-qr-painel" style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;margin-bottom:8px;overflow:hidden">
+                  <div style="text-align:center;padding:12px;font-size:12px;color:var(--muted)">Configure acima e clique em "Conectar / Ver QR"</div>
+                </div>
                 <div style="font-size:10px;color:var(--muted2);line-height:1.4" id="webhook-url-display"></div>
               </div>
             </div>
