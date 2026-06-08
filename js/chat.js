@@ -539,21 +539,27 @@ async function renderChatMsgs(cid){
   const area = document.getElementById('chat-msgs');
   if(!area) return;
   _msgOffset[cid] = 0;
-  // Mostra memória imediatamente enquanto busca no banco
-  const memMsgs = chatMsgs[cid]||[];
-  if(memMsgs.length){
-    area.innerHTML = _buildMsgsHtml(memMsgs);
-    area.scrollTop = area.scrollHeight;
-  } else {
-    area.innerHTML = '<div style="text-align:center;font-size:12px;color:#8696a0;padding:20px">⏳ Buscando mensagens...</div>';
-  }
+
+  // Mostra loading enquanto busca no banco
+  area.innerHTML = '<div style="text-align:center;font-size:12px;color:#8696a0;padding:20px">⏳ Buscando mensagens...</div>';
+
   try{
     const dbMsgs = await carregarMsgsDB(cid, 0);
-    // Mescla com memória sem duplicatas
-    const vistos = new Set(dbMsgs.map(m=>_msgKey(m)));
-    const extras = memMsgs.filter(m=>!vistos.has(_msgKey(m)));
-    const todas  = [...dbMsgs,...extras].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
-    // Atualiza cache em memória
+
+    // O banco é a fonte da verdade — descarta cache e usa só o banco
+    // Mantém apenas msgs do SSE que ainda não chegaram no banco (sem id, recentes)
+    const memMsgs = chatMsgs[cid]||[];
+    const vistosDb = new Set(dbMsgs.map(m=>_msgKey(m)));
+    const apenasSSE = memMsgs.filter(m=>
+      !m.id && // só msgs sem id (vieram do SSE, não do banco)
+      !vistosDb.has(_msgKey(m)) &&
+      new Date(m.created_at||0) > Date.now() - 60000 // só das últimas 60s
+    );
+    const todas = [...dbMsgs, ...apenasSSE]
+      .sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+
+    // Substitui cache com dados limpos do banco
+    chatMsgs[cid] = todas;
     _atualizarCacheChat(cid, todas);
     // Botão "carregar mais" se retornou página cheia
     const temMais = dbMsgs.length >= MSGS_POR_PAGINA;
