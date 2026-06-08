@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net unpkg.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; connect-src *; img-src * data: blob:; media-src * blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net unpkg.com cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; connect-src *; img-src * data: blob:; media-src * blob:;">
 <link rel="icon" href="data:image/svg+xml;charset=utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232563EB'/><rect x='9' y='9' width='5' height='14' rx='1.5' fill='white'/><rect x='9' y='9' width='14' height='5' rx='1.5' fill='white'/><rect x='9' y='15' width='11' height='4' rx='1.5' fill='white'/></svg>">
 <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#006400">
@@ -17,6 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 function _toggleSideSection(id){
   var el=document.getElementById(id);if(!el)return;
@@ -411,14 +412,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <div class="form-grid">
               <div class="form-group"><label>Nome</label><input type="text" id="c-condutor" placeholder="Igual ao cliente se vazio" style="width:100%" oninput="previewContrato()"></div>
               <div class="form-group"><label>CPF</label><input type="text" id="c-condutor-cpf" placeholder="000.000.000-00" style="width:100%" oninput="if(typeof maskCPF==='function')maskCPF(this);previewContrato()"></div>
-              <div class="form-group"><label>Nº CNH</label><input type="text" id="c-condutor-cnh" placeholder="00000000000" style="width:100%" oninput="previewContrato()"></div>
+              <div class="form-group"><label>Nº CNH</label><input type="text" id="c-condutor-cnh" placeholder="00000000000" style="width:100%" oninput="maskCNH(this);previewContrato()" inputmode="numeric"></div>
               <div class="form-group"><label>Categoria CNH</label>
                 <select id="c-condutor-cnh-cat" style="width:100%" onchange="previewContrato()">
                   <option value="">—</option><option>A</option><option>B</option><option>AB</option><option>C</option><option>D</option><option>E</option>
                 </select>
               </div>
               <div class="form-group"><label>Validade CNH</label><input type="date" id="c-condutor-cnh-val" style="width:100%" oninput="previewContrato()"></div>
-              <div class="form-group"><label>Nº Segurança CNH</label><input type="text" id="c-condutor-cnh-seg" placeholder="00000000000" style="width:100%" oninput="previewContrato()"></div>
+              <div class="form-group"><label>Nº Segurança CNH</label><input type="text" id="c-condutor-cnh-seg" placeholder="00000000000" style="width:100%" oninput="maskCNHSeg(this);previewContrato()" inputmode="numeric"></div>
             </div>
 
             <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -430,14 +431,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <div class="form-grid">
                 <div class="form-group"><label>Nome completo</label><input type="text" id="novo-condutor-nome" placeholder="Nome completo" style="width:100%"></div>
                 <div class="form-group"><label>CPF</label><input type="text" id="novo-condutor-cpf" style="width:100%" oninput="if(typeof maskCPF==='function')maskCPF(this)" placeholder="000.000.000-00"></div>
-                <div class="form-group"><label>Nº CNH</label><input type="text" id="novo-condutor-cnh" placeholder="00000000000" style="width:100%"></div>
+                <div class="form-group"><label>Nº CNH</label><input type="text" id="novo-condutor-cnh" placeholder="00000000000" style="width:100%" oninput="maskCNH(this)" inputmode="numeric"></div>
                 <div class="form-group"><label>Categoria</label>
                   <select id="novo-condutor-cnh-cat" style="width:100%">
                     <option value="">—</option><option>A</option><option>B</option><option>AB</option><option>C</option><option>D</option><option>E</option>
                   </select>
                 </div>
                 <div class="form-group"><label>Validade CNH</label><input type="date" id="novo-condutor-cnh-val" style="width:100%"></div>
-                <div class="form-group"><label>Nº Segurança CNH</label><input type="text" id="novo-condutor-cnh-seg" placeholder="00000000000" style="width:100%"></div>
+                <div class="form-group"><label>Nº Segurança CNH</label><input type="text" id="novo-condutor-cnh-seg" placeholder="00000000000" style="width:100%" oninput="maskCNHSeg(this)" inputmode="numeric"></div>
               </div>
               <div style="display:flex;gap:8px;margin-top:4px">
                 <button class="btn btn-primary" style="font-size:12px" onclick="_adicionarCondutor()">✓ Adicionar condutor</button>
@@ -1289,8 +1290,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="form-section-title">🪪 CNH — Carteira de Habilitação</div>
       <div class="form-grid">
         <div class="form-group"><label>Nº Registro</label><input type="text" id="ec-cnh-registro" style="width:100%"></div>
-        <div class="form-group"><label>Nº CNH</label><input type="text" id="ec-cnh" style="width:100%"></div>
-        <div class="form-group"><label>Nº de Segurança</label><input type="text" id="ec-cnh-seguranca" style="width:100%"></div>
+        <div class="form-group"><label>Nº CNH</label><input type="text" id="ec-cnh" style="width:100%" oninput="maskCNH(this)" inputmode="numeric"></div>
+        <div class="form-group"><label>Nº de Segurança</label><input type="text" id="ec-cnh-seguranca" style="width:100%" oninput="maskCNHSeg(this)" inputmode="numeric"></div>
         <div class="form-group"><label>Categoria</label>
           <select id="ec-cnh-categoria" style="width:100%">
             <option value="">— Selecione</option>
@@ -1503,8 +1504,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="form-section-title">🪪 CNH — Carteira de Habilitação</div>
       <div class="form-grid">
         <div class="form-group"><label>Nº Registro</label><input type="text" id="mc-cnh-registro" placeholder="00000000000" style="width:100%"></div>
-        <div class="form-group"><label>Nº CNH</label><input type="text" id="mc-cnh" placeholder="AB123456" style="width:100%"></div>
-        <div class="form-group"><label>Nº de Segurança</label><input type="text" id="mc-cnh-seguranca" placeholder="00000000000" style="width:100%"></div>
+        <div class="form-group"><label>Nº CNH</label><input type="text" id="mc-cnh" placeholder="00000000000" style="width:100%" oninput="maskCNH(this)" inputmode="numeric"></div>
+        <div class="form-group"><label>Nº de Segurança</label><input type="text" id="mc-cnh-seguranca" placeholder="00000000000" style="width:100%" oninput="maskCNHSeg(this)" inputmode="numeric"></div>
         <div class="form-group"><label>Categoria</label>
           <select id="mc-cnh-categoria" style="width:100%">
             <option value="">— Selecione</option>

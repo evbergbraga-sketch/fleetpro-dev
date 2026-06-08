@@ -638,15 +638,8 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   if(!d||typeof d!=='object') d = previewContrato();
   if(!d) return;
 
-  if(!window.jspdf){
-    await new Promise((res,rej)=>{
-      const s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      s.onload=res; s.onerror=rej;
-      document.head.appendChild(s);
-    });
-  }
-
+  // jsPDF carregado estaticamente no index.html
+  if(!window.jspdf){ notify('jsPDF não carregado. Recarregue a página.','error'); return; }
   const {jsPDF} = window.jspdf;
   const doc  = new jsPDF({unit:'mm',format:'a4'});
   const isMoto = _tipoContrato==='moto';

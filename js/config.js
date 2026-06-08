@@ -105,6 +105,16 @@ function maskCPF(input){
   }
 }
 
+// Máscara CNH — só dígitos, máx 11 caracteres
+function maskCNH(input){
+  input.value = input.value.replace(/\D/g,'').slice(0,11);
+}
+
+// Máscara Nº de Segurança CNH — só dígitos, máx 11 caracteres
+function maskCNHSeg(input){
+  input.value = input.value.replace(/\D/g,'').slice(0,11);
+}
+
 function checarCPF(valor, campo='CPF'){
   const raw = valor.replace(/\D/g,'');
   if(!raw) return true;
