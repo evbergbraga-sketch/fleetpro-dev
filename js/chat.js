@@ -1376,6 +1376,118 @@ async function _checarStatusSara(telefone){
 }
 
 
+// ── RESERVA RÁPIDA DO CHAT ──
+function _chatAcaoReserva(){
+  if(!activeChatId){ notify('Selecione uma conversa primeiro','error'); return; }
+  const c = allClientes.find(x=>x.id===activeChatId);
+
+  // Preenche cliente
+  const display = document.getElementById('cr-cliente-display');
+  const cidEl   = document.getElementById('cr-cli-id');
+  if(display) display.textContent = c ? c.nome : '📱 ' + activeChatId + ' (não cadastrado)';
+  if(cidEl)   cidEl.value = c ? c.id : '';
+
+  // Preenche select de veículos
+  const selVei = document.getElementById('cr-vei');
+  if(selVei){
+    selVei.innerHTML = '<option value="">— Selecione —</option>' +
+      (allVeiculos||[]).filter(v=>v.status==='disponivel').map(v=>
+        `<option value="${v.id}">${v.tipo==='moto'?'🏍️':'🚗'} ${v.marca} ${v.modelo} — ${v.placa} (R$ ${v.diaria}/sem)</option>`
+      ).join('');
+  }
+
+  // Data padrão: agora
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const nowStr = now.toISOString().slice(0,16);
+  const iniEl = document.getElementById('cr-ini');
+  if(iniEl && !iniEl.value) iniEl.value = nowStr;
+
+  // Limpa campos
+  ['cr-fim','cr-valor-cotado','cr-obs'].forEach(id=>{
+    const e = document.getElementById(id); if(e) e.value='';
+  });
+
+  document.getElementById('m-chat-reserva').classList.add('show');
+}
+
+async function crSalvarReserva(notificar=false){
+  const cid   = document.getElementById('cr-cli-id')?.value||null;
+  const vid   = document.getElementById('cr-vei')?.value;
+  const ini   = document.getElementById('cr-ini')?.value;
+  const fim   = document.getElementById('cr-fim')?.value;
+  const valor = parseFloat(document.getElementById('cr-valor-cotado')?.value||'0')||0;
+  const local = document.getElementById('cr-local')?.value||'Loja';
+  const obs   = document.getElementById('cr-obs')?.value||'';
+
+  if(!vid||!ini||!fim){ notify('Preencha veículo e datas','error'); return; }
+  if(new Date(fim)<=new Date(ini)){ notify('Data fim deve ser após data início','error'); return; }
+
+  const btns = document.querySelectorAll('#m-chat-reserva button[onclick*="crSalvar"]');
+  btns.forEach(b=>{ b.disabled=true; });
+
+  try{
+    const {data:res, error} = await sb.from('reservas').insert({
+      cliente_id:    cid||null,
+      veiculo_id:    vid,
+      data_inicio:   ini,
+      data_fim:      fim,
+      valor_cotado:  valor||null,
+      local_retirada: local,
+      observacoes:   obs||null,
+      status:        'ativa',
+      criado_por:    currentUser?.id,
+    }).select().single();
+    if(error) throw error;
+
+    await sb.from('veiculos').update({status:'reservado'}).eq('id',vid);
+    await carregarTudo();
+
+    if(notificar){
+      // Monta mensagem de confirmação de reserva
+      const v = allVeiculos.find(x=>x.id===vid);
+      const fmtDt = dt => new Date(dt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      const telefone = activeChatId.includes('-')
+        ? (allClientes.find(x=>x.id===activeChatId)?.telefone||null)
+        : activeChatId;
+      if(telefone){
+        const msg = `📅 *Reserva confirmada!*
+
+` +
+          `🚗 *Veículo:* ${v?.marca||''} ${v?.modelo||''} — ${v?.placa||''}
+` +
+          `📆 *Retirada:* ${fmtDt(ini)}
+` +
+          `📆 *Devolução:* ${fmtDt(fim)}
+` +
+          (valor ? `💰 *Valor:* R$ ${valor.toFixed(2).replace('.',',')}
+` : '') +
+          `📍 *Local:* ${local}
+
+` +
+          `_Locadora Royal — aguardamos você!_ 🏍️🚗`;
+        try{
+          await evoSendText(telefone, msg);
+          await salvarMsgDB(cid, telefone, msg, 'text', 'saida', null);
+          notify('Reserva criada e cliente notificado no WhatsApp! ✅','success');
+        }catch(_){
+          notify('Reserva criada! Falha ao enviar WhatsApp.','error');
+        }
+      } else {
+        notify('Reserva criada! Sem telefone para notificar.','success');
+      }
+    } else {
+      notify('Reserva criada com sucesso!','success');
+    }
+
+    closeModal('chat-reserva');
+  }catch(e){
+    notify('Erro: '+e.message,'error');
+  }finally{
+    btns.forEach(b=>{ b.disabled=false; });
+  }
+}
+
 // ── AÇÕES RÁPIDAS DA SIDEBAR DO CHAT ──
 function _chatAcaoReserva(){
   if(!activeChatId){ notify('Selecione uma conversa primeiro','error'); return; }

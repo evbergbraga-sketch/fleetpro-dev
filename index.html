@@ -1903,6 +1903,75 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 </script>
 
 
+<!-- MODAL RESERVA RÁPIDA DO CHAT -->
+<div class="modal-overlay" id="m-chat-reserva">
+  <div class="modal" style="max-width:480px;background:#111b21;border:1px solid rgba(255,255,255,0.08)">
+    <div class="modal-header" style="background:#202c33;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <div class="modal-title" style="color:#e9edef">📅 Nova Reserva</div>
+      <button class="modal-close" onclick="closeModal('chat-reserva')" style="color:#8696a0">✕</button>
+    </div>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+
+      <!-- Cliente (read-only, vem do chat) -->
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:5px">Cliente</div>
+        <div id="cr-cliente-display" style="background:#202c33;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 12px;font-size:13px;color:#e9edef">—</div>
+        <input type="hidden" id="cr-cli-id">
+      </div>
+
+      <!-- Veículo -->
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:5px">Veículo</div>
+        <select id="cr-vei" style="width:100%;background:#202c33;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 12px;font-size:13px;color:#e9edef;outline:none"></select>
+      </div>
+
+      <!-- Datas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:5px">Retirada</div>
+          <input type="datetime-local" id="cr-ini" style="width:100%;background:#202c33;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:12px;color:#e9edef;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:5px">Devolução</div>
+          <input type="datetime-local" id="cr-fim" style="width:100%;background:#202c33;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:12px;color:#e9edef;outline:none">
+        </div>
+      </div>
+
+      <!-- Valor cotado -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:5px">Valor cotado (R$)</div>
+          <input type="number" id="cr-valor-cotado" placeholder="0,00" step="0.01" min="0" style="width:100%;background:#202c33;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:12px;color:#e9edef;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:5px">Local de retirada</div>
+          <select id="cr-local" style="width:100%;background:#202c33;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:12px;color:#e9edef;outline:none">
+            <option value="Loja">Loja</option>
+            <option value="Endereço do cliente">Endereço do cliente</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Observações -->
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:5px">Observações</div>
+        <textarea id="cr-obs" rows="2" placeholder="Ex: cliente confirmado, sinal pago..." style="width:100%;background:#202c33;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:12px;color:#e9edef;outline:none;resize:none"></textarea>
+      </div>
+
+      <!-- Botões -->
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="crSalvarReserva(false)" style="flex:1;padding:10px;background:#202c33;border:1px solid rgba(255,255,255,0.1);color:#e9edef;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s" onmouseover="this.style.borderColor='#8696a0'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
+          ✓ Salvar reserva
+        </button>
+        <button onclick="crSalvarReserva(true)" style="flex:1;padding:10px;background:#00a884;border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s" onmouseover="this.style.background='#00c49a'" onmouseout="this.style.background='#00a884'">
+          💬 Salvar + Notificar WPP
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PERFIL DO CONTATO -->
 <div class="modal-overlay" id="m-contato-perfil">
   <div class="modal" style="max-width:360px;background:#111b21;border:1px solid rgba(255,255,255,0.08)">
