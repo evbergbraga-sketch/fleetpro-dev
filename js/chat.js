@@ -597,10 +597,17 @@ async function carregarMaisMsgs(cid){
 const _cacheOrder = [];
 function _atualizarCacheChat(cid, msgs){
   if(!chatMsgs[cid]) chatMsgs[cid] = [];
-  const vistos = new Set(chatMsgs[cid].map(m=>m.id||(m.created_at+'|'+m.texto)));
-  msgs.forEach(m=>{
-    if(!vistos.has(m.id||(m.created_at+'|'+(m.texto||'')))) chatMsgs[cid].push(m);
+  // Mescla tudo, deduplica por id quando disponível, senão por created_at+texto
+  const todos = [...chatMsgs[cid], ...msgs];
+  const seen = new Map();
+  todos.forEach(m=>{
+    // Chave primária: id do banco. Secundária: timestamp+texto
+    const chave = m.id || (m.created_at+'|'+(m.texto||m.text||''));
+    if(!seen.has(chave)) seen.set(chave, m);
+    else if(m.id && !seen.get(chave).id) seen.set(chave, m); // prefere o que tem id
   });
+  chatMsgs[cid] = Array.from(seen.values())
+    .sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
   // LRU: move para o fim
   const idx = _cacheOrder.indexOf(cid);
   if(idx !== -1) _cacheOrder.splice(idx,1);
@@ -667,9 +674,10 @@ async function _carregarPreviewsChat(){
       const chave = m.cliente_id || m.numero;
       if(!chave) return;
       if(!chatMsgs[chave]) chatMsgs[chave] = [];
-      // Só adiciona se ainda não existe essa mensagem
+      // Só adiciona se ainda não existe (deduplicação por id ou created_at+texto)
       const jatem = chatMsgs[chave].some(x=>
-        x.id === m.id || (x.created_at === m.created_at && x.texto === m.texto)
+        (m.id && x.id === m.id) ||
+        (x.created_at === m.created_at && (x.texto||x.text||'') === (m.texto||m.text||''))
       );
       if(!jatem) chatMsgs[chave].push(m);
     });
@@ -759,7 +767,24 @@ function renderChatContacts(){
       desconhecidosMap[numL] = {id:num, nome:'📱 '+num, telefone:num, _desconhecido:true};
   });
   const desconhecidos = Object.values(desconhecidosMap);
-  const clientes = [...allClientes, ...desconhecidos].filter(c=>!s||c.nome.toLowerCase().includes(s)||(c.telefone||'').includes(s));
+  // Monta lista e ordena por data da última mensagem (mais recente no topo)
+  const todosContatos = [...allClientes, ...desconhecidos]
+    .filter(c=>!s||c.nome.toLowerCase().includes(s)||(c.telefone||'').includes(s));
+
+  // Calcula timestamp da última msg para cada contato (para ordenação)
+  const _getLastTs = (c) => {
+    const telNum   = (c.telefone||'').replace(/\D/g,'');
+    const telNum11 = telNum.slice(-11);
+    const msgs = [
+      ...(chatMsgs[c.id]||[]),
+      ...(chatMsgs[telNum]||[]),
+      ...(chatMsgs[telNum11]||[]),
+    ];
+    if(!msgs.length) return 0;
+    return Math.max(...msgs.map(m=>new Date(m.created_at||0).getTime()));
+  };
+
+  const clientes = todosContatos.sort((a,b)=>_getLastTs(b)-_getLastTs(a));
   const unread = getUnread();
   document.getElementById('chat-contacts').innerHTML = clientes.map(c=>{
     const ini = (c.nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
