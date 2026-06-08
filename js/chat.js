@@ -252,11 +252,13 @@ function receberMsgSSE(msg){
     created_at: msg.createdAt||msg.created_at||new Date().toISOString()
   };
 
-  [cid, cidPorId, cidPorNumero, msg.numero].filter(Boolean).forEach(k=>{
-    if(!chatMsgs[k]) chatMsgs[k] = [];
-    const jatem = chatMsgs[k].some(m=>m.created_at===msgObj.created_at && m.texto===msgObj.texto);
-    if(!jatem) chatMsgs[k].push(msgObj);
-  });
+  // Salva em UMA chave apenas (a mais específica disponível) para evitar duplicatas
+  const chavePrincipal = cid;
+  if(!chatMsgs[chavePrincipal]) chatMsgs[chavePrincipal] = [];
+  const jaExisteNoCache = chatMsgs[chavePrincipal].some(m=>
+    (msgObj.created_at && m.created_at === msgObj.created_at && (m.texto||m.text||'') === (msgObj.texto||''))
+  );
+  if(!jaExisteNoCache) chatMsgs[chavePrincipal].push(msgObj);
 
   const estaAberta = activeChatId && [cid, cidPorId, cidPorNumero, msg.numero]
     .filter(Boolean).includes(activeChatId);
@@ -271,7 +273,11 @@ function receberMsgSSE(msg){
       if(novaData && novaData !== ultimaData){
         area.insertAdjacentHTML('beforeend', _dateSeparatorHtml(_fmtDateSeparator(msgObj.created_at)));
       }
-      area.insertAdjacentHTML('beforeend', renderMsgItem(msgObj));
+      // Evita duplicar balão que já está na área (ex: veio do banco antes do SSE)
+      const jaTemBalao = area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
+      if(!jaTemBalao){
+        area.insertAdjacentHTML('beforeend', renderMsgItem(msgObj));
+      }
       area.scrollTop = area.scrollHeight;
     }
   }
@@ -284,10 +290,8 @@ function receberMsgSSE(msg){
   notify('💬 '+nome+': '+prev,'success');
   document.title = '(!) FleetPro — '+nome;
   setTimeout(()=>document.title='FleetPro | Plataforma de Locadoras', 8000);
-  // Persistir mensagem recebida no banco (fire-and-forget com handler)
-  const clienteIdParaSalvar = cidPorId || (cidPorNumero && cidPorNumero !== msg.numero ? cidPorNumero : null);
-  salvarMsgDB(clienteIdParaSalvar, msg.numero||cid, msgObj.texto, msgObj.tipo, msgObj.direcao, msgObj.media_url)
-    .catch(e=>console.warn('[chat] salvarMsgDB incoming:', e.message));
+  // NÃO salvar mensagens recebidas pelo SSE no banco — o bridge/n8n já faz isso
+  // Salvar aqui causaria duplicatas pois o banco já tem o registro
 }
 
 function encontrarClientePorNumero(numero){
@@ -521,7 +525,7 @@ function renderMsgItem(m){
   const saraBadge = isSara ? '<div style="font-size:9px;color:#f0c040;font-weight:700;margin-bottom:3px;letter-spacing:.5px">🤖 SARA</div>' : '';
   const bgSara = isSara ? 'background:rgba(240,192,64,.10);border:1px solid rgba(240,192,64,.2);' : '';
   const checkMark = out ? '<span class="msg-check" style="color:rgba(233,237,239,0.55)">✓✓</span>' : '';
-  return '<div class="msg '+(out?'msg-out':'msg-in')+'" data-msg-date="'+msgDate+'" style="'+bgSara+'">'+saraBadge+corpo+'<div class="msg-time">'+t+' '+checkMark+'</div></div>';
+  return '<div class="msg '+(out?'msg-out':'msg-in')+'" data-msg-date="'+msgDate+'" data-created-at="'+(m.created_at||'')+'" style="'+bgSara+'">'+saraBadge+corpo+'<div class="msg-time">'+t+' '+checkMark+'</div></div>';
 }
 
 async function renderChatMsgs(cid){
