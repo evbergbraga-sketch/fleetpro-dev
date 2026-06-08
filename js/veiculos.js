@@ -128,8 +128,128 @@ function _coletarAnexosExistentes(prefix){
 }
 
 // ══ IPVA E MANUTENÇÕES DINÂMICOS ══
-let _veicIpvas = [];       // [{ano, valor, vencimento}]
+// _veicIpvas agora é usado apenas como buffer de edição no formulário.
+// Ao salvar, cada entrada vai para doc_veiculos. Ao carregar, lê de doc_veiculos
+// com fallback para o JSON legado (campo ipvas) enquanto a migração não cobriu tudo.
+let _veicIpvas = [];       // [{id?, ano, valor, vencimento, _novo?}]
 let _veicManutencoes = []; // [{data, tipo, obs}]
+let _veicIdEmEdicao = null; // id do veículo sendo editado (para salvar docs)
+
+// Cache de doc_tipos para não bater no banco a cada render
+let _docTipos = null;
+async function _getDocTipos(){
+  if(_docTipos) return _docTipos;
+  const {data} = await sb.from('doc_tipos').select('*').order('nome');
+  _docTipos = data||[];
+  return _docTipos;
+}
+
+// Busca o tipo "IPVA" pelo nome
+async function _getTipoIdByNome(nome){
+  const tipos = await _getDocTipos();
+  return tipos.find(t=>t.nome===nome)?.id||null;
+}
+
+// Carrega IPVAs de um veículo a partir de doc_veiculos
+async function _carregarIpvasDoVeiculo(veiculoId){
+  if(!veiculoId) return [];
+  const tipoId = await _getTipoIdByNome('IPVA');
+  if(!tipoId) return [];
+  const {data} = await sb.from('doc_veiculos')
+    .select('*')
+    .eq('veiculo_id', veiculoId)
+    .eq('tipo_id', tipoId)
+    .order('ano_exercicio', {ascending:false});
+  return (data||[]).map(d=>({
+    id: d.id,
+    ano: String(d.ano_exercicio||new Date().getFullYear()),
+    valor: d.valor||'',
+    vencimento: d.data_vencimento||'',
+    status: d.status||'em_dia',
+  }));
+}
+
+// Salva/atualiza IPVAs em doc_veiculos após salvar o veículo
+async function _salvarIpvasNoBanco(veiculoId){
+  if(!veiculoId || !_veicIpvas.length) return;
+  const tipoId = await _getTipoIdByNome('IPVA');
+  if(!tipoId) return;
+
+  for(const ip of _veicIpvas){
+    if(!ip.vencimento) continue; // vencimento é obrigatório
+    const hoje = new Date();
+    const venc = new Date(ip.vencimento);
+    const tipos = await _getDocTipos();
+    const tipo = tipos.find(t=>t.id===tipoId);
+    const diasAlerta = tipo?.dias_alerta||30;
+    const diffDias = Math.ceil((venc - hoje)/86400000);
+    const status = diffDias < 0 ? 'vencido' : diffDias <= diasAlerta ? 'alerta' : 'em_dia';
+
+    if(ip.id){
+      // Atualiza registro existente
+      await sb.from('doc_veiculos').update({
+        ano_exercicio:  parseInt(ip.ano)||null,
+        data_vencimento: ip.vencimento,
+        valor:          parseFloat(ip.valor)||null,
+        status,
+        updated_at:     new Date().toISOString(),
+      }).eq('id', ip.id);
+    } else {
+      // Novo registro
+      await sb.from('doc_veiculos').insert({
+        veiculo_id:     veiculoId,
+        tipo_id:        tipoId,
+        ano_exercicio:  parseInt(ip.ano)||null,
+        data_vencimento: ip.vencimento,
+        valor:          parseFloat(ip.valor)||null,
+        status,
+        criado_por:     currentUser?.id||null,
+      });
+    }
+  }
+}
+
+// Salva seguro em doc_veiculos
+async function _salvarSeguroNoBanco(veiculoId, seguradora, apolice, vencimento){
+  if(!veiculoId || !vencimento) return;
+  const tipoId = await _getTipoIdByNome('Seguro frota');
+  if(!tipoId) return;
+
+  const hoje = new Date();
+  const venc = new Date(vencimento);
+  const tipos = await _getDocTipos();
+  const tipo = tipos.find(t=>t.id===tipoId);
+  const diasAlerta = tipo?.dias_alerta||45;
+  const diffDias = Math.ceil((venc - hoje)/86400000);
+  const status = diffDias < 0 ? 'vencido' : diffDias <= diasAlerta ? 'alerta' : 'em_dia';
+  const obs = [seguradora, apolice].filter(Boolean).join(' | ')||null;
+
+  // Verifica se já existe um registro de seguro para este veículo (upsert pelo mais recente)
+  const {data: existing} = await sb.from('doc_veiculos')
+    .select('id')
+    .eq('veiculo_id', veiculoId)
+    .eq('tipo_id', tipoId)
+    .order('created_at', {ascending:false})
+    .limit(1);
+
+  if(existing && existing.length){
+    await sb.from('doc_veiculos').update({
+      data_vencimento: vencimento,
+      observacoes: obs,
+      status,
+      updated_at: new Date().toISOString(),
+    }).eq('id', existing[0].id);
+  } else {
+    await sb.from('doc_veiculos').insert({
+      veiculo_id:     veiculoId,
+      tipo_id:        tipoId,
+      data_vencimento: vencimento,
+      observacoes:    obs,
+      status,
+      criado_por:     currentUser?.id||null,
+    });
+  }
+}
 
 function _addIpva(prefix){
   const ano = new Date().getFullYear();
@@ -149,22 +269,26 @@ function _renderIpvas(prefix){
     wrap.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:6px 0">Nenhum IPVA cadastrado. Clique em "+ Ano" para adicionar.</div>';
     return;
   }
-  wrap.innerHTML = _veicIpvas.map((ip,i)=>`
-    <div style="display:grid;grid-template-columns:80px 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;background:var(--bg2);padding:10px;border-radius:8px;border:1px solid var(--border2)">
+  wrap.innerHTML = _veicIpvas.map((ip,i)=>{
+    const badgeColor = ip.status==='vencido' ? '#dc2626' : ip.status==='alerta' ? '#d97706' : '#16a34a';
+    const badgeTxt  = ip.status==='vencido' ? '⚠️ Vencido' : ip.status==='alerta' ? '⚡ Atenção' : '';
+    return `
+    <div style="display:grid;grid-template-columns:80px 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;background:var(--bg2);padding:10px;border-radius:8px;border:1px solid ${ip.status==='vencido'?'rgba(220,38,38,.3)':ip.status==='alerta'?'rgba(217,119,6,.3)':'var(--border2)'}">
       <div class="form-group" style="margin:0">
         <label style="font-size:10px">Ano</label>
-        <input type="number" value="${ip.ano}" min="2020" max="2030" style="width:100%" onchange="_veicIpvas[${i}].ano=this.value">
+        <input type="number" value="${ip.ano}" min="2020" max="2035" style="width:100%" onchange="_veicIpvas[${i}].ano=this.value">
       </div>
       <div class="form-group" style="margin:0">
         <label style="font-size:10px">Valor (R$)</label>
         <input type="number" value="${ip.valor}" step="0.01" style="width:100%" onchange="_veicIpvas[${i}].valor=this.value">
       </div>
       <div class="form-group" style="margin:0">
-        <label style="font-size:10px">Vencimento</label>
+        <label style="font-size:10px">Vencimento ${badgeTxt?`<span style="color:${badgeColor};font-size:9px">${badgeTxt}</span>`:''}</label>
         <input type="date" value="${ip.vencimento}" style="width:100%" onchange="_veicIpvas[${i}].vencimento=this.value">
       </div>
       <button onclick="_removeIpva(${i},'${prefix}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:4px;align-self:center">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function _addManutencao(prefix){
