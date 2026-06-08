@@ -14,6 +14,7 @@ const PAGE_CFG = {
   chat:        {title:'Chat WhatsApp',           action:'',                    modal:null,        roles:['admin','atendente']},
   usuarios:    {title:'Usuários & Acessos',      action:'',                    modal:null,        roles:['admin']},
   investidores:{title:'Minha Carteira',          action:'',                    modal:null,        roles:['admin','investidor']},
+  financeiro:  {title:'Financeiro',               action:'+ Lançamento',        modal:null,        roles:['admin']},
   denied:      {title:'Acesso negado',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
 };
 
@@ -43,6 +44,10 @@ function goPage(id, navEl){
     }
   }
   if(id==='contratos'){previewContrato();populateContratosSelects();}
+  if(id==='financeiro'){
+    if(typeof iniciarFinanceiro==='function') iniciarFinanceiro();
+    btn.onclick = ()=>{ if(typeof finAbrirNovoLancamento==='function') finAbrirNovoLancamento(); };
+  }
   if(id==='calendario'){renderCal();}
   if(id==='chat'){
     renderChatContacts();
