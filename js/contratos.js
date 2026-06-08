@@ -733,32 +733,59 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   txt('Tel: +55 (21) 96894-9627',x3+2,dvy,{size:7});
   y+=bH+4;
 
-  // ── TABELA VEÍCULO ──
+  // ── TABELA VEÍCULO (MOTO — segue estrutura da minuta) ──
   if(isMoto){
+    const franqKm = document.getElementById('c-franquia-km')?.value||'0';
+    const kmExced = (parseFloat(document.getElementById('c-km-excedente')?.value)||0).toFixed(2).replace('.',',');
+    checkY(20);
+    // Header tabela veículo
+    const colsV=[50,22,28,28,25,19,28];
+    const headersV=['Veículo','Franquia Km','Valor Locação','Km Excedente','Data Entrega','Km Saída','Data Término'];
     rect(M,y,CW,6,'#006400','#006400');
-    const cols=[30,20,28,28,22,20,32];
-    ['Veículo','Franquia Km','Valor Locação','Km Excedente','Data Entrega','Km Saída','Data Término'].forEach((h,i)=>{
-      let cx=M; for(let j=0;j<i;j++) cx+=cols[j];
-      txt(h,cx+1,y+4,{size:6.5,bold:true,color:'#ffffff'});
-    });
+    let cxV=M;
+    headersV.forEach((h,i)=>{ txt(h,cxV+1,y+4,{size:6,bold:true,color:'#ffffff'}); cxV+=colsV[i]; });
     y+=6;
+    // Row veículo
     rect(M,y,CW,8,'#f0f8f0','#dddddd');
-    const rowMoto=[
+    const rowV=[
       `${d.placa} - ${d.modelo}`,
-      document.getElementById('c-franquia-km')?.value||'0',
+      franqKm+' km',
       `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,
-      `R$ ${(parseFloat(document.getElementById('c-km-excedente')?.value)||0).toFixed(2).replace('.',',')}`,
+      `R$ ${kmExced}/km`,
       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
-      d.km,
+      String(d.km||'0')+' km',
       d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—',
     ];
-    let cx2=M;
-    rowMoto.forEach((v,i)=>{ txt(v,cx2+1,y+5,{size:7}); cx2+=cols[i]; });
+    cxV=M;
+    rowV.forEach((v,i)=>{ txt(v,cxV+1,y+5,{size:6.5}); cxV+=colsV[i]; });
     y+=10;
-    rect(M,y,CW,8,'#f9f9f9','#dddddd');
-    txt(`Pagamento do contrato: ${d.pgto}`,M+2,y+3,{size:8,bold:true});
-    txt(`Caução/Garantia: R$ ${d.caucao.toFixed(2).replace('.',',')} — Pagamento: ${d.pgtoCaucao||d.pgto}`,M+2,y+7,{size:8});
-    y+=10;
+
+    // ── SERVIÇOS ADICIONAIS (moto) ──
+    if(d.servicos?.length>0){
+      checkY(10+d.servicos.length*7);
+      const colsS=[90,25,27,38];
+      rect(M,y,CW,5,'#006400','#006400');
+      const headersS=['Serviços Adicionais','Quantidade','Valor Unitário','Valor Total'];
+      let cxS=M;
+      headersS.forEach((h,i)=>{ txt(h,cxS+1,y+3.5,{size:6.5,bold:true,color:'#ffffff'}); cxS+=colsS[i]; });
+      y+=5;
+      d.servicos.forEach((s,ri)=>{
+        rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
+        cxS=M;
+        [s.descricao||'—','1',`R$ ${(s.valor||0).toFixed(2).replace('.',',')}`,`R$ ${(s.valor||0).toFixed(2).replace('.',',')}`]
+          .forEach((v,i)=>{ txt(v,cxS+1,y+5,{size:7}); cxS+=colsS[i]; });
+        y+=7;
+      });
+      y+=4;
+    }
+
+    // ── FORMA DE PAGAMENTO (moto) ──
+    checkY(16);
+    rect(M,y,CW,14,'#f9f9f9','#dddddd');
+    txt('FORMA DE PAGAMENTO',M+2,y+4,{size:8,bold:true,color:'#006400'});
+    txt(`Contrato: ${d.pgto}  —  Valor: R$ ${d.totalLiq.toFixed(2).replace('.',',')}`,M+2,y+9,{size:8,bold:true});
+    txt(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`,M+2,y+13.5,{size:7.5});
+    y+=18;
   } else {
     const kmLivre=document.getElementById('c-km-livre')?.checked;
     const protecao=document.getElementById('c-protecao')?.value||'Basica';
@@ -813,11 +840,24 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
     y+=2;
   }
 
-  // ── OBSERVAÇÕES ──
+  // ── OBSERVAÇÕES IMPORTANTES + OBS DO CONTRATO ──
+  checkY(20);
+  if(isMoto){
+    // Observações importantes (da minuta)
+    rect(M,y,CW,5,'#006400');
+    txt('OBSERVAÇÕES IMPORTANTES',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
+    y+=5;
+    const obsImp = 'A renovação do contrato se dá de forma semanal (a cada 7 dias).\nNecessário informar a cada 1.000km do veículo para que seja verificado o cronograma de manutenção preventiva. Entre em contato com a Locadora.';
+    const splitImp = doc.splitTextToSize(obsImp, CW-4);
+    rect(M,y,CW,Math.max(12,splitImp.length*3.5+4),'#fffbea','#f0c040');
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+    doc.text(splitImp,M+2,y+4);
+    y+=Math.max(12,splitImp.length*3.5+4)+2;
+  }
   if(d.obs&&d.obs!=='—'){
     checkY(15);
     rect(M,y,CW,5,'#006400');
-    txt('OBSERVAÇÕES',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
+    txt('OBSERVAÇÕES DO CONTRATO',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
     y+=5;
     const splitObs=doc.splitTextToSize(d.obs,CW-4);
     rect(M,y,CW,Math.max(8,splitObs.length*3.5+4),'#f9f9f9','#dddddd');
@@ -840,22 +880,136 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   });
   if(chunk.length){ checkY(chunk.length*lineH+5); doc.text(chunk,M,y); y+=chunk.length*lineH+4; }
 
-  // ── ASSINATURAS ──
-  checkY(45); y+=4;
-  const todosCond2=d.todosCondutores||[{nome:d.nomeCli,cpf:d.cpfCli}];
-  const nCols=Math.min(3, todosCond2.length+1); // máx 3 colunas
-  const colW=CW/nCols;
-  for(let i=0;i<nCols;i++){
-    const xStart=M+i*colW+5; const xEnd=M+(i+1)*colW-5;
-    doc.setDrawColor('#000'); doc.line(xStart,y,xEnd,y);
-    const label=i===0?'Cliente':i===nCols-1?'Atendente':'Motorista';
-    const nome=i===0?d.nomeCli:i===nCols-1?d.atendente:(todosCond2[i]?.nome||'—');
-    const cpf=i===0?d.cpfCli:i===nCols-1?'':todosCond2[i]?.cpf||'';
-    txt(label,(xStart+xEnd)/2,y+3,{size:8,bold:true,align:'center'});
-    txt(nome,(xStart+xEnd)/2,y+7,{size:7.5,align:'center'});
-    if(cpf) txt(`CPF: ${cpf}`,(xStart+xEnd)/2,y+11,{size:7,align:'center',color:'#555'});
+  // ── ASSINATURAS (3 colunas: Cliente | Motorista(s) | Atendente) ──
+  checkY(50); y+=6;
+  const todosCond2=d.todosCondutores||[{nome:d.condutor||d.nomeCli,cpf:d.condutorCpf||d.cpfCli}];
+  const colWA=CW/3;
+  // Linha 1: Cliente
+  const xCliente=M+5; const xClienteEnd=M+colWA-5;
+  doc.setDrawColor('#000'); doc.line(xCliente,y,xClienteEnd,y);
+  txt('Cliente',(xCliente+xClienteEnd)/2,y+4,{size:8,bold:true,align:'center'});
+  txt(d.nomeCli,(xCliente+xClienteEnd)/2,y+8,{size:7.5,align:'center'});
+  txt(`CPF: ${d.cpfCli}`,(xCliente+xClienteEnd)/2,y+12,{size:7,align:'center',color:'#555'});
+  // Linha 2: Motorista (condutor principal + adicionais)
+  const xMot=M+colWA+5; const xMotEnd=M+2*colWA-5;
+  doc.setDrawColor('#000'); doc.line(xMot,y,xMotEnd,y);
+  txt('Motorista',(xMot+xMotEnd)/2,y+4,{size:8,bold:true,align:'center'});
+  const cond1=todosCond2[0]||{};
+  txt(cond1.nome||d.nomeCli,(xMot+xMotEnd)/2,y+8,{size:7.5,align:'center'});
+  txt(`CPF: ${cond1.cpf||d.cpfCli}`,(xMot+xMotEnd)/2,y+12,{size:7,align:'center',color:'#555'});
+  // Linha 3: Atendente
+  const xAten=M+2*colWA+5; const xAtenEnd=M+CW-5;
+  doc.setDrawColor('#000'); doc.line(xAten,y,xAtenEnd,y);
+  txt('Atendente',(xAten+xAtenEnd)/2,y+4,{size:8,bold:true,align:'center'});
+  txt(d.atendente||'—',(xAten+xAtenEnd)/2,y+8,{size:7.5,align:'center'});
+  // Condutores adicionais (se houver)
+  if(todosCond2.length>1){
+    y+=20;
+    todosCond2.slice(1).forEach((c,ci)=>{
+      const xCA=M+(ci%2===0?5:colWA+5);
+      const xCAEnd=M+(ci%2===0?colWA-5:2*colWA-5);
+      doc.setDrawColor('#000'); doc.line(xCA,y,xCAEnd,y);
+      txt('Condutor Adicional',(xCA+xCAEnd)/2,y+4,{size:7.5,bold:true,align:'center'});
+      txt(c.nome||'—',(xCA+xCAEnd)/2,y+8,{size:7.5,align:'center'});
+      if(c.cpf) txt(`CPF: ${c.cpf}`,(xCA+xCAEnd)/2,y+12,{size:7,align:'center',color:'#555'});
+      if(ci%2===1) y+=16;
+    });
   }
-  y+=14;
+  y+=18;
+
+  // ── ANEXOS (só para moto, seguindo a minuta) ──
+  if(isMoto){
+    // ANEXO II
+    newPage(); y=M;
+    rect(M,y,CW,7,'#006400','#006400');
+    txt('ANEXO II — TABELA DE TARIFAS E ENCARGOS',PW/2,y+4.5,{size:9,bold:true,color:'#ffffff',align:'center'});
+    y+=9;
+    const tarifas=[
+      ['Reboque/guincho por pane causada por mau uso (dentro da cidade)','A definir'],
+      ['Reboque/guincho fora do município (por km excedente)','A definir'],
+      ['Chave perdida / 2ª via de chave','A definir'],
+      ['Recolhimento por inadimplência (dentro do município)','A definir'],
+      ['Lucros cessantes por indisponibilidade culpa do locatário (por dia)','A definir'],
+      ['Limpeza especial (retorno com sujeira excessiva)','A definir'],
+      ['Taxa de ausência em manutenção agendada (no show)','A definir'],
+      ['Taxa de cancelamento da penalidade NIC','A definir'],
+      ['Custo operacional sobre multas de trânsito','20% sobre a multa'],
+      ['Desbloqueio após inadimplência (custo operacional)','A definir'],
+      ['Desistência de retirada após pagamento de caução','A definir'],
+    ];
+    // Header
+    rect(M,y,CW,6,'#e8f5e9','#006400');
+    txt('SERVIÇO / EVENTO',M+2,y+4,{size:7.5,bold:true}); txt('VALOR (R$)',M+CW*0.75,y+4,{size:7.5,bold:true});
+    y+=6;
+    tarifas.forEach((row,ri)=>{
+      rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
+      txt(row[0],M+2,y+4.5,{size:7}); txt(row[1],M+CW*0.75,y+4.5,{size:7});
+      y+=7;
+    });
+    y+=4;
+    const notaII=doc.splitTextToSize('* Os valores marcados como "A definir" serão preenchidos pela LOCADORA conforme tarifário vigente e comunicados ao LOCATÁRIO na assinatura do contrato.',CW);
+    doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
+    doc.text(notaII,M,y); y+=notaII.length*3.5+4;
+
+    // ANEXO III
+    checkY(50);
+    rect(M,y,CW,7,'#006400','#006400');
+    txt('ANEXO III — PLANO DE MANUTENÇÃO — REFERÊNCIA DO MANUAL',PW/2,y+4.5,{size:9,bold:true,color:'#ffffff',align:'center'});
+    y+=9;
+    const manut=[
+      ['Troca de óleo + filtro','Conforme manual','Conforme manual'],
+      ['Inspeção de corrente e freios','Conforme manual','Conforme manual'],
+      ['Filtro de ar / vela','Conforme manual','Conforme manual'],
+    ];
+    rect(M,y,CW,6,'#e8f5e9','#006400');
+    txt('SERVIÇO PREVENTIVO',M+2,y+4,{size:7.5,bold:true}); txt('INTERVALO (KM)',M+CW*0.45,y+4,{size:7.5,bold:true}); txt('INTERVALO (TEMPO)',M+CW*0.72,y+4,{size:7.5,bold:true});
+    y+=6;
+    manut.forEach((row,ri)=>{
+      rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
+      txt(row[0],M+2,y+4.5,{size:7}); txt(row[1],M+CW*0.45,y+4.5,{size:7}); txt(row[2],M+CW*0.72,y+4.5,{size:7});
+      y+=7;
+    });
+    y+=4;
+    const notaIII=doc.splitTextToSize('Observação: Os intervalos exatos serão preenchidos com os dados do manual do modelo específico da motocicleta locada. Para uso em delivery (uso severo), aplicar o intervalo reduzido quando o manual assim prever.',CW);
+    doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
+    doc.text(notaIII,M,y); y+=notaIII.length*3.5+4;
+
+    // ANEXO IV
+    checkY(70);
+    rect(M,y,CW,7,'#006400','#006400');
+    txt('ANEXO IV — CONDIÇÕES DE SEGURO — SUHAI SEGURADORA',PW/2,y+4.5,{size:9,bold:true,color:'#ffffff',align:'center'});
+    y+=9;
+    const seguro=[
+      ['Seguradora','Suhai Seguradora'],
+      ['Coberturas contratadas','Roubo/Furto Total | Danos a Terceiros (RCF)'],
+      ['Nº da apólice','A preencher'],
+      ['Vigência','A preencher'],
+      ['Franquia – Roubo/Furto','Conforme apólice'],
+      ['Franquia – Danos a Terceiros','Conforme apólice'],
+      ['Principais exclusões','Condutor não autorizado / Alcoolemia / Ausência de BO / Mau uso'],
+      ['Prazo para comunicar sinistro','Imediato (telefone e WhatsApp da Royal) + BO em 48h'],
+      ['Contato Suhai (sinistros)','A preencher'],
+    ];
+    rect(M,y,CW,6,'#e8f5e9','#006400');
+    txt('ITEM',M+2,y+4,{size:7.5,bold:true}); txt('DESCRIÇÃO',M+CW*0.38,y+4,{size:7.5,bold:true});
+    y+=6;
+    seguro.forEach((row,ri)=>{
+      const linhas=doc.splitTextToSize(row[1],CW*0.6);
+      const rh=Math.max(7,linhas.length*3.5+3);
+      rect(M,y,CW,rh,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
+      txt(row[0],M+2,y+4.5,{size:7,bold:true}); doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333'); doc.text(linhas,M+CW*0.38,y+4.5);
+      y+=rh;
+    });
+    y+=4;
+    const notaIV=doc.splitTextToSize('IMPORTANTE: Em caso de divergência entre este resumo e a apólice original da Suhai Seguradora, prevalece o documento original da apólice. O LOCATÁRIO declara ter recebido cópia da apólice e estar ciente de todas as condições.',CW);
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor('#dc2626');
+    doc.text(notaIV,M,y); y+=notaIV.length*3.8+6;
+    // Linha assinatura LOCATÁRIO recebeu seguro
+    doc.setDrawColor('#000'); doc.line(M,y,M+90,y);
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+    doc.text('LOCATÁRIO — declara ter recebido e lido as condições do seguro Suhai',M,y+4);
+    y+=10;
+  }
 
   // ── RODAPÉ ──
   const totalPgs=doc.getNumberOfPages();
@@ -932,76 +1086,119 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
 
 // ══ TERMOS ══
 function _termosMoto(){
-  return `1. DEFINIÇÕES
-1.1 Motocicleta: veículo descrito neste contrato, com todos os acessórios e itens em perfeito estado de uso e conservação.
+  return `TERMOS E CONDIÇÕES
+
+1. DEFINIÇÕES
+1.1 Motocicleta: veículo descrito na Cláusula 2, com todos os acessórios e itens em perfeito estado de uso e conservação (confirme laudo de vistoria).
 1.2 Obrigação da LOCADORA: serviços periódicos previstos no Manual do Fabricante (revisões programadas, trocas periódicas e inspeções), conforme Cláusula 8. Manutenção Preventiva.
-1.3 Obrigação do LOCATÁRIO: reparos decorrentes de falha, quebra, impacto, colisão, queda, mau uso, negligência ou qualquer evento não enquadrado como Manutenção Preventiva.
-1.4 Semana de Locação: período de 7 (sete) dias corridos contados da data de início.
-1.5 Caução: valor de garantia descrito neste contrato.
-1.6 Seguro Suhai: proteção contratada junto à seguradora Suhai, cobrindo roubo/furto e danos a terceiros.
+1.3 Obrigação do LOCATÁRIO: reparos decorrentes de falha, quebra, impacto, colisão, queda, mau uso, negligência ou qualquer evento não enquadrado como Manutenção Preventiva. "Manutenção Corretiva/Danos."
+1.4 Semana de Locação: período de 7 (sete) dias corridos contados da data de início, vencendo as seguintes sempre no mesmo dia da semana, independente da data do efetivo pagamento.
+1.5 Caução: valor de garantia de R$ 600,00 (seiscentos reais), descrito na Cláusula 5.
+1.6 Seguro Suhai: proteção contratada junto à seguradora Suhai, cobrindo roubo/furto e danos a terceiros, conforme condições no Anexo IV.
 
 2. OBJETO
-2.1 Locação da motocicleta para uso exclusivo em atividade de delivery e deslocamentos compatíveis.
-2.2 Locação sem transferência de propriedade, posse precária, temporária e resolúvel.
+2.1 O presente contrato tem por objeto a locação da motocicleta mencionada acima para uso exclusivo em atividade de delivery e deslocamentos compatíveis.
+2.2 A locação é sem transferência de propriedade, sendo a posse exercida pelo LOCATÁRIO de natureza precária, temporária e resolúvel, não gerando direito de retenção, indenização ou qualquer direito real sobre o bem.
 
 3. PRAZO
-3.1 Contrato por prazo indeterminado, com pagamento semanal.
-3.2 Cada semana corresponde a 7 dias corridos. Renovação automática enquanto houver adimplência.
-3.3 Para encerrar, comunicar com antecedência mínima de 48 horas.
+3.1 O contrato é firmado por prazo indeterminado, com pagamento semanal, iniciando na data de retirada da motocicleta.
+3.2 Cada semana locada corresponde a 7 (sete) dias corridos. A renovação é automática enquanto houver adimplência.
+3.3 Para encerrar o contrato, qualquer das partes deverá comunicar a outra com antecedência mínima de 48 (quarenta e oito) horas, conforme Cláusula 15.
 
 4. PREÇO, PAGAMENTO E ENCARGOS
-4.1 Pagamento semanal ANTECIPADO. A inadimplência autoriza a LOCADORA a bloquear e recolher a motocicleta.
-4.2 Encargos por atraso: Multa 5%, Juros 1%/mês, Correção IPCA/IBGE.
-4.3 Inadimplência superior a 2 dias caracteriza rescisão de pleno direito.
+4.1 O LOCATÁRIO pagará à LOCADORA o valor semanal definido no plano contratado, com vencimento sempre no mesmo dia da semana em que foi firmado o contrato, por PIX, cartão ou boleto.
+4.2 O pagamento é ANTECIPADO: deve ser efetuado antes do início de cada semana. A inadimplência autoriza a LOCADORA a bloquear e recolher a motocicleta sem necessidade de aviso adicional.
+4.3 Encargos por atraso: Multa de 5% sobre o valor semanal em atraso; Juros de 1% ao mês, calculados pro rata die; Correção monetária pelo IPCA/IBGE acumulado no período.
+4.4 O não pagamento até 2 (dois) dias corridos após o vencimento caracterizará mora automática, considerando-se o contrato rescindido de pleno direito, independentemente de aviso prévio. A LOCADORA fica autorizada a promover imediatamente o bloqueio, a retomada e o recolhimento da motocicleta.
+4.5 O valor semanal poderá ser reajustado pela variação positiva do IPCA/IBGE nos contratos com mais de 12 meses de duração, mediante comunicação com 15 dias de antecedência.
 
 5. CAUÇÃO
-5.1 Caução paga no ato da assinatura. Pode ser utilizada para quitar débitos do LOCATÁRIO.
-5.2 Devolvida em até 10 dias úteis após devolução e conferência, sem pendências.
+5.1 O LOCATÁRIO pagará caução de R$ 600,00 (seiscentos reais) no ato da assinatura deste contrato, por PIX ou depósito bancário.
+5.2 A caução poderá ser utilizada pela LOCADORA para quitar débitos do LOCATÁRIO, incluindo aluguéis em atraso, multas, danos, franquias do seguro e tarifas operacionais.
+5.3 A caução NÃO substitui e NÃO cobre automaticamente danos ao veículo; o saldo devedor eventualmente superior a R$ 600,00 será cobrado separadamente.
+5.4 Não havendo pendências, a caução será devolvida em até 10 (dez) dias úteis após a devolução e conferência final da motocicleta.
+5.5 Se a caução for utilizada parcialmente, o LOCATÁRIO deverá complementá-la ao valor original em até 5 (cinco) dias úteis após notificação.
 
 6. ENTREGA, VISTORIA E DEVOLUÇÃO
-6.1 Entrega mediante assinatura do Termo de Entrega e Vistoria, com registro fotográfico.
-6.2 Devolução na sede da LOCADORA em dia útil e horário comercial.
+6.1 A motocicleta será entregue mediante assinatura do ANEXO I – Termo de Entrega e Vistoria, com registro fotográfico e checklist.
+6.2 A devolução ocorrerá na sede da LOCADORA (Av. das Américas, 12.900 – Barra da Tijuca, RJ), em dia útil e horário comercial, nas mesmas condições de conservação, ressalvado o desgaste normal.
+6.3 Na devolução será realizada vistoria presencial. Constatados danos, será emitido relatório e orçamento, aplicando-se a Cláusula 9.
+6.4 A devolução fora da sede somente será aceita com autorização prévia e escrita da LOCADORA, podendo incidir taxa conforme Anexo II.
 
 7. REQUISITOS E CONDUTOR AUTORIZADO
-7.1 Somente o LOCATÁRIO identificado poderá conduzir a motocicleta.
-7.2 O LOCATÁRIO declara possuir CNH categoria A válida.
+7.1 Somente o LOCATÁRIO identificado neste contrato poderá conduzir a motocicleta. É PROIBIDO emprestar, ceder ou sublocar o veículo a terceiros, salvo autorização escrita da LOCADORA.
+7.2 O LOCATÁRIO declara possuir CNH categoria A válida, sem suspensão ou cassação, e experiência adequada para condução de motocicleta em ambiente urbano.
+7.3 O descumprimento desta cláusula enseja rescisão imediata e responsabilidade integral por todos os danos e custos decorrentes.
+7.4 O LOCATÁRIO deverá possuir ou alugar garagem fechada e segura para guardar o veículo fora dos períodos de uso.
 
-8. MANUTENÇÃO PREVENTIVA — RESPONSABILIDADE DA LOCADORA
-8.1 A LOCADORA realizará manutenção preventiva conforme Manual do Fabricante.
-8.2 Agendamento obrigatório com antecedência mínima de 5 dias.
+8. MANUTENÇÃO PREVENTIVA – RESPONSABILIDADE DA LOCADORA
+8.1 A LOCADORA realizará a manutenção preventiva da motocicleta conforme o Manual do Fabricante, incluindo o plano de uso severo quando aplicável ao perfil de delivery.
+8.2 Serviços preventivos incluem: trocas de óleo do motor e filtro nos intervalos do manual; inspeções e ajustes periódicos; substituições periódicas de vela, filtro de ar e filtro de combustível.
+8.3 Agendamento obrigatório: o LOCATÁRIO deve agendar a preventiva via WhatsApp ou aplicativo da LOCADORA com antecedência mínima de 5 (cinco) dias.
+8.4 O LOCATÁRIO compromete-se a não exceder o limite de km/tempo definido no Manual do Fabricante para cada serviço preventivo.
+8.5 A preventiva será realizada EXCLUSIVAMENTE na LOCADORA ou em oficina por ela indicada. É VEDADO ao LOCATÁRIO realizar reparos ou revisões por conta própria sem autorização escrita.
+8.6 O LOCATÁRIO que não comparecer à manutenção agendada estará sujeito à Taxa de Ausência (Anexo II), ao bloqueio do veículo e à rescisão contratual.
 
-9. RESPONSABILIDADE DO LOCATÁRIO — DANOS
-9.1 Quaisquer danos fora da manutenção preventiva são de responsabilidade exclusiva do LOCATÁRIO.
-9.2 Cuidados diários: verificar nível de óleo, pressão dos pneus, corrente e freios.
+9. RESPONSABILIDADE DO LOCATÁRIO – MANUTENÇÃO CORRETIVA E DANOS
+9.1 Qualquer evento FORA da manutenção preventiva prevista no Manual do Fabricante é de responsabilidade exclusiva do LOCATÁRIO, incluindo: danos por queda, colisão, impacto, enchente ou qualquer sinistro; quebras por mau uso, negligência, condução agressiva, sobrecarga ou adaptação irregular; avarias estéticas (riscos, carenagem, retrovisores, manetes), pneu rasgado, roda empenada.
+9.2 Cuidados operacionais diários obrigatórios do LOCATÁRIO: verificar diariamente nível de óleo, pressão dos pneus, corrente/relação e freios; comunicar IMEDIATAMENTE qualquer anormalidade.
+9.3 O LOCATÁRIO autoriza a LOCADORA a realizar orçamento e reparo de qualquer dano fora da preventiva, cobrando o custo de peças, mão de obra e demais despesas, podendo descontar da caução.
+9.4 Lucros cessantes: se a motocicleta ficar indisponível por culpa do LOCATÁRIO, será cobrado valor diário conforme Anexo II, por até 30 (trinta) dias.
 
-10. SEGURO — SUHAI SEGURADORA
-10.1 Cobertura: Roubo/furto total e Danos a terceiros (responsabilidade civil).
-10.2 O LOCATÁRIO é responsável pelo pagamento da franquia em caso de sinistro coberto.
+10. SEGURO / PROTEÇÃO – SUHAI SEGURADORA
+10.1 A motocicleta conta com proteção junto à Suhai Seguradora, com cobertura de: Roubo e furto total; Danos a terceiros (responsabilidade civil).
+10.2 Em caso de sinistro coberto pelo seguro, o LOCATÁRIO será responsável pelo pagamento da franquia/participação obrigatória conforme apólice Suhai.
+10.3 A cobertura do seguro NÃO se aplica quando o sinistro decorrer de: condução sob efeito de álcool ou substâncias psicoativas; condutor não autorizado; mau uso ou manobras proibidas; ausência de Boletim de Ocorrência no prazo exigido.
 
-11. USO PERMITIDO E PROIBIÇÕES
-11.1 PROIBIDO: conduzir sob efeito de álcool, participar de corridas, adulterar hodômetro, sublocar o veículo, usar fora do estado do Rio de Janeiro sem autorização, circular em raio inferior a 150 km de fronteiras internacionais.
+11. USO PERMITIDO, LIMITAÇÕES E PROIBIÇÕES
+11.1 É PROIBIDO ao LOCATÁRIO: conduzir sob efeito de álcool, narcóticos ou qualquer substância psicoativa; participar de corrida, racha ou manobras de velocidade; transportar carga acima do limite do fabricante; adulterar hodômetro, lacres, rastreador ou placa; sublocar, emprestar ou ceder o veículo a terceiros; trafegar em dunas, praias ou submergir o veículo; usar fora do estado do Rio de Janeiro sem autorização; circular em raio inferior a 150 km de fronteiras internacionais; modificar ou instalar acessórios sem autorização.
+11.2 O LOCATÁRIO é responsável por: combustível, lavagem/limpeza e conservação diária da motocicleta.
+11.3 O veículo possui rastreador/telemetria. O LOCATÁRIO declara ciência e concordância com o monitoramento e eventual bloqueio remoto do veículo.
 
-12. MULTAS E INFRAÇÕES
-12.1 O LOCATÁRIO é integralmente responsável por multas. Acréscimo de 20% a título de custo operacional.
+12. MULTAS E INFRAÇÕES DE TRÂNSITO
+12.1 O LOCATÁRIO é integralmente responsável por multas, taxas e remoção ao pátio durante a vigência do contrato.
+12.2 O LOCATÁRIO autoriza a LOCADORA a indicá-lo como condutor infrator perante os órgãos de trânsito, nos termos do art. 257 do CTB.
+12.3 Sobre o valor de cada multa será acrescido 20% (vinte por cento) a título de custo operacional da LOCADORA.
 
-13. SINISTROS — PROVIDÊNCIAS OBRIGATÓRIAS
-13.1 Em caso de sinistro: comunicar a LOCADORA imediatamente, registrar BO em até 48h, enviar fotos e documentos.
+13. SINISTROS, FURTO E PROVIDÊNCIAS OBRIGATÓRIAS
+13.1 Em caso de acidente, furto, roubo ou qualquer sinistro, o LOCATÁRIO deverá: comunicar a LOCADORA IMEDIATAMENTE; registrar Boletim de Ocorrência em até 48 (quarenta e oito) horas; enviar fotos, local, horário e todos os documentos solicitados.
+13.2 O não cumprimento das providências acima poderá implicar perda da cobertura securitária e responsabilidade integral do LOCATÁRIO pelos danos.
 
-14. RESCISÃO
-14.1 Pelo LOCATÁRIO: comunicar com 48h de antecedência e quitar débitos.
-14.2 Pela LOCADORA: imediatamente nos casos de inadimplência, mau uso, condutor não autorizado ou sinistro não comunicado.
+14. RESCISÃO E POLÍTICA DE ENCERRAMENTO
+14.1 Rescisão pelo LOCATÁRIO: comunicar a LOCADORA com antecedência mínima de 48 (quarenta e oito) horas, devolver a motocicleta na sede em dia útil e quitar todos os débitos pendentes. Não haverá devolução de valor proporcional da semana em curso.
+14.2 Rescisão pela LOCADORA: imediatamente nos casos de inadimplência de 2 ou mais dias; qualquer hipótese de mau uso; não comparecimento à manutenção; condutor não autorizado; adulteração de hodômetro, lacres, rastreador ou placa; sinistro não comunicado; comportamento ofensivo perante funcionários.
+14.3 Em caso de rescisão por culpa do LOCATÁRIO, serão aplicadas as penalidades previstas no Anexo II, além da perda da caução para cobertura de débitos.
+14.4 O veículo não poderá ser retido pelo LOCATÁRIO após a rescisão contratual. A retenção indevida poderá caracterizar, em tese, o crime de apropriação indébita (art. 168 do Código Penal). A LOCADORA fica autorizada a proceder ao bloqueio remoto, à retomada e ao recolhimento do veículo.
+14.5 Nos contratos com plano pré-pago de mais de 4 (quatro) semanas, a rescisão antecipada pelo LOCATÁRIO implicará multa de 30% sobre o saldo de semanas restantes.
 
 15. REEMBOLSO E ACERTO FINAL
-15.1 Após rescisão, a LOCADORA apurará todos os créditos e débitos do LOCATÁRIO.
+15.1 Após rescisão e devolução do veículo, a LOCADORA apurará todos os créditos e débitos do LOCATÁRIO.
+15.2 Havendo saldo a favor do LOCATÁRIO após quitação integral de débitos, o reembolso ocorrerá em até 15 (quinze) dias úteis.
+15.3 Havendo saldo devedor após aplicação da caução, o valor será cobrado pelos meios disponíveis. O LOCATÁRIO autoriza a LOCADORA a proceder à negativação de seu nome junto aos órgãos de proteção ao crédito (SPC, Serasa), em caso de inadimplemento.
 
-16. TRATAMENTO DE DADOS PESSOAIS — LGPD
-16.1 Os dados pessoais serão tratados conforme Lei nº 13.709/2018 para fins de execução deste contrato.
+16. TRATAMENTO DE DADOS PESSOAIS – LGPD
+16.1 A LOCADORA trata os dados pessoais do LOCATÁRIO nos termos da Lei nº 13.709/2018 (LGPD), para fins de execução deste contrato, prevenção a fraudes e segurança patrimonial.
+16.2 Os dados poderão ser compartilhados com: oficinas parceiras, seguradora Suhai, órgãos de trânsito e autoridades competentes.
 
 17. DISPOSIÇÕES GERAIS
-17.1 Assinatura eletrônica/digital tem plena validade jurídica, conforme MP 2.200/2001.
-17.2 Este contrato constitui título executivo extrajudicial nos termos do art. 784 do CPC.
+17.1 Os ANEXOS I, II, III e IV integram este contrato para todos os fins de direito.
+17.2 A assinatura eletrônica/digital tem plena validade jurídica, conforme MP 2.200/2001.
+17.3 A tolerância de qualquer das partes não implica renúncia de direitos.
+17.4 Se qualquer cláusula for declarada nula, as demais permanecerão válidas e eficazes.
+17.5 Este contrato substitui quaisquer acordos verbais ou escritos anteriores entre as partes.
+17.6 O presente instrumento constitui título executivo extrajudicial nos termos do art. 784 do CPC.
 
-18. FORO: Comarca do Rio de Janeiro — RJ.`;
+18. FORO
+18.1 Fica eleito o foro da Comarca do Rio de Janeiro – RJ, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir quaisquer litígios decorrentes deste contrato.
+
+ANEXO II – TABELA DE TARIFAS E ENCARGOS
+Os valores das tarifas e encargos serão informados pela LOCADORA na assinatura do contrato e atualizados conforme tarifário vigente com comunicação de 15 dias de antecedência.
+
+ANEXO III – PLANO DE MANUTENÇÃO
+Os intervalos de manutenção seguem o Manual do Fabricante. Para uso em delivery (uso severo), aplicar o intervalo reduzido quando o manual assim prever.
+
+ANEXO IV – CONDIÇÕES DE SEGURO – SUHAI SEGURADORA
+Seguradora: Suhai Seguradora. Coberturas: Roubo/Furto Total e Danos a Terceiros (RCF). Em caso de divergência entre este resumo e a apólice original da Suhai Seguradora, prevalece o documento original da apólice.`;
 }
 
 function _termosCarro(){
