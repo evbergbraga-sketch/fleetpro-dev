@@ -575,6 +575,8 @@ async function registrarContrato(retornarId=false){
     if(error) throw error;
 
     await sb.from('veiculos').update({status:'alugado'}).eq('id',vid);
+    // Lançamento financeiro automático
+    if(typeof finRegistrarLancamentoLocacao==='function') finRegistrarLancamentoLocacao(locSalva).catch(()=>{});
 
     if(window._reservaOrigemId){
       await sb.from('reservas').update({status:'convertida'}).eq('id',window._reservaOrigemId);

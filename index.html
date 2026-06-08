@@ -931,6 +931,160 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <!-- INVESTIDORES -->
       <div class="page" id="page-investidores"></div>
 
+      <!-- FINANCEIRO -->
+      <div class="page" id="page-financeiro">
+        <!-- ALERTAS TOPO -->
+        <div id="fin-alertas" style="margin-bottom:16px"></div>
+
+        <!-- CARDS RESUMO -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Receita do mês</div>
+            <div id="fin-receita-mes" style="font-size:24px;font-weight:800;color:var(--green)">R$ 0</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Despesa do mês</div>
+            <div id="fin-despesa-mes" style="font-size:24px;font-weight:800;color:var(--red)">R$ 0</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Saldo do mês</div>
+            <div id="fin-saldo-mes" style="font-size:24px;font-weight:800;color:var(--accent)">R$ 0</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Saldo acumulado</div>
+            <div id="fin-saldo-total" style="font-size:24px;font-weight:800;color:var(--text)">R$ 0</div>
+          </div>
+        </div>
+
+        <!-- ABAS -->
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:20px">
+          <button id="fin-tab-fluxo"    onclick="_finTab('fluxo')"    class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:700;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px">💰 Fluxo de Caixa</button>
+          <button id="fin-tab-veiculo"  onclick="_finTab('veiculo')"  class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">🚗 Por Veículo</button>
+          <button id="fin-tab-seguros"  onclick="_finTab('seguros')"  class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">🛡️ Seguros</button>
+          <button id="fin-tab-ipva"     onclick="_finTab('ipva')"     class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">📋 IPVA</button>
+        </div>
+
+        <!-- PAINEL FLUXO DE CAIXA -->
+        <div id="fin-painel-fluxo">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select id="fin-filtro-periodo" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="mes">Este mês</option>
+                <option value="trimestre">Último trimestre</option>
+                <option value="ano">Este ano</option>
+                <option value="tudo">Tudo</option>
+              </select>
+              <select id="fin-filtro-tipo" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Todos os tipos</option>
+                <option value="receita">Receitas</option>
+                <option value="despesa">Despesas</option>
+              </select>
+              <select id="fin-filtro-cat" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Todas as categorias</option>
+                <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
+                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Outros</option>
+              </select>
+              <select id="fin-filtro-veiculo" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Todos os veículos</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarPdf()">⬇️ Exportar PDF</button>
+              <button class="btn btn-primary" style="font-size:12px" onclick="finAbrirNovoLancamento()">+ Lançamento</button>
+            </div>
+          </div>
+          <div class="card">
+            <table class="table">
+              <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Veículo</th><th>Valor</th><th></th></tr></thead>
+              <tbody id="tb-lancamentos"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PAINEL POR VEÍCULO -->
+        <div id="fin-painel-veiculo" style="display:none">
+          <div style="margin-bottom:14px">
+            <select id="fin-vei-sel" onchange="finCarregarVeiculo()" style="font-size:13px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text);min-width:280px">
+              <option value="">— Selecione um veículo —</option>
+            </select>
+          </div>
+          <div id="fin-veiculo-body">
+            <div style="text-align:center;padding:40px;color:var(--muted2)">Selecione um veículo para ver o histórico financeiro</div>
+          </div>
+        </div>
+
+        <!-- PAINEL SEGUROS -->
+        <div id="fin-painel-seguros" style="display:none">
+          <div class="card">
+            <div class="card-header"><span class="card-title">🛡️ Status dos Seguros</span></div>
+            <table class="table">
+              <thead><tr><th>Veículo</th><th>Placa</th><th>Seguradora</th><th>Apólice</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+              <tbody id="tb-seguros"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PAINEL IPVA -->
+        <div id="fin-painel-ipva" style="display:none">
+          <div class="card">
+            <div class="card-header"><span class="card-title">📋 Status do IPVA</span></div>
+            <table class="table">
+              <thead><tr><th>Veículo</th><th>Placa</th><th>Ano</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+              <tbody id="tb-ipva"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL NOVO LANÇAMENTO -->
+      <div class="modal-overlay" id="m-lancamento">
+        <div class="modal" style="max-width:480px">
+          <div class="modal-header">
+            <div class="modal-title" id="mlc-title">➕ Novo Lançamento</div>
+            <button class="modal-close" onclick="closeModal('lancamento')">✕</button>
+          </div>
+          <div class="form-grid" style="padding:16px 20px">
+            <input type="hidden" id="mlc-id">
+            <div class="form-group">
+              <label>Tipo</label>
+              <select id="mlc-tipo" style="width:100%">
+                <option value="receita">💚 Receita</option>
+                <option value="despesa">🔴 Despesa</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Categoria</label>
+              <select id="mlc-cat" style="width:100%">
+                <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
+                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Outros</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Descrição</label>
+              <input type="text" id="mlc-desc" placeholder="Ex: Manutenção preventiva" style="width:100%">
+            </div>
+            <div class="form-group">
+              <label>Valor (R$)</label>
+              <input type="number" id="mlc-valor" placeholder="0,00" step="0.01" min="0" style="width:100%">
+            </div>
+            <div class="form-group">
+              <label>Data</label>
+              <input type="date" id="mlc-data" style="width:100%">
+            </div>
+            <div class="form-group full">
+              <label>Veículo (opcional)</label>
+              <select id="mlc-vei" style="width:100%">
+                <option value="">— Nenhum —</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('lancamento')">Cancelar</button>
+            <button class="btn btn-primary" onclick="finSalvarLancamento()">✓ Salvar</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ACCESS DENIED -->
       <div class="page" id="page-denied">
         <div class="access-denied">
@@ -1690,6 +1844,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/clientes.js"></script>
 <script src="js/historico.js"></script>
 <script src="js/contratos.js"></script>
+<script src="js/financeiro.js"></script>
 <script src="js/reservas.js"></script>
 <script src="js/locacoes.js"></script>
 <script src="js/chat.js"></script>

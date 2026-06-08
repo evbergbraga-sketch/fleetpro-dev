@@ -61,6 +61,7 @@ function goPage(id, navEl){
   if(id==='carros'||id==='motos'){preencherSelectInvestidores();}
   if(id==='reservas'){renderReservas();}
   if(id==='locacoes'){renderLocacoes();}
+  if(id==='financeiro'){ if(typeof iniciarFinanceiro==='function') iniciarFinanceiro(); }
 }
 
 // ══ DATA LOADING ══
