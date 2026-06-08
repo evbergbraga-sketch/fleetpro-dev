@@ -231,6 +231,15 @@ function conectarSSE(bridgeUrl, secret){
   };
 }
 
+// ── CHAVE DE DEDUPLICAÇÃO DE MENSAGENS ──
+// Trunca created_at ao minuto (evita diff de milissegundos entre SSE e banco)
+function _msgKey(m){
+  const ts = (m.created_at||'').slice(0,16); // YYYY-MM-DDTHH:MM
+  const txt = (m.texto||m.text||'').slice(0,80).trim();
+  if(m.id) return 'id:'+m.id;
+  return ts+'|'+txt;
+}
+
 function receberMsgSSE(msg){
   // [SSE] msg recebida — log removido em prod (PII)
   const cidPorId     = msg.clienteId||null;
@@ -255,9 +264,7 @@ function receberMsgSSE(msg){
   // Salva em UMA chave apenas (a mais específica disponível) para evitar duplicatas
   const chavePrincipal = cid;
   if(!chatMsgs[chavePrincipal]) chatMsgs[chavePrincipal] = [];
-  const jaExisteNoCache = chatMsgs[chavePrincipal].some(m=>
-    (msgObj.created_at && m.created_at === msgObj.created_at && (m.texto||m.text||'') === (msgObj.texto||''))
-  );
+  const jaExisteNoCache = chatMsgs[chavePrincipal].some(m=>_msgKey(m)===_msgKey(msgObj));
   if(!jaExisteNoCache) chatMsgs[chavePrincipal].push(msgObj);
 
   const estaAberta = activeChatId && [cid, cidPorId, cidPorNumero, msg.numero]
@@ -543,8 +550,8 @@ async function renderChatMsgs(cid){
   try{
     const dbMsgs = await carregarMsgsDB(cid, 0);
     // Mescla com memória sem duplicatas
-    const vistos = new Set(dbMsgs.map(m=>m.id||(m.created_at+'|'+m.texto)));
-    const extras = memMsgs.filter(m=>!vistos.has(m.id||(m.created_at+'|'+(m.texto||m.text||''))));
+    const vistos = new Set(dbMsgs.map(m=>_msgKey(m)));
+    const extras = memMsgs.filter(m=>!vistos.has(_msgKey(m)));
     const todas  = [...dbMsgs,...extras].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
     // Atualiza cache em memória
     _atualizarCacheChat(cid, todas);
@@ -605,10 +612,12 @@ function _atualizarCacheChat(cid, msgs){
   const todos = [...chatMsgs[cid], ...msgs];
   const seen = new Map();
   todos.forEach(m=>{
-    // Chave primária: id do banco. Secundária: timestamp+texto
-    const chave = m.id || (m.created_at+'|'+(m.texto||m.text||''));
-    if(!seen.has(chave)) seen.set(chave, m);
-    else if(m.id && !seen.get(chave).id) seen.set(chave, m); // prefere o que tem id
+    const chave = _msgKey(m);
+    if(!seen.has(chave)){
+      seen.set(chave, m);
+    } else if(m.id && !seen.get(chave).id){
+      seen.set(chave, m); // prefere registro com id (vem do banco)
+    }
   });
   chatMsgs[cid] = Array.from(seen.values())
     .sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
@@ -679,10 +688,7 @@ async function _carregarPreviewsChat(){
       if(!chave) return;
       if(!chatMsgs[chave]) chatMsgs[chave] = [];
       // Só adiciona se ainda não existe (deduplicação por id ou created_at+texto)
-      const jatem = chatMsgs[chave].some(x=>
-        (m.id && x.id === m.id) ||
-        (x.created_at === m.created_at && (x.texto||x.text||'') === (m.texto||m.text||''))
-      );
+      const jatem = chatMsgs[chave].some(x=>_msgKey(x)===_msgKey(m));
       if(!jatem) chatMsgs[chave].push(m);
     });
 
