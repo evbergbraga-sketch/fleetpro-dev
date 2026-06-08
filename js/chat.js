@@ -1375,6 +1375,44 @@ async function _checarStatusSara(telefone){
   }catch(_){ _renderBotaoSara(false); }
 }
 
+
+// ── AÇÕES RÁPIDAS DA SIDEBAR DO CHAT ──
+function _chatAcaoReserva(){
+  if(!activeChatId){ notify('Selecione uma conversa primeiro','error'); return; }
+  const c = allClientes.find(x=>x.id===activeChatId);
+  goPage('reservas');
+  setTimeout(()=>{
+    if(typeof abrirModalReserva==='function') abrirModalReserva();
+    // Pré-seleciona o cliente se estiver cadastrado
+    if(c){
+      setTimeout(()=>{
+        const sel = document.getElementById('res-cli');
+        if(sel) sel.value = c.id;
+      }, 300);
+    }
+  }, 400);
+}
+
+function _chatAcaoContrato(){
+  if(!activeChatId){ notify('Selecione uma conversa primeiro','error'); return; }
+  const c = allClientes.find(x=>x.id===activeChatId);
+  goPage('contratos');
+  setTimeout(()=>{
+    if(typeof populateContratosSelects==='function') populateContratosSelects();
+    // Pré-seleciona o cliente se estiver cadastrado
+    if(c){
+      setTimeout(()=>{
+        const sel = document.getElementById('c-cli');
+        if(sel){
+          sel.value = c.id;
+          if(typeof _preencherCamposClienteContrato==='function') _preencherCamposClienteContrato();
+          if(typeof previewContrato==='function') previewContrato();
+        }
+      }, 400);
+    }
+  }, 400);
+}
+
 // ── CADASTRAR CLIENTE PELO CHAT ──
 function abrirCadastroClienteChat(){
   if(!activeChatId) return;

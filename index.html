@@ -794,7 +794,6 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="verPerfilCliente()">👤 Perfil</button>
                 <button id="btn-sara-toggle" onclick="toggleSara()" style="font-size:11px;padding:5px 10px;background:rgba(0,168,132,.15);color:#00a884;border:1px solid rgba(0,168,132,.3);border-radius:8px;cursor:pointer;font-weight:600">🤖 Pausar SARA</button>
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:none" id="btn-cadastrar-chat" onclick="abrirCadastroClienteChat()">➕ Cadastrar</button>
-                <button class="btn btn-primary" style="font-size:11px;padding:5px 10px;background:#00a884;border-color:#00a884" onclick="goPage('contratos')">📄 Contrato</button>
               </div>
             </div>
             <div class="chat-msgs scrollbar-thin" id="chat-msgs"><div style="text-align:center;font-size:12px;color:var(--muted2);margin:20px 0">Selecione uma conversa</div></div>
@@ -828,6 +827,19 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
           </div>
           <div class="chat-side scrollbar-thin">
+
+            <!-- AÇÕES RÁPIDAS DO CHAT -->
+            <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8696a0;margin-bottom:10px">⚡ Ações rápidas</div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <button onclick="_chatAcaoReserva()" style="width:100%;padding:9px 12px;background:rgba(0,168,132,.12);border:1px solid rgba(0,168,132,.25);color:#00a884;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;text-align:left;transition:.15s" onmouseover="this.style.background='rgba(0,168,132,.2)'" onmouseout="this.style.background='rgba(0,168,132,.12)'">
+                  📅 Nova Reserva
+                </button>
+                <button onclick="_chatAcaoContrato()" style="width:100%;padding:9px 12px;background:rgba(79,70,229,.12);border:1px solid rgba(79,70,229,.25);color:#818CF8;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;text-align:left;transition:.15s" onmouseover="this.style.background='rgba(79,70,229,.2)'" onmouseout="this.style.background='rgba(79,70,229,.12)'">
+                  📄 Gerar Contrato
+                </button>
+              </div>
+            </div>
 
             <!-- STATUS WPP -->
             <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
