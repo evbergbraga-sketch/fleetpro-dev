@@ -633,6 +633,15 @@ function _atualizarCacheChat(cid, msgs){
 }
 
 function _buildMsgsHtml(msgs){
+  // Deduplicação final antes de renderizar — remove balões duplicados
+  // mesmo que o banco tenha registros duplicados
+  const seen = new Map();
+  msgs = msgs.filter(m=>{
+    const k = m.created_at?.slice(0,16)+'|'+(m.texto||m.text||'').slice(0,50).trim();
+    if(seen.has(k)) return false;
+    seen.set(k, true);
+    return true;
+  });
   let lastDate = null;
   let html = '';
   msgs.forEach(m=>{
