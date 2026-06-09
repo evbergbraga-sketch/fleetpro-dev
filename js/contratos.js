@@ -117,15 +117,23 @@ function _coletarChecklistInline(){
 async function registrarComChecklist(){
   const chkEl = document.getElementById('ct-checklist-inline');
   const temChecklist = chkEl && chkEl.style.display !== 'none';
-  // Registra o contrato
-  const locId = await registrarContrato(true);
-  if(!locId) return;
-  if(!temChecklist){
-    notify('Contrato registrado com sucesso!','success');
+
+  // Coleta checklist ANTES de registrar (enquanto os campos ainda estão na tela)
+  const chk = temChecklist ? _coletarChecklistInline() : null;
+
+  // Registra o contrato — retorna {locId, numContrato, d}
+  const resultado = await registrarContrato(true);
+  if(!resultado) return;
+
+  const { locId, numContrato, d } = resultado;
+
+  if(!temChecklist || !chk){
+    // Sem checklist — gera PDF normal
+    notify('Contrato registrado! Gerando PDF...','success');
+    await gerarPdfContrato(numContrato, d, null);
     return;
   }
-  // Salva o checklist vinculado à locação
-  const chk = _coletarChecklistInline();
+
   // Upload fotos se houver
   const fotosUrls = [];
   for(const f of _ctchkFotos){
@@ -139,6 +147,8 @@ async function registrarComChecklist(){
       }
     }catch(_){}
   }
+
+  // Salva checklist vinculado à locação
   const {error} = await sb.from('checklists').insert({
     locacao_id: locId,
     tipo: 'saida',
@@ -150,11 +160,10 @@ async function registrarComChecklist(){
     fotos: fotosUrls,
     criado_por: currentUser?.id
   });
-  if(error){ notify('Checklist salvo com erro: '+error.message,'error'); return; }
+  if(error){ notify('Checklist: '+error.message,'error'); }
+
   notify('Contrato + Checklist registrados! Gerando PDF...','success');
-  // Aguarda carregarTudo() terminar antes de gerar PDF
-  const numContrato = parseInt(localStorage.getItem('fp_contrato_seq')||'1');
-  const d = previewContrato();
+  // Gera PDF com checklist — usa d retornado pelo registrarContrato
   await gerarPdfContrato(numContrato, d, chk);
 }
 
@@ -629,8 +638,16 @@ async function registrarContrato(retornarId=false){
     _servicosLista   = [];
 
     notify('Contrato #'+numContrato+' registrado!','success');
-    // PDF gerado depois (registrarComChecklist passa o checklist; registrarContrato gera sem checklist)
-    if(!retornarId) setTimeout(()=> gerarPdfContrato(numContrato, d), 500);
+
+    // Se retornarId (chamado por registrarComChecklist), retorna dados para o checklist usar
+    if(retornarId){
+      await carregarTudo();
+      if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
+      return { locId: locSalva.id, numContrato, d };
+    }
+
+    // Gera PDF normal (sem checklist)
+    setTimeout(()=> gerarPdfContrato(numContrato, d), 500);
     await carregarTudo();
 
     // WhatsApp resumo
@@ -646,7 +663,6 @@ async function registrarContrato(retornarId=false){
     }
   }catch(e){
     notify('Erro: '+e.message,'error');
-    if(retornarId) return null;
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
   }
