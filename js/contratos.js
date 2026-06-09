@@ -159,6 +159,22 @@ async function registrarComChecklist(){
 }
 
 // ══ NÚMERO DO CONTRATO ══
+// Sincroniza o número do contrato com o banco (maior num_contrato + 1)
+async function _sincronizarNumContrato(){
+  try{
+    const {data} = await sb.from('locacoes')
+      .select('num_contrato')
+      .order('num_contrato', {ascending:false})
+      .limit(1)
+      .single();
+    const maiorNoBanco = parseInt(data?.num_contrato||'0');
+    const noLocal      = parseInt(localStorage.getItem('fp_contrato_seq')||'0');
+    const maior = Math.max(maiorNoBanco, noLocal);
+    localStorage.setItem('fp_contrato_seq', String(maior));
+    return maior;
+  }catch(_){ return parseInt(localStorage.getItem('fp_contrato_seq')||'0'); }
+}
+
 function _proximoNumContrato(){
   const n = parseInt(localStorage.getItem('fp_contrato_seq')||'0') + 1;
   localStorage.setItem('fp_contrato_seq', String(n));
@@ -307,6 +323,15 @@ function _preencherCamposClienteContrato(){
 }
 
 function populateContratosSelects(){
+  // Sincroniza número do contrato com o banco a cada abertura da aba
+  _sincronizarNumContrato().then(maior=>{
+    const proximo = maior + 1;
+    localStorage.setItem('fp_contrato_seq', String(maior));
+    const el = document.getElementById('c-num-display');
+    if(el) el.textContent = `Contrato #${proximo}`;
+    const elPrev = document.getElementById('ct-num');
+    if(elPrev) elPrev.textContent = `#${proximo}`;
+  });
   const cs = document.getElementById('c-cli');
   if(cs){
     const aprovados = allClientes.filter(c=>!c.status_analise || c.status_analise === 'aprovado');
@@ -394,6 +419,10 @@ function previewContrato(){
   const condutor    = document.getElementById('c-condutor')?.value||'';
   const condutorCpf = document.getElementById('c-condutor-cpf')?.value||'';
   const localRet    = document.getElementById('c-local-ret')?.value||'Loja';
+  const descricao   = document.getElementById('c-descricao')?.value||'';
+  const planoSel    = document.querySelector('input[name="c-plano-moto"]:checked');
+  const planoNome   = planoSel?.value==='379.99' ? 'Plano 12 meses — R$ 379,99/sem'
+                    : planoSel?.value==='399.90' ? 'Plano Conquista 36m — R$ 399,90/sem' : '';
   const isMoto      = _tipoContrato === 'moto';
 
   // ── Período calculado automaticamente pelas datas ──
@@ -489,7 +518,7 @@ function previewContrato(){
     if(valorPago>0) avisoEl.innerHTML = `⚠️ Valor já pago na reserva: <strong>R$ ${valorPago.toFixed(2).replace('.',',')}</strong> · Total ajustado: <strong>R$ ${totalLiq.toFixed(2).replace('.',',')}</strong>`;
   }
 
-  return {totalBruto, totalLiq, valorPago, pgtoCaucao, nomeCli, cpfCli, telCli,
+  return {totalBruto, totalLiq, valorPago, pgtoCaucao, descricao, planoNome, nomeCli, cpfCli, telCli,
     emailCli, cnhCli, cnhValCli, cnhCatCli, endCli, nascCli,
     placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
@@ -693,7 +722,7 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   // ── NÚMERO ──
   rect(M,y,CW,10,'#f0f8f0','#006400');
   txt(`CONTRATO ${isMoto?'MASTER':''}#${numContrato}`,PW/2,y+4,{size:11,bold:true,align:'center',color:'#006400'});
-  txt(`Situação: Em Vigência  |  Tipo: ${isMoto?'MOTO':'CARRO'}`,M+4,y+8,{size:8,color:'#333'});
+  txt(`Situação: Em Vigência  |  Tipo: ${isMoto?'MOTO':'CARRO'}${d.descricao?' | '+d.descricao:''}`,M+4,y+8,{size:8,color:'#333'});
   txt(`Data: ${new Date().toLocaleDateString('pt-BR')}`,PW-M,y+8,{size:8,color:'#333',align:'right'});
   y+=14;
 
@@ -761,7 +790,7 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
     // Row veículo
     rect(M,y,CW,8,'#f0f8f0','#dddddd');
     const rowV=[
-      `${d.placa} - ${d.modelo}`,
+      `${d.placa} - ${d.modelo}${d.planoNome?' | '+d.planoNome:''}`,
       franqKm+' km',
       `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,
       `R$ ${kmExced}/km`,
