@@ -207,6 +207,7 @@ async function finRenderSeguros(){
   const veiculos = allVeiculos||[];
   const hoje = new Date();
 
+  const perLabel = {mensal:'Mensal',trimestral:'Trimestral',semestral:'Semestral',anual:'Anual'};
   const rows = veiculos.map(v=>{
     if(!v.seguro_vencimento && !v.seguradora) return null;
     const venc = v.seguro_vencimento ? new Date(v.seguro_vencimento) : null;
@@ -220,11 +221,15 @@ async function finRenderSeguros(){
         : `<span class="badge badge-green">✓ ${dias}d</span>`;
     }
     const tipo = v.tipo==='moto'?'🏍️':'🚗';
+    const valFmt = v.seguro_valor ? Number(v.seguro_valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '—';
+    const per = v.seguro_periodicidade ? perLabel[v.seguro_periodicidade]||v.seguro_periodicidade : '—';
     return `<tr>
       <td>${tipo} ${v.marca} ${v.modelo}</td>
       <td>${v.placa||'—'}</td>
       <td>${v.seguradora||'—'}</td>
       <td>${v.apolice||'—'}</td>
+      <td style="font-weight:600;color:var(--green)">${valFmt}</td>
+      <td>${per}</td>
       <td>${venc ? venc.toLocaleDateString('pt-BR') : '—'}</td>
       <td>${badge}</td>
       <td><button onclick="goPage('carros')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--accent)">✏️</button></td>
@@ -495,4 +500,24 @@ async function finExportarPdf(){
 
   doc.save(`FleetPro_Financeiro_${new Date().toISOString().slice(0,10)}.pdf`);
   notify('PDF exportado!','success');
+}
+
+// ══ LANÇAMENTO AUTOMÁTICO — SEGURO ══
+async function finRegistrarLancamentoSeguro(veiculoId, seguradora, valor, periodicidade, vencimento){
+  if(!sb || !valor || valor <= 0) return;
+  try{
+    const v = allVeiculos?.find(x=>x.id===veiculoId);
+    const perLabels = { mensal:'Mensal', trimestral:'Trimestral', semestral:'Semestral', anual:'Anual' };
+    await sb.from('lancamentos').insert({
+      tipo:         'despesa',
+      categoria:    'Seguro',
+      descricao:    `Seguro ${perLabels[periodicidade]||''} — ${seguradora||'Seguradora'} — ${v?.placa||''}`,
+      valor:        valor,
+      data:         vencimento || new Date().toISOString().slice(0,10),
+      veiculo_id:   veiculoId||null,
+      origem:       'automatico',
+      criado_por:   currentUser?.id,
+    });
+    console.log('[fin] lançamento seguro criado:', valor, periodicidade);
+  }catch(e){ console.warn('[fin] seguro:', e.message); }
 }

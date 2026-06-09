@@ -210,7 +210,13 @@ async function _salvarIpvasNoBanco(veiculoId){
 }
 
 // Salva seguro em doc_veiculos
-async function _salvarSeguroNoBanco(veiculoId, seguradora, apolice, vencimento){
+async function _salvarSeguroNoBanco(veiculoId, seguradora, apolice, vencimento, valor, periodicidade){
+  // Cria lançamento financeiro automático se tiver valor
+  if(valor && valor > 0 && typeof finRegistrarLancamentoSeguro === 'function'){
+    finRegistrarLancamentoSeguro(veiculoId, seguradora, valor, periodicidade, vencimento);
+  }
+}
+async function _salvarSeguroNoBancoLegado(veiculoId, seguradora, apolice, vencimento){
   if(!veiculoId || !vencimento) return;
   const tipoId = await _getTipoIdByNome('Seguro frota');
   if(!tipoId) return;
@@ -361,6 +367,10 @@ function _coletarCamposExtras(prefix){
     seguradora:          g('seguradora')||null,
     apolice:             g('apolice')||null,
     seguro_vencimento:   g('seguro-vencimento')||null,
+    seguro_valor:        parseFloat(g('seguro-valor'))||null,
+    seguro_periodicidade: g('seguro-periodicidade')||'anual',
+    seguro_valor:        parseFloat(g('seguro-valor'))||null,
+    seguro_periodicidade: g('seguro-periodicidade')||'anual',
     // Rastreador
     tem_rastreador:      temRast === 'sim',
     rastreador_empresa:  temRast === 'sim' ? (g('rastreador-empresa')||null) : null,
@@ -387,6 +397,8 @@ function _preencherCamposExtras(prefix, v){
   s('seguradora', v.seguradora);
   s('apolice', v.apolice);
   s('seguro-vencimento', v.seguro_vencimento);
+  s('seguro-valor', v.seguro_valor||'');
+  s('seguro-periodicidade', v.seguro_periodicidade||'anual');
   // Rastreador
   const selRast = document.getElementById(prefix+'-tem-rastreador');
   if(selRast){ selRast.value = v.tem_rastreador ? 'sim' : 'nao'; _toggleRastreador(prefix); }
@@ -559,7 +571,7 @@ async function salvarVeiculo(){
     _veicIpvas=[]; _veicManutencoes=[]; _renderIpvas('mv'); _renderManutencoes('mv');
     _veicAnexosNovos['mv']=[]; _renderAnexosLista('mv');
     ['mv-marca','mv-modelo','mv-placa','mv-ano','mv-cor','mv-km','mv-diaria','mv-obs',
-     'mv-seguradora','mv-apolice','mv-seguro-vencimento','mv-rastreador-empresa'].forEach(id=>{
+     'mv-seguradora','mv-apolice','mv-seguro-vencimento','mv-seguro-valor','mv-seguro-periodicidade','mv-rastreador-empresa'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
     const sel=document.getElementById('mv-investidor'); if(sel) sel.value='';
