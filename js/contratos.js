@@ -98,18 +98,37 @@ async function _carregarItensChecklistInline(){
 function _coletarChecklistInline(){
   const wrap = document.getElementById('ctchk-itens');
   let itens = [];
-  try{ itens = JSON.parse(wrap?.dataset?.itens||'[]'); }catch(_){}
-  return {
-    km:          parseInt(document.getElementById('ctchk-km')?.value)||0,
-    combustivel: document.getElementById('ctchk-comb')?.value||'Cheio', // set via _selecionarComb
-    horario:     document.getElementById('ctchk-hora')?.value||new Date().toISOString(),
-    observacoes: document.getElementById('ctchk-obs')?.value||'',
-    itens: itens.map(it=>({
+  try{
+    const raw = wrap?.dataset?.itens;
+    if(raw && raw !== '[]') itens = JSON.parse(raw);
+  }catch(e){ console.warn('[chk] parse itens:', e.message); }
+
+  // Log diagnóstico
+  console.log('[chk coletar] wrap existe:', !!wrap, '| dataset.itens length:', itens.length);
+
+  const itensColetados = itens.map(it=>{
+    const selEl  = document.getElementById('ctchk-item-'+it.id);
+    const obsEl  = document.getElementById('ctchk-obs-'+it.id);
+    const status = selEl?.value || 'ok';
+    const obs    = obsEl?.value || '';
+    if(!selEl) console.warn('[chk coletar] item sem elemento DOM:', it.id, it.descricao);
+    return {
       descricao: it.descricao,
       categoria: it.categoria,
-      status:    document.getElementById('ctchk-item-'+it.id)?.value||'ok',
-      obs:       document.getElementById('ctchk-obs-'+it.id)?.value||'',
-    }))
+      status,
+      obs,
+    };
+  });
+
+  const horaEl = document.getElementById('ctchk-hora');
+  const combEl = document.getElementById('ctchk-comb');
+
+  return {
+    km:          parseInt(document.getElementById('ctchk-km')?.value)||0,
+    combustivel: combEl?.value || 'Cheio',
+    horario:     horaEl?.value ? new Date(horaEl.value).toISOString() : new Date().toISOString(),
+    observacoes: document.getElementById('ctchk-obs')?.value||'',
+    itens:       itensColetados,
   };
 }
 
@@ -118,70 +137,86 @@ async function registrarComChecklist(){
   const chkEl = document.getElementById('ct-checklist-inline');
   const temChecklist = chkEl && chkEl.style.display !== 'none';
 
-  // Garante que itens do checklist estão carregados antes de coletar
+  // PASSO 1: Garantir que itens estão carregados no DOM antes de coletar
   if(temChecklist){
     const wrap = document.getElementById('ctchk-itens');
-    if(!wrap?.dataset?.itens){
+    if(!wrap?.dataset?.itens || wrap.dataset.itens === '[]'){
       await _carregarItensChecklistInline();
     }
   }
-  // Coleta checklist ANTES de registrar (enquanto os campos ainda estão na tela)
-  const chk = temChecklist ? _coletarChecklistInline() : null;
-  if(chk) console.log('[chk collect] itens:', chk.itens?.length, 'combustivel:', chk.combustivel, 'km:', chk.km);
-  else console.warn('[chk collect] checklist vazio!');
 
-  // Registra o contrato — retorna {locId, numContrato, d}
+  // PASSO 2: Coletar todos os dados do checklist AGORA (DOM ainda intacto)
+  const chk = temChecklist ? _coletarChecklistInline() : null;
+  const fotosParaUpload = [..._ctchkFotos]; // cópia antes de qualquer reset
+
+  if(temChecklist){
+    console.log('[chk] coletado — itens:', chk?.itens?.length, '| comb:', chk?.combustivel, '| km:', chk?.km);
+    if(!chk?.itens?.length) console.warn('[chk] ATENÇÃO: itens vazios!');
+  }
+
+  // PASSO 3: Registrar o contrato — retorna {locId, numContrato, d}
   const resultado = await registrarContrato(true);
-  if(!resultado) return;
+  if(!resultado){ console.error('[chk] registrarContrato não retornou resultado'); return; }
 
   const { locId, numContrato, d } = resultado;
+  console.log('[chk] locId:', locId, 'numContrato:', numContrato);
 
+  // PASSO 4: Se não tem checklist, gera PDF simples e sai
   if(!temChecklist || !chk){
-    // Sem checklist — gera PDF normal
     notify('Contrato registrado! Gerando PDF...','success');
     await gerarPdfContrato(numContrato, d, null);
     return;
   }
 
-  // Upload fotos se houver
+  // PASSO 5: Upload de fotos para o Storage
   const fotosUrls = [];
-  for(const f of _ctchkFotos){
+  for(const f of fotosParaUpload){
     try{
-      const ext = f.name.split('.').pop();
+      const ext = (f.name.split('.').pop()||'jpg').toLowerCase();
       const path = `contratos/${locId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const {error:upErr} = await sb.storage.from('checklists').upload(path, f);
       if(!upErr){
         const {data:signData} = await sb.storage.from('checklists').createSignedUrl(path, 60*60*24*365);
         if(signData?.signedUrl) fotosUrls.push(signData.signedUrl);
       }
-    }catch(_){}
+    }catch(e){ console.warn('[chk] foto upload:', e.message); }
   }
 
-  // Salva checklist vinculado à locação
-  // itens e fotos precisam ser JSONB — garantir que são arrays/objetos válidos
+  // PASSO 6: Montar payload e salvar checklist no banco
   const chkPayload = {
-    locacao_id: locId,
-    tipo: 'saida',
-    km: parseInt(chk.km)||0,
+    locacao_id:  locId,
+    tipo:        'saida',
+    km:          parseInt(chk.km)||0,
     combustivel: chk.combustivel||'Cheio',
-    horario: chk.horario||new Date().toISOString(),
-    observacoes: chk.observacoes||'',
-    itens: Array.isArray(chk.itens) ? chk.itens : [],
-    fotos: fotosUrls||[],
-    criado_por: currentUser?.id
+    horario:     chk.horario ? new Date(chk.horario).toISOString() : new Date().toISOString(),
+    observacoes: chk.observacoes||null,
+    itens:       Array.isArray(chk.itens) ? chk.itens : [],
+    fotos:       fotosUrls,
+    criado_por:  currentUser?.id||null,
   };
-  console.log('[checklist] salvando:', chkPayload);
-  const {data:chkSalvo, error} = await sb.from('checklists').insert(chkPayload).select().single();
-  if(error){
-    console.error('[checklist] erro:', error);
-    notify('Checklist erro: '+error.message,'error');
+
+  console.log('[chk] salvando no banco:', JSON.stringify(chkPayload).slice(0,200));
+
+  const {data:chkSalvo, error:chkErr} = await sb
+    .from('checklists')
+    .insert(chkPayload)
+    .select('id,locacao_id,tipo')
+    .single();
+
+  if(chkErr){
+    console.error('[chk] ERRO ao salvar:', chkErr);
+    notify('⚠️ Checklist não salvo: '+chkErr.message,'error');
+    // Mesmo com erro no checklist, gera o PDF com os dados coletados
   } else {
-    console.log('[checklist] salvo com id:', chkSalvo?.id, 'locacao_id:', chkSalvo?.locacao_id);
+    console.log('[chk] SALVO com sucesso — id:', chkSalvo.id, 'locacao_id:', chkSalvo.locacao_id);
+    notify('✅ Contrato + Checklist registrados!','success');
   }
 
-  notify('Contrato + Checklist registrados! Gerando PDF...','success');
-  // Gera PDF com checklist — usa d retornado pelo registrarContrato
+  // PASSO 7: Gerar PDF com página de checklist
   await gerarPdfContrato(numContrato, d, chk);
+
+  // PASSO 8: Recarregar dados DEPOIS de tudo concluído
+  await carregarTudo();
 }
 
 // ══ NÚMERO DO CONTRATO ══
@@ -663,9 +698,9 @@ async function registrarContrato(retornarId=false){
 
     notify('Contrato #'+numContrato+' registrado!','success');
 
-    // Se retornarId (chamado por registrarComChecklist), retorna dados para o checklist usar
+    // Se retornarId (chamado por registrarComChecklist), retorna IMEDIATAMENTE
+    // para preservar o DOM do checklist (carregarTudo é chamado depois pelo caller)
     if(retornarId){
-      await carregarTudo();
       if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
       return { locId: locSalva.id, numContrato, d };
     }
