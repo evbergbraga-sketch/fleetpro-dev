@@ -127,7 +127,8 @@ async function registrarComChecklist(){
   }
   // Coleta checklist ANTES de registrar (enquanto os campos ainda estão na tela)
   const chk = temChecklist ? _coletarChecklistInline() : null;
-  console.log('[chk collect] itens coletados:', chk?.itens?.length, chk);
+  if(chk) console.log('[chk collect] itens:', chk.itens?.length, 'combustivel:', chk.combustivel, 'km:', chk.km);
+  else console.warn('[chk collect] checklist vazio!');
 
   // Registra o contrato — retorna {locId, numContrato, d}
   const resultado = await registrarContrato(true);
@@ -339,12 +340,18 @@ function _removerServico(i){
 function _preencherCamposClienteContrato(){
   const opt = document.getElementById('c-cli')?.selectedOptions[0];
   if(!opt) return;
-  // Preenche campos se existirem no formulário
   const sv = (id, val) => { const e=document.getElementById(id); if(e&&val) e.value=val; };
-  sv('c-condutor', opt.dataset.nome);
-  sv('c-condutor-cpf', opt.dataset.cpf);
-  // Carrega condutores do cliente
+  // Dados básicos
+  sv('c-condutor',         opt.dataset.nome);
+  sv('c-condutor-cpf',     opt.dataset.cpf);
+  // CNH completa do perfil
+  sv('c-condutor-cnh',     opt.dataset.cnh);
+  sv('c-condutor-cnh-cat', opt.dataset.cnhCat);
+  sv('c-condutor-cnh-val', opt.dataset.cnhVal);
+  sv('c-condutor-cnh-seg', opt.dataset.cnhSeg||'');
+  // Carrega condutores e cartões do cliente
   _carregarCondutoresCliente();
+  _carregarCartoesCliente();
 }
 
 function populateContratosSelects(){
@@ -377,6 +384,7 @@ function populateContratosSelects(){
         data-cnh="${_e(c.cnh)}"
         data-cnh-val="${_e(c.cnh_validade)}"
         data-cnh-cat="${_e(c.cnh_categoria)}"
+        data-cnh-seg="${_e(c.cnh_seguranca)}"
         data-nasc="${_e(c.data_nascimento)}"
         data-end="${_e(endStr)}"
         data-pai="${_e(c.nome_pai)}"
@@ -1371,6 +1379,28 @@ function _verificarMotoContrato(){
   const v = allVeiculos?.find(x=>x.id===veiId);
   const wrap = document.getElementById('c-planos-moto-wrap');
   const labelVal = document.getElementById('label-valor-principal');
-  if(wrap) wrap.style.display = v?.tipo==='moto' ? '' : 'none';
-  if(labelVal) labelVal.textContent = v?.tipo==='moto' ? 'Valor semanal (R$)' : 'Valor diária (R$)';
+  const isMoto = v?.tipo==='moto';
+  if(wrap) wrap.style.display = isMoto ? '' : 'none';
+  if(labelVal) labelVal.textContent = isMoto ? 'Valor semanal (R$)' : 'Valor diária (R$)';
+  // Se moto: seleciona Plano 12 meses por padrão e preenche valor
+  if(isMoto){
+    const jaTemPlano = document.querySelector('input[name="c-plano-moto"]:checked');
+    if(!jaTemPlano){
+      const radio12 = document.querySelector('input[name="c-plano-moto"][value="379.99"]');
+      if(radio12){
+        radio12.checked = true;
+        _selecionarPlanoContrato(radio12);
+      }
+    }
+  } else {
+    // Carro: limpa valor do plano anterior
+    const cDia = document.getElementById('c-dia');
+    if(cDia && !cDia.value) cDia.value = '';
+    // Desmarca planos de moto
+    document.querySelectorAll('input[name="c-plano-moto"]').forEach(r=>r.checked=false);
+    ['c-plano-12-label','c-plano-36-label'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){ el.style.borderColor='var(--border2)'; el.style.background=''; }
+    });
+  }
 }
