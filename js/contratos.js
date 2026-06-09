@@ -401,6 +401,7 @@ function populateContratosSelects(){
     vs.innerHTML = disp.map(v=>
       `<option value="${v.id}" data-diaria="${v.diaria}" data-placa="${v.placa}" data-tipo="${v.tipo}" data-modelo="${v.marca} ${v.modelo}">${v.marca} ${v.modelo} — ${v.placa}${v.status==='reservado'?' (reservado)':''}</option>`).join('');
     autoFillContrato();
+    _verificarMotoContrato(); // mostra planos se for moto
   }
 
   _condutoresLista = [];
