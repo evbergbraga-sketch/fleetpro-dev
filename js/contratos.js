@@ -149,18 +149,26 @@ async function registrarComChecklist(){
   }
 
   // Salva checklist vinculado à locação
-  const {error} = await sb.from('checklists').insert({
+  // itens e fotos precisam ser JSONB — garantir que são arrays/objetos válidos
+  const chkPayload = {
     locacao_id: locId,
     tipo: 'saida',
-    km: chk.km,
-    combustivel: chk.combustivel,
-    horario: chk.horario,
-    observacoes: chk.observacoes,
-    itens: chk.itens,
-    fotos: fotosUrls,
+    km: parseInt(chk.km)||0,
+    combustivel: chk.combustivel||'Cheio',
+    horario: chk.horario||new Date().toISOString(),
+    observacoes: chk.observacoes||'',
+    itens: Array.isArray(chk.itens) ? chk.itens : [],
+    fotos: fotosUrls||[],
     criado_por: currentUser?.id
-  });
-  if(error){ notify('Checklist: '+error.message,'error'); }
+  };
+  console.log('[checklist] salvando:', chkPayload);
+  const {data:chkSalvo, error} = await sb.from('checklists').insert(chkPayload).select().single();
+  if(error){
+    console.error('[checklist] erro:', error);
+    notify('Checklist erro: '+error.message,'error');
+  } else {
+    console.log('[checklist] salvo com id:', chkSalvo?.id, 'locacao_id:', chkSalvo?.locacao_id);
+  }
 
   notify('Contrato + Checklist registrados! Gerando PDF...','success');
   // Gera PDF com checklist — usa d retornado pelo registrarContrato
