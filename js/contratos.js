@@ -349,9 +349,8 @@ function _preencherCamposClienteContrato(){
   sv('c-condutor-cnh-cat', opt.dataset.cnhCat);
   sv('c-condutor-cnh-val', opt.dataset.cnhVal);
   sv('c-condutor-cnh-seg', opt.dataset.cnhSeg||'');
-  // Carrega condutores e cartões do cliente
+  // Carrega condutores do cliente
   _carregarCondutoresCliente();
-  _carregarCartoesCliente();
 }
 
 function populateContratosSelects(){
