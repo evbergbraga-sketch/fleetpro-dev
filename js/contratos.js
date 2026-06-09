@@ -751,494 +751,726 @@ function _baixarPdfSemRegistrar(){
 }
 
 // ══ GERAR PDF ══
+
 async function gerarPdfContrato(numContrato, d, checklist=null){
   if(!d||typeof d!=='object') d = previewContrato();
   if(!d) return;
-
-  // jsPDF carregado estaticamente no index.html
   if(!window.jspdf){ notify('jsPDF não carregado. Recarregue a página.','error'); return; }
   const {jsPDF} = window.jspdf;
-  const doc  = new jsPDF({unit:'mm',format:'a4'});
+
+  const doc   = new jsPDF({unit:'mm', format:'a4'});
+  const PW=210, M=12, CW=PW-M*2;
+  let y = M;
+
+  // ── HELPERS ──
+  const safeY = (need) => {
+    if(y + need > 280){ doc.addPage(); y = M; }
+  };
+
+  const txt = (t, x, yy, o={}) => {
+    doc.setFontSize(o.size||9);
+    doc.setFont('helvetica', o.bold?'bold':(o.italic?'italic':'normal'));
+    doc.setTextColor(o.color||'#000000');
+    const lines = doc.splitTextToSize(String(t||''), o.maxW||200);
+    doc.text(o.lines?lines:String(t||''), x, yy, {align:o.align||'left'});
+    return lines.length;
+  };
+
+  const txtWrap = (t, x, yy, maxW, o={}) => {
+    doc.setFontSize(o.size||8);
+    doc.setFont('helvetica', o.bold?'bold':(o.italic?'italic':'normal'));
+    doc.setTextColor(o.color||'#000000');
+    const lines = doc.splitTextToSize(String(t||''), maxW);
+    doc.text(lines, x, yy, {align:o.align||'left'});
+    return lines.length * (o.size||8) * 0.4;
+  };
+
+  const rect = (x, yy, w, h, fill, stroke) => {
+    if(fill){ doc.setFillColor(fill); }
+    if(stroke){ doc.setDrawColor(stroke); } else { doc.setDrawColor('#cccccc'); }
+    doc.rect(x, yy, w, h, fill?(stroke?'FD':'F'):'D');
+  };
+
+  const line = (x1,y1,x2,y2,color='#cccccc',w=0.3) => {
+    doc.setDrawColor(color); doc.setLineWidth(w);
+    doc.line(x1,y1,x2,y2);
+  };
+
   const isMoto = _tipoContrato==='moto';
-  const PW=210, M=15, CW=PW-M*2;
-  let y=15;
 
-  const rect=(x,yy,w,h,fill,stroke)=>{
-    if(fill) doc.setFillColor(fill);
-    if(stroke) doc.setDrawColor(stroke);
-    if(fill&&stroke) doc.rect(x,yy,w,h,'FD');
-    else if(fill) doc.rect(x,yy,w,h,'F');
-    else doc.rect(x,yy,w,h,'S');
-  };
-  const txt=(text,x,yy,opts={})=>{
-    doc.setFontSize(opts.size||9);
-    doc.setFont('helvetica',opts.bold?'bold':opts.italic?'italic':'normal');
-    doc.setTextColor(opts.color||'#1a1a1a');
-    const align = opts.align||'left';
-    doc.text(String(text),x,yy,{align});
-  };
-  const newPage=()=>{
-    doc.addPage(); y=20;
-    doc.setFillColor('#006400'); doc.rect(0,0,PW,8,'F');
-    txt('ROYAL RENT A CAR LTDA — CNPJ: '+(isMoto?'18.686.521/0002-90':'18.686.521/0001-00')+'  |  (21) 96894-9627  |  sac@locadoraroyal.com.br',
-        PW/2,5.5,{color:'#ffffff',size:7,align:'center'});
-  };
-  const checkY=(needed=25)=>{ if(y+needed>275) newPage(); };
+  // ══════════════════════════════════════
+  // PÁGINA 1 — CABEÇALHO COM LOGO E DADOS
+  // ══════════════════════════════════════
 
-  // ── HEADER ──
-  doc.setFillColor('#006400'); doc.rect(0,0,PW,22,'F');
-  try{ doc.addImage(ROYAL_LOGO_B64,'JPEG',M,2,35,18); }
-  catch(e){ txt('LOCADORA ROYAL',M,12,{color:'#ffffff',size:14,bold:true}); }
-  txt('ROYAL RENT A CAR LTDA',58,8,{color:'#ffffff',size:10,bold:true});
-  txt('CNPJ: '+(isMoto?'18.686.521/0002-90':'18.686.521/0001-00'),58,13,{color:'#d4edda',size:8});
-  txt('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br',58,18,{color:'#d4edda',size:8});
-  y=30;
-
-  // ── NÚMERO ──
-  rect(M,y,CW,10,'#f0f8f0','#006400');
-  txt(`CONTRATO ${isMoto?'MASTER':''}#${numContrato}`,PW/2,y+4,{size:11,bold:true,align:'center',color:'#006400'});
-  txt(`Situação: Em Vigência  |  Tipo: ${isMoto?'MOTO':'CARRO'}${d.descricao?' | '+d.descricao:''}`,M+4,y+8,{size:8,color:'#333'});
-  txt(`Data: ${new Date().toLocaleDateString('pt-BR')}`,PW-M,y+8,{size:8,color:'#333',align:'right'});
-  y+=14;
-
-  // ── BLOCO CLIENTE / RETIRADA / DEVOLUÇÃO ──
-  const todosCond = d.todosCondutores||[{nome:d.condutor,cpf:d.condutorCpf}];
-  const bH = Math.max(30, 14 + todosCond.length*8);
-  rect(M,y,CW/3-2,bH,'#f9f9f9','#dddddd');
-  rect(M+CW/3+1,y,CW/3-2,bH,'#f9f9f9','#dddddd');
-  rect(M+2*CW/3+2,y,CW/3-2,bH,'#f9f9f9','#dddddd');
-
-  // Col 1 — Cliente
-  doc.setFillColor('#006400'); doc.rect(M,y,CW/3-2,5,'F');
-  txt('CLIENTE',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
-  let cy=y+8;
-  txt(d.nomeCli,M+2,cy,{size:8,bold:true}); cy+=5;
-  txt(`CPF: ${d.cpfCli}`,M+2,cy,{size:7.5}); cy+=4;
-  txt(`Tel: ${d.telCli}`,M+2,cy,{size:7.5}); cy+=4;
-  if(d.nascCli) { txt(`Nasc: ${d.nascCli.split('-').reverse().join('/')}`,M+2,cy,{size:7}); cy+=4; }
-  if(d.cnhCli)  { txt(`CNH: ${d.cnhCli}${d.cnhCatCli?' (Cat. '+d.cnhCatCli+')':''}`,M+2,cy,{size:7}); cy+=4; }
-  if(d.cnhValCli){ txt(`Val. CNH: ${d.cnhValCli.split('-').reverse().join('/')}`,M+2,cy,{size:7}); cy+=4; }
-  if(d.endCli)  { const endLines=doc.splitTextToSize(`End: ${d.endCli}`,CW/3-6); txt(endLines[0],M+2,cy,{size:7}); cy+=4; }
-  cy+=1;
-  txt('CONDUTOR(ES):',M+2,cy,{size:7,bold:true,color:'#555'}); cy+=4;
-  todosCond.forEach(c=>{ txt(c.nome,M+2,cy,{size:7.5}); cy+=4; txt(`CPF: ${c.cpf||'—'}`,M+2,cy,{size:7}); cy+=4; });
-
-  // Col 2 — Retirada
-  const x2=M+CW/3+1;
-  doc.setFillColor('#006400'); doc.rect(x2,y,CW/3-2,5,'F');
-  txt('RETIRADA',x2+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
-  let ry=y+8;
-  txt(`Placa: ${d.placa}`,x2+2,ry,{size:8,bold:true}); ry+=5;
-  txt(`Local: ${d.localRet||'Loja'}`,x2+2,ry,{size:7.5}); ry+=4;
-  txt(`Data: ${d.ini?_fmtDatetime(d.ini):'—'}`,x2+2,ry,{size:7.5}); ry+=4;
-  txt('Empresa: Royal Rent A Car Ltda',x2+2,ry,{size:7}); ry+=4;
-  txt('Endereço: Av. das Américas, 12900',x2+2,ry,{size:7}); ry+=4;
-  txt('Bairro: Recreio dos Bandeirantes',x2+2,ry,{size:7}); ry+=4;
-  txt('Tel: +55 (21) 96894-9627',x2+2,ry,{size:7});
-
-  // Col 3 — Devolução
-  const x3=M+2*CW/3+2;
-  doc.setFillColor('#006400'); doc.rect(x3,y,CW/3-2,5,'F');
-  txt('DEVOLUÇÃO',x3+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
-  let dvy=y+8;
-  txt(`Placa: ${d.placa}`,x3+2,dvy,{size:8,bold:true}); dvy+=5;
-  txt('Local: Loja',x3+2,dvy,{size:7.5}); dvy+=4;
-  txt(`Data: ${d.fim?_fmtDatetime(d.fim):'—'}`,x3+2,dvy,{size:7.5}); dvy+=4;
-  txt('Empresa: Royal Rent A Car Ltda',x3+2,dvy,{size:7}); dvy+=4;
-  txt('Endereço: Av. das Américas, 12900',x3+2,dvy,{size:7}); dvy+=4;
-  txt('Bairro: Recreio dos Bandeirantes',x3+2,dvy,{size:7}); dvy+=4;
-  txt('Tel: +55 (21) 96894-9627',x3+2,dvy,{size:7});
-  y+=bH+4;
-
-  // ── TABELA VEÍCULO (MOTO — segue estrutura da minuta) ──
-  if(isMoto){
-    const franqKm = document.getElementById('c-franquia-km')?.value||'0';
-    const kmExced = (parseFloat(document.getElementById('c-km-excedente')?.value)||0).toFixed(2).replace('.',',');
-    checkY(20);
-    // Header tabela veículo
-    const colsV=[50,22,28,28,25,19,28];
-    const headersV=['Veículo','Franquia Km','Valor Locação','Km Excedente','Data Entrega','Km Saída','Data Término'];
-    rect(M,y,CW,6,'#006400','#006400');
-    let cxV=M;
-    headersV.forEach((h,i)=>{ txt(h,cxV+1,y+4,{size:6,bold:true,color:'#ffffff'}); cxV+=colsV[i]; });
-    y+=6;
-    // Row veículo
-    rect(M,y,CW,8,'#f0f8f0','#dddddd');
-    const rowV=[
-      `${d.placa} - ${d.modelo}${d.planoNome?' | '+d.planoNome:''}`,
-      franqKm+' km',
-      `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,
-      `R$ ${kmExced}/km`,
-      d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
-      String(d.km||'0')+' km',
-      d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—',
-    ];
-    cxV=M;
-    rowV.forEach((v,i)=>{ txt(v,cxV+1,y+5,{size:6.5}); cxV+=colsV[i]; });
-    y+=10;
-
-    // ── SERVIÇOS ADICIONAIS (moto) ──
-    if(d.servicos?.length>0){
-      checkY(10+d.servicos.length*7);
-      const colsS=[90,25,27,38];
-      rect(M,y,CW,5,'#006400','#006400');
-      const headersS=['Serviços Adicionais','Quantidade','Valor Unitário','Valor Total'];
-      let cxS=M;
-      headersS.forEach((h,i)=>{ txt(h,cxS+1,y+3.5,{size:6.5,bold:true,color:'#ffffff'}); cxS+=colsS[i]; });
-      y+=5;
-      d.servicos.forEach((s,ri)=>{
-        rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
-        cxS=M;
-        [s.descricao||'—','1',`R$ ${(s.valor||0).toFixed(2).replace('.',',')}`,`R$ ${(s.valor||0).toFixed(2).replace('.',',')}`]
-          .forEach((v,i)=>{ txt(v,cxS+1,y+5,{size:7}); cxS+=colsS[i]; });
-        y+=7;
-      });
-      y+=4;
+  // Logo Royal (topo esquerdo)
+  try{
+    const logo = document.querySelector('img[src*="logo"], .sidebar-logo img, img.logo');
+    if(logo?.src){
+      doc.addImage(logo.src, 'PNG', M, y, 28, 14);
     }
+  }catch(_){}
 
-    // ── FORMA DE PAGAMENTO (moto) ──
-    checkY(16);
-    rect(M,y,CW,14,'#f9f9f9','#dddddd');
-    txt('FORMA DE PAGAMENTO',M+2,y+4,{size:8,bold:true,color:'#006400'});
-    txt(`Contrato: ${d.pgto}  —  Valor: R$ ${d.totalLiq.toFixed(2).replace('.',',')}`,M+2,y+9,{size:8,bold:true});
-    txt(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`,M+2,y+13.5,{size:7.5});
-    y+=18;
-  } else {
-    const kmLivre=document.getElementById('c-km-livre')?.checked;
-    const protecao=document.getElementById('c-protecao')?.value||'Basica';
-    const protValor=protecao==='Completa'?parseFloat(document.getElementById('c-protecao-valor')?.value)||0:0;
-    const lavagem=parseFloat(document.getElementById('c-lavagem')?.value)||0;
-    const days2=d.days||1;
-    const totalDiarias=(d.dia||0)*days2;
-    txt(`Km Livre: ${kmLivre?'Sim':'Não'}   |   Proteção: ${protecao==='Completa'?'Completa':'Básica (inclusa na diária)'}`,M,y+4,{size:7.5});
-    y+=7;
-    rect(M,y,CW,6,'#006400','#006400');
-    const hCarro=['Descrição','Qtd','Unit.','Total'];
-    const wCarro=[90,20,35,35];
-    let ccx=M;
-    hCarro.forEach((h,i)=>{ txt(h,ccx+1,y+4,{size:6.5,bold:true,color:'#ffffff'}); ccx+=wCarro[i]; });
-    y+=6;
-    const rowsCarro=[
-      [`Diária — ${d.placa}`,days2,`R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,`R$ ${totalDiarias.toFixed(2).replace('.',',')}`],
-      protValor>0?['Proteção Completa',1,`R$ ${protValor.toFixed(2).replace('.',',')}`,`R$ ${protValor.toFixed(2).replace('.',',')}`]:null,
-      lavagem>0?['Lavagem Antecipada',1,`R$ ${lavagem.toFixed(2).replace('.',',')}`,`R$ ${lavagem.toFixed(2).replace('.',',')}`]:null,
-    ].filter(Boolean);
-    rowsCarro.forEach((row,ri)=>{
-      rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
-      ccx=M; row.forEach((v2,i)=>{ txt(String(v2),ccx+1,y+5,{size:7.5,bold:i===0}); ccx+=wCarro[i]; }); y+=7;
+  // Dados da empresa (topo direito do logo)
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+  doc.text('ROYAL RENT A CAR LTDA', M+32, y+5);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+  doc.text('CNPJ: 18.686.521/0002-90', M+32, y+9.5);
+  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+32, y+13.5);
+
+  // Número e status do contrato (topo direito)
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+  doc.text(`CONTRATO MASTER#${numContrato}`, PW-M, y+5, {align:'right'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor('#555');
+  const descricaoHeader = d.descricao ? `Situação: Em Vigência  |  Tipo: ${isMoto?'MOTO':'CARRO'}  |  ${d.descricao}` : `Situação: Em Vigência  |  Tipo: ${isMoto?'MOTO':'CARRO'}`;
+  doc.text(descricaoHeader, PW-M, y+10, {align:'right'});
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, PW-M, y+14, {align:'right'});
+  y += 18;
+
+  // Linha separadora
+  line(M, y, PW-M, y, '#006400', 0.5);
+  y += 3;
+
+  // ══════════════════════════════════════
+  // TABELA PRINCIPAL: CLIENTE | RETIRADA | DEVOLUÇÃO
+  // ══════════════════════════════════════
+  const colW1=60, colW2=68, colW3=CW-colW1-colW2;
+  const tableTop = y;
+  const cellPad = 2.5;
+
+  // Headers das 3 colunas
+  rect(M,           y, colW1, 7, '#006400', '#006400');
+  rect(M+colW1,     y, colW2, 7, '#006400', '#006400');
+  rect(M+colW1+colW2, y, colW3, 7, '#006400', '#006400');
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  doc.text('CLIENTE', M+cellPad, y+5);
+  doc.text('RETIRADA', M+colW1+cellPad, y+5);
+  doc.text('DEVOLUÇÃO', M+colW1+colW2+cellPad, y+5);
+  y += 7;
+
+  // Preparar conteúdo das células
+  const telFmt = (t) => t ? t.replace(/(\d{2})(\d{2})(\d{4,5})(\d{4})/,'$1 ($2) $3-$4').trim() : '—';
+  const dataFmt = (dt) => {
+    if(!dt) return '—';
+    try{
+      const d2 = new Date(dt);
+      return d2.toLocaleDateString('pt-BR') + ' ' + d2.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    }catch(_){ return dt.slice(0,16).replace('T',' '); }
+  };
+
+  const cnhInfo = d.condutorCnh ? `CNH: ${d.condutorCnh}${d.condutorCnhCat?' (Cat. '+d.condutorCnhCat+')':''}` : '';
+  const cnhVal  = d.condutorCnhVal ? `Val. CNH: ${new Date(d.condutorCnhVal).toLocaleDateString('pt-BR')}` : '';
+
+  const conteudoCliente = [
+    {bold:true, text: d.nomeCli||'—'},
+    {text: `CPF: ${d.cpfCli||'—'}`},
+    {text: `Tel: ${d.telCli||'—'}`},
+    ...(cnhInfo ? [{text: cnhInfo}] : []),
+    ...(cnhVal  ? [{text: cnhVal}]  : []),
+    {bold:true, text:'CONDUTOR(ES):'},
+    ...(d.todosCondutores||[{nome:d.condutor||d.nomeCli,cpf:d.cpfCli}]).map(c=>[
+      {text: c.nome||'—'},
+      {text: `CPF: ${c.cpf||'—'}`},
+    ]).flat(),
+  ];
+
+  const conteudoRetirada = [
+    {bold:true, text: `Placa: ${d.placa||'—'}`},
+    {text: `Local: ${d.localRet||'Loja'}`},
+    {text: `Data: ${dataFmt(d.ini)}`},
+    {text: 'Empresa: Royal Rent A Car Ltda'},
+    {text: 'Endereço: Av. das Américas, 12900'},
+    {text: 'Bairro: Recreio dos Bandeirantes'},
+    {text: 'Tel: +55 (21) 96894-9627'},
+  ];
+
+  const conteudoDevolucao = [
+    {bold:true, text: `Placa: ${d.placa||'—'}`},
+    {text: `Local: ${d.localRet||'Loja'}`},
+    {text: `Data: ${dataFmt(d.fim)}`},
+    {text: 'Empresa: Royal Rent A Car Ltda'},
+    {text: 'Endereço: Av. das Américas, 12900'},
+    {text: 'Bairro: Recreio dos Bandeirantes'},
+    {text: 'Tel: +55 (21) 96894-9627'},
+  ];
+
+  // Renderizar células
+  const lineH = 4.2;
+  const maxLines = Math.max(conteudoCliente.length, conteudoRetirada.length, conteudoDevolucao.length);
+  const cellH = maxLines * lineH + 6;
+
+  rect(M,               y, colW1, cellH, '#fafffe', '#dddddd');
+  rect(M+colW1,         y, colW2, cellH, '#f9f9f9', '#dddddd');
+  rect(M+colW1+colW2,   y, colW3, cellH, '#f9f9f9', '#dddddd');
+
+  const renderCellLines = (lines, xBase, yBase) => {
+    let cy = yBase + 4;
+    lines.forEach(l => {
+      doc.setFont('helvetica', l.bold?'bold':'normal');
+      doc.setFontSize(l.bold?8:7.5);
+      doc.setTextColor(l.bold?'#004400':'#222');
+      doc.text(String(l.text||''), xBase+cellPad, cy);
+      cy += lineH;
     });
-    const protText=protecao==='Completa'
-      ?'Proteção Completa: cobertura ampla, danos a terceiros até R$ 50.000, vidros e pneus incluídos.'
-      :'Proteção Básica: já inclusa no valor da diária. Cobre casco e roubo/furto total.';
-    rect(M,y,CW,9,'#fff8e1','#dddddd');
-    doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-    doc.text(doc.splitTextToSize(protText,CW-4),M+2,y+4);
-    y+=11;
-    rect(M,y,CW,8,'#e8f5e9','#006400');
-    txt('VALOR TOTAL DO CONTRATO:',M+4,y+5,{size:9,bold:true,color:'#006400'});
-    txt(`R$ ${d.totalLiq.toFixed(2).replace('.',',')}`,PW-M,y+5,{size:11,bold:true,color:'#006400',align:'right'});
-    y+=10;
-    rect(M,y,CW,8,'#f9f9f9','#dddddd');
-    txt(`Pagamento do contrato: ${d.pgto}`,M+2,y+3.5,{size:8,bold:true});
-    txt(`Caução/Garantia: R$ ${d.caucao.toFixed(2).replace('.',',')} — Pagamento: ${d.pgtoCaucao||d.pgto}`,M+2,y+7.5,{size:7.5});
-    y+=10;
-  }
+  };
 
-  // ── SERVIÇOS ADICIONAIS ──
-  if(d.servicos?.length>0){
-    checkY(10+d.servicos.length*7);
-    rect(M,y,CW,5,'#006400');
-    txt('SERVIÇOS ADICIONAIS',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
+  renderCellLines(conteudoCliente,   M, y);
+  renderCellLines(conteudoRetirada,  M+colW1, y);
+  renderCellLines(conteudoDevolucao, M+colW1+colW2, y);
+  y += cellH + 2;
+
+  // ══════════════════════════════════════
+  // TABELA VEÍCULO (7 colunas)
+  // ══════════════════════════════════════
+  safeY(20);
+  const vCols = [45,18,26,25,22,18,26];
+  const vHeaders = ['Veículo','Franquia Km','Valor Locação','Valor Km Excedente','Data Entrega','Km Saída','Data Término'];
+
+  rect(M, y, CW, 6, '#006400', '#006400');
+  let cx = M;
+  doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  vHeaders.forEach((h,i)=>{ doc.text(h,cx+1.5,y+4.2); cx+=vCols[i]; });
+  y += 6;
+
+  const franqKm  = document.getElementById('c-franquia-km')?.value||'0';
+  const kmExced  = (parseFloat(document.getElementById('c-km-excedente')?.value)||0).toFixed(2).replace('.',',');
+  const planoLabel = d.planoNome ? d.planoNome.split('—')[0].trim() : '';
+  const veiLabel = `${d.placa} - ${d.modelo}${planoLabel?' | '+planoLabel:''}`;
+
+  rect(M, y, CW, 8, '#f0f8f0', '#ccddcc');
+  cx = M;
+  const vRow = [
+    veiLabel,
+    franqKm+' km',
+    `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,
+    `R$ ${kmExced}/km`,
+    d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
+    String(d.km||0)+' km',
+    d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—',
+  ];
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#111');
+  vRow.forEach((v,i)=>{
+    const trunc = doc.splitTextToSize(v, vCols[i]-3);
+    doc.text(trunc[0]||'', cx+1.5, y+5);
+    cx+=vCols[i];
+  });
+  y += 10;
+
+  // ══════════════════════════════════════
+  // SERVIÇOS ADICIONAIS (se houver)
+  // ══════════════════════════════════════
+  if(d.servicos?.length){
+    safeY(8 + d.servicos.length*7);
+    const sCols=[90,25,30,35];
+    const sHdr=['Serviços Adicionais','Quantidade','Valor Unitário','Valor Total'];
+    rect(M,y,CW,5,'#006400','#006400');
+    cx=M;
+    doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+    sHdr.forEach((h,i)=>{ doc.text(h,cx+1.5,y+3.5); cx+=sCols[i]; });
     y+=5;
     d.servicos.forEach((s,ri)=>{
-      rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
-      txt(s.descricao,M+2,y+5,{size:8}); txt(`R$ ${(s.valor||0).toFixed(2).replace('.',',')}`,PW-M,y+5,{size:8,align:'right'}); y+=7;
+      rect(M,y,CW,7,ri%2===0?'#ffffff':'#f5f5f5','#dddddd');
+      cx=M;
+      const sRow=[s.descricao||'—','1',`R$ ${(s.valor||0).toFixed(2).replace('.',',')}`,`R$ ${(s.valor||0).toFixed(2).replace('.',',')}`];
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#222');
+      sRow.forEach((v,i)=>{ doc.text(v,cx+1.5,y+4.5); cx+=sCols[i]; });
+      y+=7;
     });
-    y+=2;
+    y+=3;
   }
 
-  // ── OBSERVAÇÕES IMPORTANTES + OBS DO CONTRATO ──
-  checkY(20);
-  if(isMoto){
-    // Observações importantes (da minuta)
-    rect(M,y,CW,5,'#006400');
-    txt('OBSERVAÇÕES IMPORTANTES',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
-    y+=5;
-    const obsImp = 'A renovação do contrato se dá de forma semanal (a cada 7 dias).\nNecessário informar a cada 1.000km do veículo para que seja verificado o cronograma de manutenção preventiva. Entre em contato com a Locadora.';
-    const splitImp = doc.splitTextToSize(obsImp, CW-4);
-    rect(M,y,CW,Math.max(12,splitImp.length*3.5+4),'#fffbea','#f0c040');
+  // ══════════════════════════════════════
+  // FORMA DE PAGAMENTO
+  // ══════════════════════════════════════
+  safeY(16);
+  rect(M, y, CW, 14, '#f0f8f0', '#a8d8a8');
+  doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+  doc.text('FORMA DE PAGAMENTO', M+cellPad, y+5);
+  doc.setFont('helvetica','bold'); doc.setTextColor('#111');
+  doc.setFontSize(8);
+  doc.text(`Contrato: ${d.pgto}  —  Valor: R$ ${(d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+10);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  doc.text(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`, M+cellPad, y+14);
+  y += 17;
+
+  // ══════════════════════════════════════
+  // OBSERVAÇÕES IMPORTANTES (da minuta)
+  // ══════════════════════════════════════
+  safeY(18);
+  rect(M, y, CW, 6, '#006400', '#006400');
+  doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  doc.text('OBSERVAÇÕES IMPORTANTES', M+cellPad, y+4.2);
+  y += 6;
+  const obsImp = 'A renovação do contrato se dar de forma semanal (a cada 7 dias).\nNecessário informar a cada 1.000km do veículo, para que seja verificado o cronograma de manutenção preventiva. Entre em contato com a Locadora.';
+  const obsImpLines = doc.splitTextToSize(obsImp, CW-4);
+  const obsImpH = obsImpLines.length * 3.8 + 5;
+  rect(M, y, CW, obsImpH, '#fffbea', '#f0c040');
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#5a4000');
+  doc.text(obsImpLines, M+cellPad, y+4);
+  y += obsImpH + 2;
+
+  // ══════════════════════════════════════
+  // OBSERVAÇÕES DO CONTRATO
+  // ══════════════════════════════════════
+  if(d.obs && d.obs !== '—'){
+    safeY(14);
+    rect(M, y, CW, 6, '#006400', '#006400');
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+    doc.text('OBSERVAÇÕES DO CONTRATO', M+cellPad, y+4.2);
+    y += 6;
+    const obsLines = doc.splitTextToSize(d.obs, CW-4);
+    const obsH = obsLines.length * 3.8 + 5;
+    rect(M, y, CW, obsH, '#f9f9f9', '#dddddd');
     doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-    doc.text(splitImp,M+2,y+4);
-    y+=Math.max(12,splitImp.length*3.5+4)+2;
-  }
-  if(d.obs&&d.obs!=='—'){
-    checkY(15);
-    rect(M,y,CW,5,'#006400');
-    txt('OBSERVAÇÕES DO CONTRATO',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
-    y+=5;
-    const splitObs=doc.splitTextToSize(d.obs,CW-4);
-    rect(M,y,CW,Math.max(8,splitObs.length*3.5+4),'#f9f9f9','#dddddd');
-    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-    doc.text(splitObs,M+2,y+4);
-    y+=Math.max(8,splitObs.length*3.5+4)+2;
+    doc.text(obsLines, M+cellPad, y+4);
+    y += obsH + 2;
   }
 
-  // ── TERMOS ──
-  checkY(15);
-  rect(M,y,CW,5,'#006400');
-  txt('TERMOS E CONDIÇÕES',M+2,y+3.5,{size:7,bold:true,color:'#ffffff'});
-  y+=7;
-  const termosLines=doc.splitTextToSize(isMoto?_termosMoto():_termosCarro(),CW);
-  doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-  const lineH=3.2; let chunk=[];
-  termosLines.forEach(l=>{
-    if(y+chunk.length*lineH+lineH>270){ checkY(10); doc.text(chunk,M,y); y+=chunk.length*lineH+2; chunk=[]; }
-    chunk.push(l);
+  // ══════════════════════════════════════
+  // TERMOS E CONDIÇÕES
+  // ══════════════════════════════════════
+  safeY(15);
+  rect(M, y, CW, 6, '#006400', '#006400');
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  doc.text('TERMOS E CONDIÇÕES', M+cellPad, y+4.2);
+  y += 8;
+
+  // Texto completo das cláusulas (fiel à minuta)
+  const clausulas = [
+    {num:'1. DEFINIÇÕES', secao:true},
+    {num:'1.1', txt:'Motocicleta: veículo descrito na Cláusula 2, com todos os acessórios e itens em perfeito estado de uso e conservação (confirme laudo de vistoria).'},
+    {num:'1.2', txt:'Obrigação da LOCADORA — serviços periódicos previstos no Manual do Fabricante (revisões programadas, trocas periódicas e inspeções), conforme Cláusula 8. Manutenção Preventiva.'},
+    {num:'1.3', txt:'Obrigação do LOCATÁRIO — reparos decorrentes de falha, quebra, impacto, colisão, queda, mau uso, negligência ou qualquer evento não enquadrado como Manutenção Preventiva. "Manutenção Corretiva/Danos."'},
+    {num:'1.4', txt:'Semana de Locação: período de 7 (sete) dias corridos contados da data de início, vencendo as seguintes sempre no mesmo dia da semana, independente da data do efetivo pagamento.'},
+    {num:'1.5', txt:'Caução: valor de garantia de R$ 600,00 (seiscentos reais), descrito na Cláusula 5.'},
+    {num:'1.6', txt:'Seguro Suhai: proteção contratada junto à seguradora Suhai, cobrindo roubo/furto e danos a terceiros, conforme condições no Anexo IV.'},
+    {num:'2. OBJETO', secao:true},
+    {num:'2.1', txt:'O presente contrato tem por objeto a locação da motocicleta mencionada acima para uso exclusivo em atividade de delivery e deslocamentos compatíveis.'},
+    {num:'2.2', txt:'A locação é sem transferência de propriedade, sendo a posse exercida pelo LOCATÁRIO de natureza precária, temporária e resolúvel, não gerando direito de retenção, indenização ou qualquer direito real sobre o bem.'},
+    {num:'3. PRAZO', secao:true},
+    {num:'3.1', txt:'O contrato é firmado por prazo indeterminado, com pagamento semanal, iniciando na data de retirada da motocicleta.'},
+    {num:'3.2', txt:'Cada semana locada corresponde a 7 (sete) dias corridos. A renovação é automática enquanto houver adimplência.'},
+    {num:'3.3', txt:'Para encerrar o contrato, qualquer das partes deverá comunicar a outra com antecedência mínima de 48 (quarenta e oito) horas, conforme Cláusula 15.'},
+    {num:'4. PREÇO, PAGAMENTO E ENCARGOS', secao:true},
+    {num:'4.1', txt:'O LOCATÁRIO pagará à LOCADORA o valor semanal definido no plano contratado, com vencimento sempre no mesmo dia da semana em que foi firmado o contrato, por PIX, cartão ou boleto.'},
+    {num:'4.2', txt:'O pagamento é ANTECIPADO: deve ser efetuado antes do início de cada semana. A inadimplência autoriza a LOCADORA a bloquear e recolher a motocicleta sem necessidade de aviso adicional.'},
+    {num:'4.3', txt:'Encargos por atraso:'},
+    {bullet:true, txt:'Multa de 5% (cinco por cento) sobre o valor semanal em atraso;'},
+    {bullet:true, txt:'Juros de 1% (um por cento) ao mês, calculados pro rata die a partir do primeiro dia de atraso;'},
+    {bullet:true, txt:'Correção monetária pelo IPCA/IBGE acumulado no período.'},
+    {num:'4.4', txt:'O não pagamento de qualquer valor devido até o prazo de 2 (dois) dias corridos após o vencimento caracterizará mora automática, considerando-se o contrato rescindido de pleno direito, independentemente de aviso prévio. A LOCADORA fica autorizada a promover, de imediato, o bloqueio, a retomada e o recolhimento da motocicleta.'},
+    {num:'4.5', txt:'O valor semanal poderá ser reajustado pela variação positiva do IPCA/IBGE nos contratos com mais de 12 (doze) meses de duração, mediante comunicação com 15 dias de antecedência.'},
+    {num:'5. CAUÇÃO', secao:true},
+    {num:'5.1', txt:'O LOCATÁRIO pagará caução de R$ 600,00 (seiscentos reais) no ato da assinatura deste contrato, por PIX ou depósito bancário.'},
+    {num:'5.2', txt:'A caução poderá ser utilizada pela LOCADORA para quitar débitos do LOCATÁRIO, incluindo aluguéis em atraso, multas, danos, franquias do seguro e tarifas operacionais.'},
+    {num:'5.3', txt:'A caução NÃO substitui e NÃO cobre automaticamente danos ao veículo; o saldo devedor eventualmente superior a R$ 600,00 será cobrado separadamente.'},
+    {num:'5.4', txt:'Não havendo pendências, a caução será devolvida em até 10 (dez) dias úteis após a devolução e conferência final da motocicleta.'},
+    {num:'5.5', txt:'Se a caução for utilizada parcialmente, o LOCATÁRIO deverá complementá-la ao valor original em até 5 (cinco) dias úteis após notificação.'},
+    {num:'6. ENTREGA, VISTORIA E DEVOLUÇÃO', secao:true},
+    {num:'6.1', txt:'A motocicleta será entregue mediante assinatura do ANEXO I – Termo de Entrega e Vistoria, com registro fotográfico e checklist.'},
+    {num:'6.2', txt:'A devolução ocorrerá na sede da LOCADORA (Av. das Américas, 12.900 – Barra da Tijuca, RJ), em dia útil e horário comercial, nas mesmas condições de conservação, ressalvado o desgaste normal.'},
+    {num:'6.3', txt:'Na devolução será realizada vistoria presencial. Constatados danos, será emitido relatório e orçamento, aplicando-se a Cláusula 9.'},
+    {num:'6.4', txt:'A devolução fora da sede ou em outra localidade somente será aceita com autorização prévia e escrita da LOCADORA, podendo incidir taxa conforme Anexo II.'},
+    {num:'7. REQUISITOS E CONDUTOR AUTORIZADO', secao:true},
+    {num:'7.1', txt:'Somente o LOCATÁRIO identificado neste contrato poderá conduzir a motocicleta. É PROIBIDO emprestar, ceder ou sublocar o veículo a terceiros, salvo autorização escrita da LOCADORA.'},
+    {num:'7.2', txt:'O LOCATÁRIO declara possuir CNH categoria A válida, sem suspensão ou cassação, e experiência adequada para condução de motocicleta em ambiente urbano.'},
+    {num:'7.3', txt:'O descumprimento desta cláusula enseja rescisão imediata e responsabilidade integral por todos os danos e custos decorrentes.'},
+    {num:'7.4', txt:'O LOCATÁRIO deverá possuir ou alugar garagem fechada e segura para guardar o veículo fora dos períodos de uso.'},
+    {num:'8. MANUTENÇÃO PREVENTIVA – RESPONSABILIDADE DA LOCADORA', secao:true},
+    {num:'8.1', txt:'A LOCADORA realizará a manutenção preventiva da motocicleta conforme o Manual do Fabricante, incluindo o plano de uso severo quando aplicável ao perfil de delivery.'},
+    {num:'8.2', txt:'São serviços preventivos, exemplificativamente:'},
+    {bullet:true, txt:'Trocas de óleo do motor e filtro nos intervalos do manual;'},
+    {bullet:true, txt:'Inspeções e ajustes periódicos previstos (corrente, pneus, freios, faróis);'},
+    {bullet:true, txt:'Substituições periódicas de vela, filtro de ar, filtro de combustível (quando aplicável);'},
+    {bullet:true, txt:'Demais itens do cronograma de revisões do fabricante.'},
+    {num:'8.3', txt:'Agendamento obrigatório: o LOCATÁRIO deve agendar a preventiva via WhatsApp ou aplicativo da LOCADORA com antecedência mínima de 5 (cinco) dias.'},
+    {num:'8.4', txt:'Intervalo máximo: o LOCATÁRIO compromete-se a não exceder o limite de km/tempo definido no Manual do Fabricante para cada serviço preventivo.'},
+    {num:'8.5', txt:'Caso o LOCATÁRIO exceda o intervalo do manual por omissão ou atraso, e disso resultar desgaste anormal ou dano, o evento será considerado Manutenção Corretiva (Cláusula 9).'},
+    {num:'8.6', txt:'A preventiva será realizada EXCLUSIVAMENTE na LOCADORA ou em oficina por ela indicada. É VEDADO ao LOCATÁRIO realizar reparos ou revisões por conta própria sem autorização escrita.'},
+    {num:'8.7', txt:'Não comparecimento: o LOCATÁRIO que não comparecer à manutenção agendada estará sujeito à Taxa de Ausência (Anexo II), ao bloqueio do veículo e à rescisão contratual.'},
+    {num:'9. RESPONSABILIDADE DO LOCATÁRIO – MANUTENÇÃO CORRETIVA E DANOS', secao:true},
+    {num:'9.1', txt:'Qualquer evento FORA da manutenção preventiva prevista no Manual do Fabricante é de responsabilidade exclusiva do LOCATÁRIO, incluindo:'},
+    {bullet:true, txt:'Danos por queda, colisão, impacto, enchente ou qualquer sinistro;'},
+    {bullet:true, txt:'Quebras por mau uso, negligência, condução agressiva, sobrecarga ou adaptação irregular;'},
+    {bullet:true, txt:'Danos por rodar com nível baixo de óleo, vazamentos não comunicados ou superaquecimento ignorado;'},
+    {bullet:true, txt:'Avarias estéticas (riscos, carenagem, retrovisores, manetes), pneu rasgado por buraco, roda empenada;'},
+    {bullet:true, txt:'Custos de reboque/guincho por pane causada por mau uso ou negligência;'},
+    {bullet:true, txt:'Instalação/remoção de acessórios sem autorização (escape, modificações elétricas, alterações de relação etc.).'},
+    {num:'9.2', txt:'Cuidados operacionais diários obrigatórios do LOCATÁRIO:'},
+    {bullet:true, txt:'Verificar diariamente nível de óleo, pressão e calibragem dos pneus, corrente/relação e freios;'},
+    {bullet:true, txt:'Comunicar IMEDIATAMENTE qualquer anormalidade (vazamento, fumaça, ruído, falha, luz de painel acesa);'},
+    {bullet:true, txt:'Cessar o uso se houver risco de dano mecânico e acionar a LOCADORA antes de continuar.'},
+    {num:'9.3', txt:'O LOCATÁRIO autoriza a LOCADORA a realizar orçamento e reparo de qualquer dano fora da preventiva, cobrando o custo de peças, mão de obra e demais despesas, podendo descontar da caução.'},
+    {num:'9.4', txt:'Lucros cessantes: se a motocicleta ficar indisponível por culpa do LOCATÁRIO (sinistro, mau uso, atraso na devolução), será cobrado valor diário conforme Anexo II, por até 30 (trinta) dias.'},
+    {num:'10. SEGURO / PROTEÇÃO – SUHAI SEGURADORA', secao:true},
+    {num:'10.1', txt:'A motocicleta conta com proteção junto à Suhai Seguradora, com cobertura de:'},
+    {bullet:true, txt:'Roubo e furto total;'},
+    {bullet:true, txt:'Danos a terceiros (responsabilidade civil).'},
+    {num:'10.2', txt:'As condições completas, coberturas, exclusões e franquias constam no ANEXO IV – Condições do Seguro Suhai, que integra este contrato.'},
+    {num:'10.3', txt:'Em caso de sinistro coberto pelo seguro, o LOCATÁRIO será responsável pelo pagamento da franquia/participação obrigatória conforme apólice Suhai.'},
+    {num:'10.4', txt:'A cobertura do seguro NÃO se aplica quando o sinistro decorrer de:'},
+    {bullet:true, txt:'Condução sob efeito de álcool ou substâncias psicoativas;'},
+    {bullet:true, txt:'Condutor não autorizado (terceiro que não seja o LOCATÁRIO identificado no contrato);'},
+    {bullet:true, txt:'Mau uso, participação em rachas ou manobras proibidas;'},
+    {bullet:true, txt:'Ausência de registro de Boletim de Ocorrência no prazo exigido;'},
+    {bullet:true, txt:'Quaisquer outras exclusões previstas na apólice Suhai.'},
+    {num:'10.5', txt:'Nos casos de exclusão da cobertura, a responsabilidade recai integralmente sobre o LOCATÁRIO, conforme Cláusula 9.'},
+    {num:'11. USO PERMITIDO, LIMITAÇÕES E PROIBIÇÕES', secao:true},
+    {num:'11.1', txt:'É PROIBIDO ao LOCATÁRIO:'},
+    {bullet:true, txt:'Conduzir sob efeito de álcool, narcóticos ou qualquer substância psicoativa;'},
+    {bullet:true, txt:'Participar de corrida, racha, manobras ou provas de velocidade;'},
+    {bullet:true, txt:'Transportar carga acima do limite estabelecido pelo fabricante;'},
+    {bullet:true, txt:'Adulterar hodômetro, lacres, rastreador ou placa;'},
+    {bullet:true, txt:'Sublocar, emprestar ou ceder o veículo a terceiros;'},
+    {bullet:true, txt:'Trafegar em dunas, praias, minerações ou submergir o veículo em água;'},
+    {bullet:true, txt:'Usar o veículo fora do estado do Rio de Janeiro sem autorização prévia escrita;'},
+    {bullet:true, txt:'Circular com o veículo em um raio inferior a 150 km de fronteiras internacionais;'},
+    {bullet:true, txt:'Modificar, remover ou instalar acessórios sem autorização (escapamento, sistema elétrico, guidão, adesivos etc.).'},
+    {num:'11.2', txt:'O LOCATÁRIO é responsável por: combustível, lavagem/limpeza comum e conservação diária da motocicleta.'},
+    {num:'11.3', txt:'O veículo possui rastreador/telemetria para fins de segurança patrimonial e recuperação em caso de sinistro. O LOCATÁRIO declara ciência e concordância com o monitoramento e eventual bloqueio remoto do veículo.'},
+    {num:'12. MULTAS E INFRAÇÕES DE TRÂNSITO', secao:true},
+    {num:'12.1', txt:'O LOCATÁRIO é integralmente responsável por multas, taxas, remoção ao pátio e demais penalidades decorrentes de sua conduta, durante toda a vigência do contrato.'},
+    {num:'12.2', txt:'O LOCATÁRIO autoriza a LOCADORA a indicá-lo como condutor infrator perante os órgãos de trânsito, nos termos do art. 257 do CTB.'},
+    {num:'12.3', txt:'Sobre o valor de cada multa será acrescido 20% (vinte por cento) a título de custo operacional da LOCADORA.'},
+    {num:'12.4', txt:'Caso o LOCATÁRIO opte por não ser indicado (NIC), arcará com o valor da penalidade NIC, conforme Tarifário vigente (Anexo II).'},
+    {num:'13. SINISTROS, FURTO E PROVIDÊNCIAS OBRIGATÓRIAS', secao:true},
+    {num:'13.1', txt:'Em caso de acidente, furto, roubo ou qualquer sinistro, o LOCATÁRIO deverá:'},
+    {bullet:true, txt:'Comunicar a LOCADORA IMEDIATAMENTE pelo WhatsApp/telefone;'},
+    {bullet:true, txt:'Registrar Boletim de Ocorrência em até 48 (quarenta e oito) horas;'},
+    {bullet:true, txt:'Enviar fotos, local, horário, dados de terceiros e todos os documentos solicitados;'},
+    {bullet:true, txt:'Providenciar laudo pericial ou protocolo quando houver vítima fatal.'},
+    {num:'13.2', txt:'O não cumprimento das providências acima no prazo estabelecido poderá implicar perda da cobertura securitária e responsabilidade integral do LOCATÁRIO pelos danos.'},
+    {num:'13.3', txt:'A LOCADORA poderá acionar a seguradora Suhai para sinistros cobertos pela apólice, cabendo ao LOCATÁRIO pagar a franquia correspondente.'},
+    {num:'14. RESCISÃO E POLÍTICA DE ENCERRAMENTO', secao:true},
+    {num:'14.1', txt:'Rescisão pelo LOCATÁRIO: deverá comunicar a LOCADORA com antecedência mínima de 48 (quarenta e oito) horas, devolver a motocicleta na sede em dia útil e quitar todos os débitos pendentes. Não haverá devolução de valor proporcional da semana em curso.'},
+    {num:'14.2', txt:'Rescisão pela LOCADORA: a LOCADORA poderá rescindir o contrato IMEDIATAMENTE, sem necessidade de aviso prévio, nas seguintes hipóteses:'},
+    {bullet:true, txt:'Inadimplência de 2 (dois) ou mais dias após o vencimento semanal;'},
+    {bullet:true, txt:'Qualquer hipótese de mau uso descrita na Cláusula 11.1;'},
+    {bullet:true, txt:'Não comparecimento à manutenção preventiva agendada;'},
+    {bullet:true, txt:'Condutor não autorizado ao volante;'},
+    {bullet:true, txt:'Adulteração de hodômetro, lacres, rastreador ou placa;'},
+    {bullet:true, txt:'Ocorrência de sinistro não comunicado;'},
+    {bullet:true, txt:'Comportamento ofensivo, ameaças ou exaltações perante funcionários ou parceiros da LOCADORA.'},
+    {num:'14.3', txt:'Em caso de rescisão por culpa do LOCATÁRIO, serão aplicadas as penalidades previstas no Anexo II, além da perda da caução para cobertura de débitos.'},
+    {num:'14.4', txt:'O veículo não poderá ser retido pelo LOCATÁRIO após a rescisão contratual, sob qualquer justificativa. A retenção indevida do bem poderá caracterizar, em tese, o crime de apropriação indébita (art. 168 do CP). Fica desde já autorizada a LOCADORA a proceder ao bloqueio remoto, à retomada e ao recolhimento do veículo.'},
+    {num:'14.5', txt:'Nos contratos com plano pré-pago de mais de 4 (quatro) semanas, a rescisão antecipada por iniciativa do LOCATÁRIO implicará multa de 30% sobre o saldo de semanas restantes.'},
+    {num:'15. REEMBOLSO E ACERTO FINAL', secao:true},
+    {num:'15.1', txt:'Após rescisão e devolução do veículo, a LOCADORA apurará todos os créditos e débitos do LOCATÁRIO.'},
+    {num:'15.2', txt:'Havendo saldo a favor do LOCATÁRIO após quitação integral de débitos, o reembolso ocorrerá em até 15 (quinze) dias úteis.'},
+    {num:'15.3', txt:'Havendo saldo devedor do LOCATÁRIO após aplicação da caução, o valor será cobrado pelos meios disponíveis, constituindo o presente instrumento título executivo extrajudicial. O LOCATÁRIO autoriza a negativação de seu nome junto aos órgãos de proteção ao crédito (SPC, Serasa) em caso de inadimplemento.'},
+    {num:'16. TRATAMENTO DE DADOS PESSOAIS – LGPD', secao:true},
+    {num:'16.1', txt:'A LOCADORA trata os dados pessoais do LOCATÁRIO na posição de controladora, nos termos da Lei nº 13.709/2018 (LGPD), para fins de execução deste contrato, prevenção a fraudes e segurança patrimonial.'},
+    {num:'16.2', txt:'Os dados poderão ser compartilhados com: oficinas parceiras, seguradora Suhai, órgãos de trânsito e autoridades competentes.'},
+    {num:'16.3', txt:'O LOCATÁRIO autoriza a coleta de imagem (fotos, câmeras da sede) e dados de telemetria/rastreamento para fins de segurança patrimonial e recuperação do veículo em caso de sinistro.'},
+    {num:'16.4', txt:'O LOCATÁRIO autoriza expressamente a LOCADORA a realizar consulta de dados cadastrais e financeiros junto a bureaus de crédito, para fins de análise de risco.'},
+    {num:'17. DISPOSIÇÕES GERAIS', secao:true},
+    {num:'17.1', txt:'Os ANEXOS I, II, III e IV integram este contrato para todos os fins de direito.'},
+    {num:'17.2', txt:'A assinatura eletrônica/digital tem plena validade jurídica, conforme MP 2.200/2001.'},
+    {num:'17.3', txt:'A tolerância de qualquer das partes não implica renúncia de direitos.'},
+    {num:'17.4', txt:'Se qualquer cláusula for declarada nula, as demais permanecerão válidas e eficazes.'},
+    {num:'17.5', txt:'Este contrato substitui quaisquer acordos verbais ou escritos anteriores entre as partes.'},
+    {num:'17.6', txt:'O presente instrumento constitui título executivo extrajudicial nos termos do art. 784 do CPC.'},
+    {num:'18. FORO', secao:true},
+    {num:'18.1', txt:'Fica eleito o foro da Comarca do Rio de Janeiro – RJ, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir quaisquer litígios decorrentes deste contrato.'},
+  ];
+
+  // Renderizar todas as cláusulas
+  clausulas.forEach(c => {
+    const lineSize = 7;
+    const numWidth = c.bullet ? 6 : (c.secao ? 0 : 14);
+    const textW    = c.bullet ? CW-8 : (c.secao ? CW : CW-numWidth-2);
+
+    if(c.secao){
+      safeY(8);
+      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+      doc.text(c.num, M, y);
+      y += 4.5;
+    } else if(c.bullet){
+      const lines = doc.splitTextToSize('• ' + c.txt, textW);
+      safeY(lines.length * 3.6 + 1);
+      doc.setFontSize(lineSize); doc.setFont('helvetica','normal'); doc.setTextColor('#222');
+      doc.text(lines, M+6, y);
+      y += lines.length * 3.6 + 0.5;
+    } else {
+      const lines = doc.splitTextToSize(c.txt, textW);
+      safeY(lines.length * 3.6 + 1);
+      doc.setFontSize(lineSize); doc.setFont('helvetica','bold'); doc.setTextColor('#111');
+      doc.text(c.num, M, y);
+      doc.setFont('helvetica','normal'); doc.setTextColor('#222');
+      doc.text(lines, M+numWidth, y);
+      y += lines.length * 3.6 + 1;
+    }
   });
-  if(chunk.length){ checkY(chunk.length*lineH+5); doc.text(chunk,M,y); y+=chunk.length*lineH+4; }
 
-  // ── ASSINATURAS (3 colunas: Cliente | Motorista(s) | Atendente) ──
-  checkY(50); y+=6;
-  const todosCond2=d.todosCondutores||[{nome:d.condutor||d.nomeCli,cpf:d.condutorCpf||d.cpfCli}];
-  const colWA=CW/3;
+  // ══════════════════════════════════════
+  // ASSINATURAS
+  // ══════════════════════════════════════
+  safeY(40);
+  y += 6;
+  const colW3A = CW/3;
+  doc.setDrawColor('#555'); doc.setLineWidth(0.4);
+
   // Linha 1: Cliente
-  const xCliente=M+5; const xClienteEnd=M+colWA-5;
-  doc.setDrawColor('#000'); doc.line(xCliente,y,xClienteEnd,y);
-  txt('Cliente',(xCliente+xClienteEnd)/2,y+4,{size:8,bold:true,align:'center'});
-  txt(d.nomeCli,(xCliente+xClienteEnd)/2,y+8,{size:7.5,align:'center'});
-  txt(`CPF: ${d.cpfCli}`,(xCliente+xClienteEnd)/2,y+12,{size:7,align:'center',color:'#555'});
-  // Linha 2: Motorista (condutor principal + adicionais)
-  const xMot=M+colWA+5; const xMotEnd=M+2*colWA-5;
-  doc.setDrawColor('#000'); doc.line(xMot,y,xMotEnd,y);
-  txt('Motorista',(xMot+xMotEnd)/2,y+4,{size:8,bold:true,align:'center'});
-  const cond1=todosCond2[0]||{};
-  txt(cond1.nome||d.nomeCli,(xMot+xMotEnd)/2,y+8,{size:7.5,align:'center'});
-  txt(`CPF: ${cond1.cpf||d.cpfCli}`,(xMot+xMotEnd)/2,y+12,{size:7,align:'center',color:'#555'});
+  doc.line(M+2, y, M+colW3A-4, y);
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#222');
+  doc.text('Cliente', M+2, y+4);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  doc.text(d.nomeCli||'—', M+2, y+8);
+  doc.text(`CPF: ${d.cpfCli||'—'}`, M+2, y+12);
+
+  // Linha 2: Motorista/Condutor
+  const cond1 = (d.todosCondutores||[{nome:d.condutor||d.nomeCli,cpf:d.cpfCli}])[0];
+  doc.line(M+colW3A+2, y, M+2*colW3A-4, y);
+  doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('Motorista', M+colW3A+2, y+4);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  doc.text(cond1?.nome||'—', M+colW3A+2, y+8);
+  doc.text(`CPF: ${cond1?.cpf||'—'}`, M+colW3A+2, y+12);
+
   // Linha 3: Atendente
-  const xAten=M+2*colWA+5; const xAtenEnd=M+CW-5;
-  doc.setDrawColor('#000'); doc.line(xAten,y,xAtenEnd,y);
-  txt('Atendente',(xAten+xAtenEnd)/2,y+4,{size:8,bold:true,align:'center'});
-  txt(d.atendente||'—',(xAten+xAtenEnd)/2,y+8,{size:7.5,align:'center'});
-  // Condutores adicionais (se houver)
-  if(todosCond2.length>1){
-    y+=20;
-    todosCond2.slice(1).forEach((c,ci)=>{
-      const xCA=M+(ci%2===0?5:colWA+5);
-      const xCAEnd=M+(ci%2===0?colWA-5:2*colWA-5);
-      doc.setDrawColor('#000'); doc.line(xCA,y,xCAEnd,y);
-      txt('Condutor Adicional',(xCA+xCAEnd)/2,y+4,{size:7.5,bold:true,align:'center'});
-      txt(c.nome||'—',(xCA+xCAEnd)/2,y+8,{size:7.5,align:'center'});
-      if(c.cpf) txt(`CPF: ${c.cpf}`,(xCA+xCAEnd)/2,y+12,{size:7,align:'center',color:'#555'});
-      if(ci%2===1) y+=16;
-    });
-  }
-  y+=18;
+  doc.line(M+2*colW3A+2, y, PW-M-2, y);
+  doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('Atendente', M+2*colW3A+2, y+4);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  doc.text(d.atendente||'—', M+2*colW3A+2, y+8);
+  y += 20;
 
-  // ── ANEXOS (só para moto, seguindo a minuta) ──
-  if(isMoto){
-    // ANEXO II
-    newPage(); y=M;
-    rect(M,y,CW,7,'#006400','#006400');
-    txt('ANEXO II — TABELA DE TARIFAS E ENCARGOS',PW/2,y+4.5,{size:9,bold:true,color:'#ffffff',align:'center'});
-    y+=9;
-    const tarifas=[
-      ['Reboque/guincho por pane causada por mau uso (dentro da cidade)','A definir'],
-      ['Reboque/guincho fora do município (por km excedente)','A definir'],
-      ['Chave perdida / 2ª via de chave','A definir'],
-      ['Recolhimento por inadimplência (dentro do município)','A definir'],
-      ['Lucros cessantes por indisponibilidade culpa do locatário (por dia)','A definir'],
-      ['Limpeza especial (retorno com sujeira excessiva)','A definir'],
-      ['Taxa de ausência em manutenção agendada (no show)','A definir'],
-      ['Taxa de cancelamento da penalidade NIC','A definir'],
-      ['Custo operacional sobre multas de trânsito','20% sobre a multa'],
-      ['Desbloqueio após inadimplência (custo operacional)','A definir'],
-      ['Desistência de retirada após pagamento de caução','A definir'],
-    ];
-    // Header
-    rect(M,y,CW,6,'#e8f5e9','#006400');
-    txt('SERVIÇO / EVENTO',M+2,y+4,{size:7.5,bold:true}); txt('VALOR (R$)',M+CW*0.75,y+4,{size:7.5,bold:true});
-    y+=6;
-    tarifas.forEach((row,ri)=>{
-      rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
-      txt(row[0],M+2,y+4.5,{size:7}); txt(row[1],M+CW*0.75,y+4.5,{size:7});
-      y+=7;
+  // Condutores adicionais
+  const condAdicionais = (d.todosCondutores||[]).slice(1);
+  if(condAdicionais.length){
+    safeY(20);
+    condAdicionais.forEach((c2,ci)=>{
+      const xCA = M + (ci%2===0?2:colW3A+2);
+      if(ci%2===0 && ci>0) y += 18;
+      doc.setDrawColor('#555'); doc.line(xCA, y, xCA+colW3A-4, y);
+      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#222');
+      doc.text('Condutor Adicional', xCA, y+4);
+      doc.setFont('helvetica','normal');
+      doc.text(c2.nome||'—', xCA, y+8);
+      doc.text(`CPF: ${c2.cpf||'—'}`, xCA, y+12);
     });
-    y+=4;
-    const notaII=doc.splitTextToSize('* Os valores marcados como "A definir" serão preenchidos pela LOCADORA conforme tarifário vigente e comunicados ao LOCATÁRIO na assinatura do contrato.',CW);
-    doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
-    doc.text(notaII,M,y); y+=notaII.length*3.5+4;
-
-    // ANEXO III
-    checkY(50);
-    rect(M,y,CW,7,'#006400','#006400');
-    txt('ANEXO III — PLANO DE MANUTENÇÃO — REFERÊNCIA DO MANUAL',PW/2,y+4.5,{size:9,bold:true,color:'#ffffff',align:'center'});
-    y+=9;
-    const manut=[
-      ['Troca de óleo + filtro','Conforme manual','Conforme manual'],
-      ['Inspeção de corrente e freios','Conforme manual','Conforme manual'],
-      ['Filtro de ar / vela','Conforme manual','Conforme manual'],
-    ];
-    rect(M,y,CW,6,'#e8f5e9','#006400');
-    txt('SERVIÇO PREVENTIVO',M+2,y+4,{size:7.5,bold:true}); txt('INTERVALO (KM)',M+CW*0.45,y+4,{size:7.5,bold:true}); txt('INTERVALO (TEMPO)',M+CW*0.72,y+4,{size:7.5,bold:true});
-    y+=6;
-    manut.forEach((row,ri)=>{
-      rect(M,y,CW,7,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
-      txt(row[0],M+2,y+4.5,{size:7}); txt(row[1],M+CW*0.45,y+4.5,{size:7}); txt(row[2],M+CW*0.72,y+4.5,{size:7});
-      y+=7;
-    });
-    y+=4;
-    const notaIII=doc.splitTextToSize('Observação: Os intervalos exatos serão preenchidos com os dados do manual do modelo específico da motocicleta locada. Para uso em delivery (uso severo), aplicar o intervalo reduzido quando o manual assim prever.',CW);
-    doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
-    doc.text(notaIII,M,y); y+=notaIII.length*3.5+4;
-
-    // ANEXO IV
-    checkY(70);
-    rect(M,y,CW,7,'#006400','#006400');
-    txt('ANEXO IV — CONDIÇÕES DE SEGURO — SUHAI SEGURADORA',PW/2,y+4.5,{size:9,bold:true,color:'#ffffff',align:'center'});
-    y+=9;
-    const seguro=[
-      ['Seguradora','Suhai Seguradora'],
-      ['Coberturas contratadas','Roubo/Furto Total | Danos a Terceiros (RCF)'],
-      ['Nº da apólice','A preencher'],
-      ['Vigência','A preencher'],
-      ['Franquia – Roubo/Furto','Conforme apólice'],
-      ['Franquia – Danos a Terceiros','Conforme apólice'],
-      ['Principais exclusões','Condutor não autorizado / Alcoolemia / Ausência de BO / Mau uso'],
-      ['Prazo para comunicar sinistro','Imediato (telefone e WhatsApp da Royal) + BO em 48h'],
-      ['Contato Suhai (sinistros)','A preencher'],
-    ];
-    rect(M,y,CW,6,'#e8f5e9','#006400');
-    txt('ITEM',M+2,y+4,{size:7.5,bold:true}); txt('DESCRIÇÃO',M+CW*0.38,y+4,{size:7.5,bold:true});
-    y+=6;
-    seguro.forEach((row,ri)=>{
-      const linhas=doc.splitTextToSize(row[1],CW*0.6);
-      const rh=Math.max(7,linhas.length*3.5+3);
-      rect(M,y,CW,rh,ri%2===0?'#ffffff':'#f9f9f9','#dddddd');
-      txt(row[0],M+2,y+4.5,{size:7,bold:true}); doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333'); doc.text(linhas,M+CW*0.38,y+4.5);
-      y+=rh;
-    });
-    y+=4;
-    const notaIV=doc.splitTextToSize('IMPORTANTE: Em caso de divergência entre este resumo e a apólice original da Suhai Seguradora, prevalece o documento original da apólice. O LOCATÁRIO declara ter recebido cópia da apólice e estar ciente de todas as condições.',CW);
-    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor('#dc2626');
-    doc.text(notaIV,M,y); y+=notaIV.length*3.8+6;
-    // Linha assinatura LOCATÁRIO recebeu seguro
-    doc.setDrawColor('#000'); doc.line(M,y,M+90,y);
-    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-    doc.text('LOCATÁRIO — declara ter recebido e lido as condições do seguro Suhai',M,y+4);
-    y+=10;
+    y += 16;
   }
 
-  // ── RODAPÉ ──
-  const totalPgs=doc.getNumberOfPages();
-  for(let p=1;p<=totalPgs;p++){
+  // ══════════════════════════════════════
+  // ANEXO II — TABELA DE TARIFAS
+  // ══════════════════════════════════════
+  doc.addPage(); y = M;
+  rect(M, y, CW, 7, '#006400', '#006400');
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  doc.text('ANEXO II — TABELA DE TARIFAS E ENCARGOS', PW/2, y+5, {align:'center'});
+  y += 9;
+
+  const tarifas = [
+    ['Reboque/guincho por pane causada por mau uso (dentro da cidade)', 'A definir'],
+    ['Reboque/guincho fora do município (por km excedente)', 'A definir'],
+    ['Chave perdida / 2ª via de chave', 'A definir'],
+    ['Recolhimento por inadimplência (dentro do município)', 'A definir'],
+    ['Lucros cessantes por indisponibilidade culpa do locatário (por dia)', 'A definir'],
+    ['Limpeza especial (retorno com sujeira excessiva)', 'A definir'],
+    ['Taxa de ausência em manutenção agendada (no show)', 'A definir'],
+    ['Taxa de cancelamento da penalidade NIC', 'A definir'],
+    ['Custo operacional sobre multas de trânsito', '20% sobre a multa'],
+    ['Desbloqueio após inadimplência (custo operacional)', 'A definir'],
+    ['Desistência de retirada após pagamento de caução', 'A definir'],
+  ];
+  const tW1=148, tW2=CW-tW1;
+  rect(M,y,tW1,6,'#e8f5e9','#006400'); rect(M+tW1,y,tW2,6,'#e8f5e9','#006400');
+  doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#004400');
+  doc.text('SERVIÇO / EVENTO', M+2, y+4.2); doc.text('VALOR (R$)', M+tW1+2, y+4.2);
+  y+=6;
+  tarifas.forEach((r,ri)=>{
+    rect(M,y,tW1,7,ri%2===0?'#fff':'#f9f9f9','#ddd');
+    rect(M+tW1,y,tW2,7,ri%2===0?'#fff':'#f9f9f9','#ddd');
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#222');
+    doc.text(r[0],M+2,y+4.5); doc.text(r[1],M+tW1+2,y+4.5);
+    y+=7;
+  });
+  y+=3;
+  const notaII = doc.splitTextToSize("* Os valores marcados como 'A definir' serão preenchidos pela LOCADORA conforme tarifário vigente e comunicados ao LOCATÁRIO na assinatura do contrato.", CW);
+  doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
+  doc.text(notaII, M, y); y += notaII.length*3.5+4;
+
+  // ══════════════════════════════════════
+  // ANEXO III — PLANO DE MANUTENÇÃO
+  // ══════════════════════════════════════
+  safeY(50);
+  rect(M,y,CW,7,'#006400','#006400');
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  doc.text('ANEXO III — PLANO DE MANUTENÇÃO — REFERÊNCIA DO MANUAL',PW/2,y+5,{align:'center'});
+  y+=9;
+  const mW=[90,50,CW-140];
+  const mHdr=['SERVIÇO PREVENTIVO','INTERVALO (KM)','INTERVALO (TEMPO)'];
+  rect(M,y,CW,6,'#e8f5e9','#006400');
+  let mcx=M; doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#004400');
+  mHdr.forEach((h,i)=>{doc.text(h,mcx+2,y+4.2);mcx+=mW[i];});
+  y+=6;
+  [['Troca de óleo + filtro','Conforme manual','Conforme manual'],
+   ['Inspeção de corrente e freios','Conforme manual','Conforme manual'],
+   ['Filtro de ar / vela','Conforme manual','Conforme manual']].forEach((r,ri)=>{
+    rect(M,y,CW,7,ri%2===0?'#fff':'#f9f9f9','#ddd');
+    mcx=M; doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#222');
+    r.forEach((v,i)=>{doc.text(v,mcx+2,y+4.5);mcx+=mW[i];});
+    y+=7;
+  });
+  y+=3;
+  const notaIII = doc.splitTextToSize('Observação: Os intervalos exatos serão preenchidos com os dados do manual do modelo específico da motocicleta locada. Para uso em delivery (uso severo), aplicar o intervalo reduzido quando o manual assim prever.',CW);
+  doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
+  doc.text(notaIII,M,y); y+=notaIII.length*3.5+5;
+
+  // ══════════════════════════════════════
+  // ANEXO IV — SEGURO SUHAI
+  // ══════════════════════════════════════
+  safeY(80);
+  rect(M,y,CW,7,'#006400','#006400');
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  doc.text('ANEXO IV — CONDIÇÕES DE SEGURO — SUHAI SEGURADORA',PW/2,y+5,{align:'center'});
+  y+=9;
+  const seg=[
+    ['Seguradora','Suhai Seguradora'],
+    ['Coberturas contratadas','Roubo/Furto Total  |  Danos a Terceiros (RCF)'],
+    ['Nº da apólice','A preencher'],
+    ['Vigência','A preencher'],
+    ['Franquia – Roubo/Furto','R$ __________ (conforme apólice)'],
+    ['Franquia – Danos a Terceiros','R$ __________ (conforme apólice)'],
+    ['Principais exclusões','Condutor não autorizado  /  Alcoolemia  /  Ausência de BO  /  Mau uso'],
+    ['Prazo para comunicar sinistro','Imediato (telefone e WhatsApp da Royal)  +  BO em 48h'],
+    ['Contato Suhai (sinistros)','0800 xxx-xxxx  (a preencher)'],
+  ];
+  const sW1=60, sW2=CW-sW1;
+  rect(M,y,sW1,6,'#e8f5e9','#006400'); rect(M+sW1,y,sW2,6,'#e8f5e9','#006400');
+  doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#004400');
+  doc.text('ITEM',M+2,y+4.2); doc.text('DESCRIÇÃO',M+sW1+2,y+4.2);
+  y+=6;
+  seg.forEach((r,ri)=>{
+    const descLines = doc.splitTextToSize(r[1],sW2-4);
+    const rh=Math.max(7,descLines.length*3.8+3);
+    rect(M,y,sW1,rh,ri%2===0?'#fff':'#f9f9f9','#ddd');
+    rect(M+sW1,y,sW2,rh,ri%2===0?'#fff':'#f9f9f9','#ddd');
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor('#333'); doc.text(r[0],M+2,y+4.5);
+    doc.setFont('helvetica','normal'); doc.setTextColor('#222'); doc.text(descLines,M+sW1+2,y+4.5);
+    y+=rh;
+  });
+  y+=4;
+  const notaIV = doc.splitTextToSize('IMPORTANTE: Em caso de divergência entre este resumo e a apólice original da Suhai Seguradora, prevalece o documento original da apólice. O LOCATÁRIO declara ter recebido cópia da apólice e estar ciente de todas as condições.',CW);
+  doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor('#cc0000');
+  doc.text(notaIV,M,y); y+=notaIV.length*3.8+6;
+  safeY(12);
+  doc.setDrawColor('#555'); doc.line(M,y,M+100,y);
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+  doc.text('LOCATÁRIO – declara ter recebido e lido as condições do seguro Suhai',M,y+4);
+  y+=10;
+
+  // ══════════════════════════════════════
+  // RODAPÉ EM TODAS AS PÁGINAS
+  // ══════════════════════════════════════
+  const totalPgs = doc.getNumberOfPages();
+  for(let p=1; p<=totalPgs; p++){
     doc.setPage(p);
     doc.setFillColor('#006400'); doc.rect(0,287,PW,10,'F');
-    txt(`Locadora Royal — Contrato #${numContrato} — Página ${p} de ${totalPgs}`,PW/2,293,{size:6.5,color:'#ffffff',align:'center'});
+    doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#ffffff');
+    doc.text(`Locadora Royal — Contrato #${numContrato} — ${d.nomeCli||''} — Página ${p} de ${totalPgs}`, PW/2, 293, {align:'center'});
   }
 
-  // ── PÁGINA DE CHECKLIST (se fornecido) ──
+  // ══════════════════════════════════════
+  // PÁGINA EXTRA: CHECKLIST (se fornecido)
+  // ══════════════════════════════════════
   if(checklist){
-    doc.addPage();
-    let yC = M;
+    doc.addPage(); y = M;
     const COL2 = CW/2;
-    const newChkPage = () => { doc.addPage(); yC = M; };
-    const safeY = (need) => { if(yC+need > 275) newChkPage(); };
+    const newChkPage = () => { doc.addPage(); y = M; };
+    const safeYC = (need) => { if(y+need > 278) newChkPage(); };
 
-    // Cabeçalho
     rect(0,0,PW,10,'#006400','#006400');
-    txt(`CHECKLIST DE VISTORIA — SAÍDA — Contrato #${numContrato}`,PW/2,6.5,{size:9,bold:true,color:'#ffffff',align:'center'});
-    yC = 14;
+    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+    doc.text(`CHECKLIST DE VISTORIA — SAÍDA — Contrato #${numContrato}`, PW/2, 6.5, {align:'center'});
+    y = 14;
 
-    // Info cliente/veículo
-    rect(M,yC,CW,8,'#f0f8f0','#a8d8a8');
-    txt(`Cliente: ${d.nomeCli}   |   Veículo: ${d.placa} — ${d.modelo}`,M+3,yC+5.5,{size:8,bold:true,color:'#004400'});
-    yC += 9;
+    rect(M,y,CW,8,'#f0f8f0','#a8d8a8');
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#004400');
+    doc.text(`Cliente: ${d.nomeCli}   |   Veículo: ${d.placa} — ${d.modelo}`, M+3, y+5.5);
+    y += 9;
 
-    // Info vistoria em 3 blocos
     const fmtHora = checklist.horario ? new Date(checklist.horario).toLocaleString('pt-BR') : '—';
-    rect(M,yC,CW/3,9,'#f9f9f9','#dddddd'); txt('Horário',M+3,yC+3.5,{size:6,color:'#666'}); txt(fmtHora,M+3,yC+8,{size:7.5,bold:true});
-    rect(M+CW/3,yC,CW/3,9,'#f9f9f9','#dddddd'); txt('Km',M+CW/3+3,yC+3.5,{size:6,color:'#666'}); txt(`${checklist.km||0} km`,M+CW/3+3,yC+8,{size:7.5,bold:true});
-    rect(M+2*CW/3,yC,CW/3,9,'#f9f9f9','#dddddd'); txt('Combustível',M+2*CW/3+3,yC+3.5,{size:6,color:'#666'}); txt(checklist.combustivel||'—',M+2*CW/3+3,yC+8,{size:7.5,bold:true});
-    yC += 12;
+    rect(M,y,CW/3,9,'#f9f9f9','#ddd'); doc.setFontSize(6); doc.setTextColor('#666'); doc.text('Horário',M+3,y+3.5); doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#111'); doc.text(fmtHora,M+3,y+8);
+    rect(M+CW/3,y,CW/3,9,'#f9f9f9','#ddd'); doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor('#666'); doc.text('Km',M+CW/3+3,y+3.5); doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#111'); doc.text(`${checklist.km||0} km`,M+CW/3+3,y+8);
+    rect(M+2*CW/3,y,CW/3,9,'#f9f9f9','#ddd'); doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor('#666'); doc.text('Combustível',M+2*CW/3+3,y+3.5); doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#111'); doc.text(checklist.combustivel||'—',M+2*CW/3+3,y+8);
+    y += 12;
 
-    // Itens por categoria em 2 colunas
     if(checklist.itens?.length){
       const cats = {};
       checklist.itens.forEach(it=>{ if(!cats[it.categoria]) cats[it.categoria]=[]; cats[it.categoria].push(it); });
-
       Object.entries(cats).forEach(([cat,its])=>{
-        const rowsNeeded = Math.ceil(its.length/2)*10 + 12;
-        safeY(rowsNeeded);
-
-        // Header categoria
-        rect(M,yC,CW,6,'#006400','#006400');
-        txt(cat.toUpperCase(),M+3,yC+4.2,{size:7,bold:true,color:'#ffffff'});
-        yC += 7;
-
-        // Pares de itens
+        safeYC(10 + Math.ceil(its.length/2)*10);
+        rect(M,y,CW,6,'#006400','#006400');
+        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+        doc.text(cat.toUpperCase(),M+3,y+4.2);
+        y += 7;
         for(let i=0; i<its.length; i+=2){
-          const it1 = its[i];
-          const it2 = its[i+1]||null;
-          const av1 = it1.status==='avaria';
-          const av2 = it2 ? it2.status==='avaria' : false;
-          const rh  = (it1.obs||it2?.obs) ? 13 : 10;
-          safeY(rh+1);
-
-          // Coluna 1
-          rect(M,      yC,COL2,rh, av1?'#fff5f5':'#ffffff', av1?'#ffcccc':'#e0e0e0');
-          txt(it1.descricao.slice(0,28),M+3,yC+4,{size:6.5,color:'#1a1a1a'});
-          if(av1){ txt('✕ COM AVARIA',M+3,yC+8.5,{size:6,bold:true,color:'#cc0000'}); }
-          else    { txt('✓ SEM AVARIA',M+3,yC+8.5,{size:6,bold:true,color:'#006400'}); }
-          if(it1.obs) txt('Obs: '+it1.obs.slice(0,25),M+35,yC+8.5,{size:5.5,color:'#666'});
-
-          // Coluna 2
+          const it1=its[i], it2=its[i+1]||null;
+          const av1=it1.status==='avaria', av2=it2?it2.status==='avaria':false;
+          const rh=(it1.obs||it2?.obs)?13:10;
+          safeYC(rh+1);
+          rect(M,      y,COL2,rh,av1?'#fff5f5':'#ffffff',av1?'#ffcccc':'#e0e0e0');
+          doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#1a1a1a');
+          doc.text(it1.descricao.slice(0,30),M+2,y+4);
+          doc.setFont('helvetica','bold'); doc.setTextColor(av1?'#cc0000':'#006400'); doc.setFontSize(6);
+          doc.text(av1?'✕ COM AVARIA':'✓ SEM AVARIA',M+2,y+8.5);
+          if(it1.obs){ doc.setFont('helvetica','italic'); doc.setTextColor('#666'); doc.setFontSize(5.5); doc.text('Obs: '+it1.obs.slice(0,28),M+32,y+8.5); }
           if(it2){
-            rect(M+COL2,yC,COL2,rh, av2?'#fff5f5':'#ffffff', av2?'#ffcccc':'#e0e0e0');
-            txt(it2.descricao.slice(0,28),M+COL2+3,yC+4,{size:6.5,color:'#1a1a1a'});
-            if(av2){ txt('✕ COM AVARIA',M+COL2+3,yC+8.5,{size:6,bold:true,color:'#cc0000'}); }
-            else    { txt('✓ SEM AVARIA',M+COL2+3,yC+8.5,{size:6,bold:true,color:'#006400'}); }
-            if(it2.obs) txt('Obs: '+it2.obs.slice(0,25),M+COL2+35,yC+8.5,{size:5.5,color:'#666'});
-          } else {
-            rect(M+COL2,yC,COL2,rh,'#fafafa','#e0e0e0');
-          }
-          yC += rh+1;
+            rect(M+COL2,y,COL2,rh,av2?'#fff5f5':'#ffffff',av2?'#ffcccc':'#e0e0e0');
+            doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#1a1a1a');
+            doc.text(it2.descricao.slice(0,30),M+COL2+2,y+4);
+            doc.setFont('helvetica','bold'); doc.setTextColor(av2?'#cc0000':'#006400'); doc.setFontSize(6);
+            doc.text(av2?'✕ COM AVARIA':'✓ SEM AVARIA',M+COL2+2,y+8.5);
+            if(it2.obs){ doc.setFont('helvetica','italic'); doc.setTextColor('#666'); doc.setFontSize(5.5); doc.text('Obs: '+it2.obs.slice(0,28),M+COL2+32,y+8.5); }
+          } else { rect(M+COL2,y,COL2,rh,'#fafafa','#e0e0e0'); }
+          y += rh+1;
         }
-        yC += 3;
+        y += 3;
       });
     }
 
-    // Observações gerais
     if(checklist.observacoes){
-      safeY(16);
-      const obsL = doc.splitTextToSize('Observações: '+checklist.observacoes, CW-6);
-      const obsH = Math.max(12, obsL.length*4+6);
-      rect(M,yC,CW,obsH,'#fff8e1','#f0c040');
+      safeYC(16);
+      const obsL=doc.splitTextToSize('Observações: '+checklist.observacoes,CW-6);
+      const obsH=Math.max(12,obsL.length*4+6);
+      rect(M,y,CW,obsH,'#fff8e1','#f0c040');
       doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#5a4000');
-      doc.text(obsL,M+3,yC+5);
-      yC += obsH+4;
+      doc.text(obsL,M+3,y+5);
+      y+=obsH+4;
     }
 
-    // Fotos
     if(checklist.fotos?.length){
-      safeY(8);
-      txt(`📷 ${checklist.fotos.length} foto(s) anexada(s) — disponíveis no sistema`,M,yC+4,{size:7,color:'#444'});
-      yC += 10;
+      safeYC(8);
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#444');
+      doc.text(`📷 ${checklist.fotos.length} foto(s) anexada(s) no sistema`,M,y+4);
+      y+=10;
     }
 
-    // Assinaturas — sempre na mesma página (última do checklist)
-    if(yC > 248) newChkPage();
-    yC = Math.max(yC+10, 252);
-    doc.setDrawColor('#aaaaaa');
+    if(y>248) newChkPage();
+    y = Math.max(y+10, 252);
+    doc.setDrawColor('#aaaaaa'); doc.setLineWidth(0.3);
     doc.setLineDashPattern([1.5,1.5],0);
-    doc.line(M,yC,M+80,yC);   doc.line(PW-M-80,yC,PW-M,yC);
+    doc.line(M,y,M+80,y); doc.line(PW-M-80,y,PW-M,y);
     doc.setLineDashPattern([],0);
-    txt('Assinatura do Consultor',M+2,yC+4,{size:7,color:'#555'});
-    txt('Assinatura do Cliente / Condutor',PW-M-78,yC+4,{size:7,color:'#555'});
+    doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#555');
+    doc.text('Assinatura do Consultor',M+2,y+4);
+    doc.text('Assinatura do Cliente / Condutor',PW-M-78,y+4);
+
+    // Rodapé das páginas do checklist
+    const totalPgs2 = doc.getNumberOfPages();
+    for(let p=totalPgs+1; p<=totalPgs2; p++){
+      doc.setPage(p);
+      doc.setFillColor('#006400'); doc.rect(0,287,PW,10,'F');
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#ffffff');
+      doc.text(`Locadora Royal — Contrato #${numContrato} — Checklist de Vistoria — Página ${p} de ${totalPgs2}`, PW/2, 293, {align:'center'});
+    }
   }
 
-  doc.save(`Contrato_Royal_${numContrato}_${d.nomeCli.replace(/\s+/g,'_')}.pdf`);
+  doc.save(`Contrato_Royal_${numContrato}_${(d.nomeCli||'').replace(/\s+/g,'_')}.pdf`);
   notify(`PDF do Contrato #${numContrato} gerado!`,'success');
 }
+
 
 // ══ TERMOS ══
 function _termosMoto(){
