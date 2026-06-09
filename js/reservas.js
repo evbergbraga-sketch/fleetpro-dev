@@ -259,9 +259,24 @@ async function converterReservaContrato(id){
     const elLocalRet = document.getElementById('c-local-ret');
     if(elLocalRet && r.local_retirada) elLocalRet.value = r.local_retirada;
 
-    // Valor cotado da reserva
+    // Veículo: mostra planos se for moto
+    if(typeof _verificarMotoContrato === 'function') _verificarMotoContrato();
+
+    // Valor cotado da reserva — preenche campo E seleciona plano correspondente
     const elDia = document.getElementById('c-dia');
-    if(elDia && r.valor_cotado && !elDia.value) elDia.value = r.valor_cotado;
+    if(r.valor_cotado){
+      if(elDia) elDia.value = r.valor_cotado;
+      // Identificar o plano pelo valor e selecionar o radio correto
+      const valorStr = String(parseFloat(r.valor_cotado).toFixed(2));
+      const radioPlano = document.querySelector(`input[name="c-plano-moto"][value="${valorStr}"]`);
+      if(radioPlano && typeof _selecionarPlanoContrato === 'function'){
+        radioPlano.checked = true;
+        _selecionarPlanoContrato(radioPlano);
+      } else if(elDia){
+        // Fallback: só preenche o valor sem selecionar plano
+        elDia.value = r.valor_cotado;
+      }
+    }
 
     // Preenche dados do cliente a partir do perfil
     if(typeof _preencherCamposClienteContrato === 'function') _preencherCamposClienteContrato();
