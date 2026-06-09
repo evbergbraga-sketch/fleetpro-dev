@@ -46,7 +46,7 @@ function _selecionarCombInline(valor){
   });
 }
 
-function _toggleChecklistInline(){
+async function _toggleChecklistInline(){
   const el = document.getElementById('ct-checklist-inline');
   if(!el) return;
   const isOpen = el.style.display !== 'none';
@@ -62,8 +62,8 @@ function _toggleChecklistInline(){
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       horaEl.value = now.toISOString().slice(0,16);
     }
-    // Carrega itens do checklist
-    _carregarItensChecklistInline();
+    // Carrega itens do checklist (await garante que estão prontos antes de coletar)
+    await _carregarItensChecklistInline();
   }
 }
 
@@ -118,8 +118,16 @@ async function registrarComChecklist(){
   const chkEl = document.getElementById('ct-checklist-inline');
   const temChecklist = chkEl && chkEl.style.display !== 'none';
 
+  // Garante que itens do checklist estão carregados antes de coletar
+  if(temChecklist){
+    const wrap = document.getElementById('ctchk-itens');
+    if(!wrap?.dataset?.itens){
+      await _carregarItensChecklistInline();
+    }
+  }
   // Coleta checklist ANTES de registrar (enquanto os campos ainda estão na tela)
   const chk = temChecklist ? _coletarChecklistInline() : null;
+  console.log('[chk collect] itens coletados:', chk?.itens?.length, chk);
 
   // Registra o contrato — retorna {locId, numContrato, d}
   const resultado = await registrarContrato(true);
