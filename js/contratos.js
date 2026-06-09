@@ -1140,130 +1140,100 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   if(checklist){
     doc.addPage();
     let yC = M;
-    const COL2 = CW/2; // 2 colunas
+    const COL2 = CW/2;
+    const newChkPage = () => { doc.addPage(); yC = M; };
+    const safeY = (need) => { if(yC+need > 275) newChkPage(); };
 
-    const checkY = (need) => { if(yC + need > 278){ doc.addPage(); yC = M; } };
-
-    // Cabeçalho verde
+    // Cabeçalho
     rect(0,0,PW,10,'#006400','#006400');
     txt(`CHECKLIST DE VISTORIA — SAÍDA — Contrato #${numContrato}`,PW/2,6.5,{size:9,bold:true,color:'#ffffff',align:'center'});
     yC = 14;
 
-    // Rodapé desta página já vai ser atualizado pelo loop de rodapés
-
-    // Info do cliente e veículo
-    rect(M,yC,CW,8,'#f0f8f0','#ccddcc');
-    txt(`Cliente: ${d.nomeCli}   |   Veículo: ${d.placa} — ${d.modelo}`,M+2,yC+5,{size:8,bold:true,color:'#004400'});
+    // Info cliente/veículo
+    rect(M,yC,CW,8,'#f0f8f0','#a8d8a8');
+    txt(`Cliente: ${d.nomeCli}   |   Veículo: ${d.placa} — ${d.modelo}`,M+3,yC+5.5,{size:8,bold:true,color:'#004400'});
     yC += 9;
 
-    // Info da vistoria (3 blocos lado a lado)
-    rect(M,yC,CW,8,'#f9f9f9','#dddddd');
+    // Info vistoria em 3 blocos
     const fmtHora = checklist.horario ? new Date(checklist.horario).toLocaleString('pt-BR') : '—';
-    const combLabel = checklist.combustivel||'—';
-    txt(`📅 ${fmtHora}`,M+2,yC+5,{size:7.5,bold:true});
-    txt(`🏎 Km: ${checklist.km||0} km`,M+CW/3,yC+5,{size:7.5,bold:true});
-    txt(`⛽ Combustível: ${combLabel}`,M+2*CW/3,yC+5,{size:7.5,bold:true});
-    yC += 11;
+    rect(M,yC,CW/3,9,'#f9f9f9','#dddddd'); txt('Horário',M+3,yC+3.5,{size:6,color:'#666'}); txt(fmtHora,M+3,yC+8,{size:7.5,bold:true});
+    rect(M+CW/3,yC,CW/3,9,'#f9f9f9','#dddddd'); txt('Km',M+CW/3+3,yC+3.5,{size:6,color:'#666'}); txt(`${checklist.km||0} km`,M+CW/3+3,yC+8,{size:7.5,bold:true});
+    rect(M+2*CW/3,yC,CW/3,9,'#f9f9f9','#dddddd'); txt('Combustível',M+2*CW/3+3,yC+3.5,{size:6,color:'#666'}); txt(checklist.combustivel||'—',M+2*CW/3+3,yC+8,{size:7.5,bold:true});
+    yC += 12;
 
-    // Itens em 2 colunas com status e obs
+    // Itens por categoria em 2 colunas
     if(checklist.itens?.length){
       const cats = {};
-      checklist.itens.forEach(it=>{
-        if(!cats[it.categoria]) cats[it.categoria]=[];
-        cats[it.categoria].push(it);
-      });
+      checklist.itens.forEach(it=>{ if(!cats[it.categoria]) cats[it.categoria]=[]; cats[it.categoria].push(it); });
 
       Object.entries(cats).forEach(([cat,its])=>{
-        checkY(10 + Math.ceil(its.length/2)*11);
+        const rowsNeeded = Math.ceil(its.length/2)*10 + 12;
+        safeY(rowsNeeded);
 
-        // Header da categoria
-        rect(M,yC,CW,5,'#1a5c1a','#004400');
-        txt(cat.toUpperCase(),M+2,yC+3.5,{size:7,bold:true,color:'#ffffff'});
-        yC += 6;
+        // Header categoria
+        rect(M,yC,CW,6,'#006400','#006400');
+        txt(cat.toUpperCase(),M+3,yC+4.2,{size:7,bold:true,color:'#ffffff'});
+        yC += 7;
 
-        // Header das colunas
-        const hRow = 5;
-        rect(M,    yC,COL2,hRow,'#e8f5e9','#aaccaa');
-        rect(M+COL2,yC,COL2,hRow,'#e8f5e9','#aaccaa');
-        txt('ITEM  |  STATUS  |  OBSERVAÇÃO',M+2,yC+3.5,{size:6,color:'#004400'});
-        txt('ITEM  |  STATUS  |  OBSERVAÇÃO',M+COL2+2,yC+3.5,{size:6,color:'#004400'});
-        yC += hRow;
+        // Pares de itens
+        for(let i=0; i<its.length; i+=2){
+          const it1 = its[i];
+          const it2 = its[i+1]||null;
+          const av1 = it1.status==='avaria';
+          const av2 = it2 ? it2.status==='avaria' : false;
+          const rh  = (it1.obs||it2?.obs) ? 13 : 10;
+          safeY(rh+1);
 
-        // Itens em 2 colunas
-        its.forEach((it,idx)=>{
-          const col = idx%2;
-          const xBase = M + col*COL2;
-          const avaria = it.status==='avaria';
-          const bgColor = avaria ? '#fff0f0' : '#ffffff';
-          const bdColor = avaria ? '#ffbbbb' : '#dddddd';
-          const statusIcon = avaria ? '✕' : '✓';
-          const statusCor  = avaria ? '#cc0000' : '#006400';
-          const statusTxt  = avaria ? 'COM AVARIA' : 'SEM AVARIA';
+          // Coluna 1
+          rect(M,      yC,COL2,rh, av1?'#fff5f5':'#ffffff', av1?'#ffcccc':'#e0e0e0');
+          txt(it1.descricao.slice(0,28),M+3,yC+4,{size:6.5,color:'#1a1a1a'});
+          if(av1){ txt('✕ COM AVARIA',M+3,yC+8.5,{size:6,bold:true,color:'#cc0000'}); }
+          else    { txt('✓ SEM AVARIA',M+3,yC+8.5,{size:6,bold:true,color:'#006400'}); }
+          if(it1.obs) txt('Obs: '+it1.obs.slice(0,25),M+35,yC+8.5,{size:5.5,color:'#666'});
 
-          // Altura da row — maior se tiver obs
-          const obsText = it.obs ? it.obs : '';
-          const rowH = obsText ? 12 : 9;
-
-          // Nova linha a cada 2 itens
-          if(col===0 && idx>0){
-            yC += its[idx-1]?.obs || its[idx-2]?.obs ? 13 : 10;
+          // Coluna 2
+          if(it2){
+            rect(M+COL2,yC,COL2,rh, av2?'#fff5f5':'#ffffff', av2?'#ffcccc':'#e0e0e0');
+            txt(it2.descricao.slice(0,28),M+COL2+3,yC+4,{size:6.5,color:'#1a1a1a'});
+            if(av2){ txt('✕ COM AVARIA',M+COL2+3,yC+8.5,{size:6,bold:true,color:'#cc0000'}); }
+            else    { txt('✓ SEM AVARIA',M+COL2+3,yC+8.5,{size:6,bold:true,color:'#006400'}); }
+            if(it2.obs) txt('Obs: '+it2.obs.slice(0,25),M+COL2+35,yC+8.5,{size:5.5,color:'#666'});
+          } else {
+            rect(M+COL2,yC,COL2,rh,'#fafafa','#e0e0e0');
           }
-          if(col===0){ checkY(rowH+2); }
-
-          rect(xBase,yC,COL2,rowH,bgColor,bdColor);
-
-          // Descrição do item
-          const descTrunc = it.descricao.length>22 ? it.descricao.slice(0,21)+'…' : it.descricao;
-          txt(descTrunc, xBase+2, yC+4, {size:6.5, bold:false, color:'#222'});
-
-          // Status
-          txt(`${statusIcon} ${statusTxt}`, xBase+COL2*0.52, yC+4, {size:6, bold:true, color:statusCor});
-
-          // Obs (se houver)
-          if(obsText){
-            txt(`Obs: ${obsText.slice(0,28)}`, xBase+2, yC+9, {size:5.5, color:'#555'});
-          }
-
-          // Último item ímpar — fecha a linha
-          if(idx===its.length-1){
-            yC += rowH+1;
-          }
-        });
-        yC += 4;
+          yC += rh+1;
+        }
+        yC += 3;
       });
     }
 
     // Observações gerais
     if(checklist.observacoes){
-      checkY(14);
-      rect(M,yC,CW,12,'#fff8e1','#f0c040');
-      txt('Observações:',M+2,yC+4,{size:7,bold:true,color:'#7a5000'});
-      const obsL = doc.splitTextToSize(checklist.observacoes, CW-4);
-      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-      doc.text(obsL.slice(0,2), M+2, yC+9);
-      yC += 14;
+      safeY(16);
+      const obsL = doc.splitTextToSize('Observações: '+checklist.observacoes, CW-6);
+      const obsH = Math.max(12, obsL.length*4+6);
+      rect(M,yC,CW,obsH,'#fff8e1','#f0c040');
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#5a4000');
+      doc.text(obsL,M+3,yC+5);
+      yC += obsH+4;
     }
 
-    // Fotos (se houver)
+    // Fotos
     if(checklist.fotos?.length){
-      checkY(10);
-      txt('📷 Fotos da vistoria: '+checklist.fotos.length+' arquivo(s) anexado(s) no sistema',M,yC,{size:7,color:'#444'});
-      yC += 8;
+      safeY(8);
+      txt(`📷 ${checklist.fotos.length} foto(s) anexada(s) — disponíveis no sistema`,M,yC+4,{size:7,color:'#444'});
+      yC += 10;
     }
 
-    // Assinaturas
-    checkY(24);
-    yC = Math.max(yC+8, 255);
-    doc.setLineDashPattern([2,2],0);
-    doc.setDrawColor('#666');
-    const xA1=M+5, xA2=M+CW/2+5;
-    doc.line(xA1,yC,xA1+75,yC);
-    doc.line(xA2,yC,xA2+75,yC);
+    // Assinaturas — sempre na mesma página (última do checklist)
+    if(yC > 248) newChkPage();
+    yC = Math.max(yC+10, 252);
+    doc.setDrawColor('#aaaaaa');
+    doc.setLineDashPattern([1.5,1.5],0);
+    doc.line(M,yC,M+80,yC);   doc.line(PW-M-80,yC,PW-M,yC);
     doc.setLineDashPattern([],0);
-    txt('Assinatura do Consultor',xA1,yC+4,{size:7,color:'#555'});
-    txt('Assinatura do Cliente/Condutor',xA2,yC+4,{size:7,color:'#555'});
-    txt('Nome: ___________________________',xA1,yC+9,{size:6.5,color:'#777'});
-    txt('Nome: ___________________________',xA2,yC+9,{size:6.5,color:'#777'});
+    txt('Assinatura do Consultor',M+2,yC+4,{size:7,color:'#555'});
+    txt('Assinatura do Cliente / Condutor',PW-M-78,yC+4,{size:7,color:'#555'});
   }
 
   doc.save(`Contrato_Royal_${numContrato}_${d.nomeCli.replace(/\s+/g,'_')}.pdf`);

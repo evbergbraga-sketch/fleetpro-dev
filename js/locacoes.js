@@ -228,14 +228,19 @@ function _renderChecklistExistente(check){
     </div>
     ${itens.length>0?`
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">Itens vistoriados</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
       ${itens.map(it=>{
-        const cor = it.status==='ok'?'#16a34a':it.status==='avaria'?'#dc2626':'#64748b';
-        const icon = it.status==='ok'?'✓ Sem avaria':it.status==='avaria'?'✕ Com avaria':'—';
-        return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
-          <span style="color:${cor};font-weight:700;width:14px">${icon}</span>
-          <span style="flex:1">${it.descricao}</span>
-          ${it.obs?`<span style="font-size:10px;color:var(--muted);font-style:italic">${it.obs}</span>`:''}
+        const avaria = it.status==='avaria';
+        const cor    = avaria?'#dc2626':'#16a34a';
+        const badge  = avaria
+          ? '<span style="font-size:10px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:2px 6px;border-radius:4px;white-space:nowrap">✕ Com avaria</span>'
+          : '<span style="font-size:10px;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:2px 6px;border-radius:4px;white-space:nowrap">✓ Sem avaria</span>';
+        return `<div style="background:var(--bg3,var(--bg2));border:1px solid ${avaria?'rgba(220,38,38,.2)':'var(--border)'};border-radius:6px;padding:6px 8px">
+          <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px">${it.descricao}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${badge}
+            ${it.obs?`<span style="font-size:10px;color:var(--muted);font-style:italic">${it.obs}</span>`:''}
+          </div>
         </div>`;
       }).join('')}
     </div>`:''}
@@ -248,8 +253,9 @@ function _renderChecklistExistente(check){
           const fid='foto'+Date.now()+fi;
           setTimeout(async()=>{
             const el=document.getElementById(fid);
-            if(el && typeof _getSignedUrl==='function'){
-              const su=await _getSignedUrl(url);
+            if(el){
+              // URL já é signed URL direta do Supabase — usar diretamente
+              const su = url.includes('supabase.co') ? url : (typeof _getSignedUrl==='function' ? await _getSignedUrl(url) : url);
               el.src=su;
               el.onclick=()=>window.open(su,'_blank');
             }
