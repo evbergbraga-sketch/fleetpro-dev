@@ -152,9 +152,9 @@ async function registrarComChecklist(){
   });
   if(error){ notify('Checklist salvo com erro: '+error.message,'error'); return; }
   notify('Contrato + Checklist registrados! Gerando PDF...','success');
-  // Gera PDF com checklist incluído
-  const d = previewContrato();
+  // Aguarda carregarTudo() terminar antes de gerar PDF
   const numContrato = parseInt(localStorage.getItem('fp_contrato_seq')||'1');
+  const d = previewContrato();
   await gerarPdfContrato(numContrato, d, chk);
 }
 
@@ -553,6 +553,13 @@ async function registrarContrato(retornarId=false){
       }
     }
 
+    // Coleta dados do condutor principal e plano (moto)
+    const condutorCnh    = document.getElementById('c-condutor-cnh')?.value||'';
+    const condutorCnhCat = document.getElementById('c-condutor-cnh-cat')?.value||'';
+    const condutorCnhVal = document.getElementById('c-condutor-cnh-val')?.value||null;
+    const condutorCnhSeg = document.getElementById('c-condutor-cnh-seg')?.value||'';
+    const planoMoto      = document.querySelector('input[name="c-plano-moto"]:checked')?.value||null;
+
     const {data:locSalva, error} = await sb.from('locacoes').insert({
       veiculo_id:vid, cliente_id:cid,
       data_inicio: ini.slice(0,10),
@@ -568,8 +575,13 @@ async function registrarContrato(retornarId=false){
       local_retirada: document.getElementById('c-local-ret')?.value||'Loja',
       caucao: d.caucao,
       forma_pgto: pgto,
+      forma_pgto_caucao: d.pgtoCaucao||pgto,
       cartao_id: cartaoId,
       servicos_adicionais: _servicosLista.length>0 ? _servicosLista : null,
+      condutor_cnh: condutorCnh||null,
+      condutor_cnh_cat: condutorCnhCat||null,
+      condutor_cnh_val: condutorCnhVal,
+      plano_moto: planoMoto,
       criado_por: currentUser?.id
     }).select().single();
     if(error) throw error;
@@ -588,7 +600,8 @@ async function registrarContrato(retornarId=false){
     _servicosLista   = [];
 
     notify('Contrato #'+numContrato+' registrado!','success');
-    setTimeout(()=> gerarPdfContrato(numContrato, d), 500);
+    // PDF gerado depois (registrarComChecklist passa o checklist; registrarContrato gera sem checklist)
+    if(!retornarId) setTimeout(()=> gerarPdfContrato(numContrato, d), 500);
     await carregarTudo();
 
     // WhatsApp resumo

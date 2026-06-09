@@ -27,10 +27,13 @@ function renderReservas(){
       ? `<span style="color:var(--green);font-weight:600">R$ ${Number(r.valor_pago).toFixed(2).replace('.',',')}</span>`
       : '<span style="color:var(--muted2)">—</span>';
 
-    const acoes = canEdit && r.status==='ativa' ? `
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="converterReservaContrato('${r.id}')">📄 Contrato</button>
-        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="cancelarReserva('${r.id}')">✕ Cancelar</button>
+    const acoes = canEdit ? `
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${r.status==='ativa' ? `
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="converterReservaContrato('${r.id}')">📄 Contrato</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="cancelarReserva('${r.id}')">✕ Cancelar</button>
+        ` : ''}
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red);border-color:var(--red)" onclick="excluirReserva('${r.id}')">🗑️</button>
       </div>` : '—';
 
     return `<tr>
@@ -166,6 +169,20 @@ async function salvarReserva(){
 }
 
 // ══ CANCELAR RESERVA ══
+async function excluirReserva(id){
+  if(!confirm('Excluir esta reserva permanentemente? Esta ação não pode ser desfeita.')) return;
+  const r = allReservas.find(x=>x.id===id);
+  const {error} = await sb.from('reservas').delete().eq('id',id);
+  if(error){ notify('Erro: '+error.message,'error'); return; }
+  // Se o veículo estava reservado, volta para disponível
+  if(r?.veiculo_id && r?.status==='ativa'){
+    await sb.from('veiculos').update({status:'disponivel'}).eq('id',r.veiculo_id);
+  }
+  notify('Reserva excluída','success');
+  await carregarTudo();
+  renderReservas();
+}
+
 async function cancelarReserva(id){
   if(!confirm('Cancelar esta reserva? O veículo voltará a ficar disponível.')) return;
   const r = allReservas.find(x=>x.id===id);
