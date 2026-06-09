@@ -409,7 +409,7 @@ function populateContratosSelects(){
   _renderCondutores();
   _renderServicos();
   previewContrato();
-  _atualizarNumContrato();
+  // Número atualizado pela sincronização assíncrona acima (não chamar _atualizarNumContrato aqui)
 
   // Data/hora padrão: agora
   const now = new Date();
