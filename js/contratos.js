@@ -192,7 +192,7 @@ async function registrarComChecklist(){
     observacoes: chk.observacoes||null,
     itens:       Array.isArray(chk.itens) ? chk.itens : [],
     fotos:       fotosUrls,
-    criado_por:  currentUser?.id||null,
+    ...(currentUser?.id ? {criado_por: currentUser.id} : {}),
   };
 
   console.log('[chk] salvando no banco:', JSON.stringify(chkPayload).slice(0,200));
@@ -1140,61 +1140,130 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   if(checklist){
     doc.addPage();
     let yC = M;
-    // Cabeçalho
-    rect(M,yC,CW,10,'#006400','#006400');
-    txt(`CHECKLIST DE VISTORIA — SAÍDA — Contrato #${numContrato}`,PW/2,yC+6.5,{size:9,bold:true,color:'#ffffff',align:'center'});
-    yC += 14;
-    // Info básica
-    rect(M,yC,CW,8,'#f9f9f9','#dddddd');
-    txt(`Cliente: ${d.nomeCli}   |   Veículo: ${d.placa} — ${d.modelo}`,M+2,yC+5,{size:8,bold:true});
-    yC += 10;
-    rect(M,yC,CW,7,'#f0f0f0','#dddddd');
-    const fmtHora = checklist.horario ? new Date(checklist.horario).toLocaleString('pt-BR') : '—';
-    txt(`Horário: ${fmtHora}   |   Km: ${checklist.km||0} km   |   Combustível: ${checklist.combustivel||'—'}`,M+2,yC+4.5,{size:7.5});
+    const COL2 = CW/2; // 2 colunas
+
+    const checkY = (need) => { if(yC + need > 278){ doc.addPage(); yC = M; } };
+
+    // Cabeçalho verde
+    rect(0,0,PW,10,'#006400','#006400');
+    txt(`CHECKLIST DE VISTORIA — SAÍDA — Contrato #${numContrato}`,PW/2,6.5,{size:9,bold:true,color:'#ffffff',align:'center'});
+    yC = 14;
+
+    // Rodapé desta página já vai ser atualizado pelo loop de rodapés
+
+    // Info do cliente e veículo
+    rect(M,yC,CW,8,'#f0f8f0','#ccddcc');
+    txt(`Cliente: ${d.nomeCli}   |   Veículo: ${d.placa} — ${d.modelo}`,M+2,yC+5,{size:8,bold:true,color:'#004400'});
     yC += 9;
-    // Itens
+
+    // Info da vistoria (3 blocos lado a lado)
+    rect(M,yC,CW,8,'#f9f9f9','#dddddd');
+    const fmtHora = checklist.horario ? new Date(checklist.horario).toLocaleString('pt-BR') : '—';
+    const combLabel = checklist.combustivel||'—';
+    txt(`📅 ${fmtHora}`,M+2,yC+5,{size:7.5,bold:true});
+    txt(`🏎 Km: ${checklist.km||0} km`,M+CW/3,yC+5,{size:7.5,bold:true});
+    txt(`⛽ Combustível: ${combLabel}`,M+2*CW/3,yC+5,{size:7.5,bold:true});
+    yC += 11;
+
+    // Itens em 2 colunas com status e obs
     if(checklist.itens?.length){
-      txt('ITENS VISTORIADOS:',M,yC,{size:8,bold:true,color:'#006400'});
-      yC += 5;
       const cats = {};
-      checklist.itens.forEach(it=>{ if(!cats[it.categoria]) cats[it.categoria]=[]; cats[it.categoria].push(it); });
+      checklist.itens.forEach(it=>{
+        if(!cats[it.categoria]) cats[it.categoria]=[];
+        cats[it.categoria].push(it);
+      });
+
       Object.entries(cats).forEach(([cat,its])=>{
-        if(yC > 270){ doc.addPage(); yC = M; }
-        rect(M,yC,CW,5,'#e8f5e9','#cccccc');
-        txt(cat.toUpperCase(),M+2,yC+3.5,{size:7,bold:true,color:'#005500'});
-        yC += 5;
-        const cols = Math.min(3, its.length);
-        const colW = CW/3;
+        checkY(10 + Math.ceil(its.length/2)*11);
+
+        // Header da categoria
+        rect(M,yC,CW,5,'#1a5c1a','#004400');
+        txt(cat.toUpperCase(),M+2,yC+3.5,{size:7,bold:true,color:'#ffffff'});
+        yC += 6;
+
+        // Header das colunas
+        const hRow = 5;
+        rect(M,    yC,COL2,hRow,'#e8f5e9','#aaccaa');
+        rect(M+COL2,yC,COL2,hRow,'#e8f5e9','#aaccaa');
+        txt('ITEM  |  STATUS  |  OBSERVAÇÃO',M+2,yC+3.5,{size:6,color:'#004400'});
+        txt('ITEM  |  STATUS  |  OBSERVAÇÃO',M+COL2+2,yC+3.5,{size:6,color:'#004400'});
+        yC += hRow;
+
+        // Itens em 2 colunas
         its.forEach((it,idx)=>{
-          const colIdx = idx%3;
-          const x = M + colIdx*colW;
-          if(colIdx===0 && idx>0){ yC += 7; }
-          if(yC > 270){ doc.addPage(); yC = M; }
-          const cor = it.status==='ok'?'#16a34a':it.status==='avaria'?'#dc2626':'#64748b';
-          const icon = it.status==='ok'?'✓':it.status==='avaria'?'✕':'—';
-          txt(`${icon} ${it.descricao}${it.obs?' ('+it.obs+')':''}`,x+1,yC+5,{size:6.5,color:cor});
-          if(colIdx===2||idx===its.length-1) yC += 7;
+          const col = idx%2;
+          const xBase = M + col*COL2;
+          const avaria = it.status==='avaria';
+          const bgColor = avaria ? '#fff0f0' : '#ffffff';
+          const bdColor = avaria ? '#ffbbbb' : '#dddddd';
+          const statusIcon = avaria ? '✕' : '✓';
+          const statusCor  = avaria ? '#cc0000' : '#006400';
+          const statusTxt  = avaria ? 'COM AVARIA' : 'SEM AVARIA';
+
+          // Altura da row — maior se tiver obs
+          const obsText = it.obs ? it.obs : '';
+          const rowH = obsText ? 12 : 9;
+
+          // Nova linha a cada 2 itens
+          if(col===0 && idx>0){
+            yC += its[idx-1]?.obs || its[idx-2]?.obs ? 13 : 10;
+          }
+          if(col===0){ checkY(rowH+2); }
+
+          rect(xBase,yC,COL2,rowH,bgColor,bdColor);
+
+          // Descrição do item
+          const descTrunc = it.descricao.length>22 ? it.descricao.slice(0,21)+'…' : it.descricao;
+          txt(descTrunc, xBase+2, yC+4, {size:6.5, bold:false, color:'#222'});
+
+          // Status
+          txt(`${statusIcon} ${statusTxt}`, xBase+COL2*0.52, yC+4, {size:6, bold:true, color:statusCor});
+
+          // Obs (se houver)
+          if(obsText){
+            txt(`Obs: ${obsText.slice(0,28)}`, xBase+2, yC+9, {size:5.5, color:'#555'});
+          }
+
+          // Último item ímpar — fecha a linha
+          if(idx===its.length-1){
+            yC += rowH+1;
+          }
         });
-        yC += 2;
+        yC += 4;
       });
     }
+
+    // Observações gerais
     if(checklist.observacoes){
-      yC += 2;
-      if(yC > 265){ doc.addPage(); yC = M; }
-      rect(M,yC,CW,10,'#fff8e1','#dddddd');
-      const obsLines = doc.splitTextToSize(`Observações: ${checklist.observacoes}`, CW-4);
-      txt(obsLines[0]||'',M+2,yC+6,{size:7});
-      yC += 12;
+      checkY(14);
+      rect(M,yC,CW,12,'#fff8e1','#f0c040');
+      txt('Observações:',M+2,yC+4,{size:7,bold:true,color:'#7a5000'});
+      const obsL = doc.splitTextToSize(checklist.observacoes, CW-4);
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+      doc.text(obsL.slice(0,2), M+2, yC+9);
+      yC += 14;
     }
-    // Linha de assinatura
-    yC = Math.max(yC+10, 240);
+
+    // Fotos (se houver)
+    if(checklist.fotos?.length){
+      checkY(10);
+      txt('📷 Fotos da vistoria: '+checklist.fotos.length+' arquivo(s) anexado(s) no sistema',M,yC,{size:7,color:'#444'});
+      yC += 8;
+    }
+
+    // Assinaturas
+    checkY(24);
+    yC = Math.max(yC+8, 255);
     doc.setLineDashPattern([2,2],0);
-    doc.setDrawColor('#999');
-    doc.line(M, yC, M+80, yC);
-    doc.line(PW-M-80, yC, PW-M, yC);
-    txt('Assinatura do consultor',M+5,yC+4,{size:7,color:'#888'});
-    txt('Assinatura do cliente',PW-M-75,yC+4,{size:7,color:'#888'});
+    doc.setDrawColor('#666');
+    const xA1=M+5, xA2=M+CW/2+5;
+    doc.line(xA1,yC,xA1+75,yC);
+    doc.line(xA2,yC,xA2+75,yC);
     doc.setLineDashPattern([],0);
+    txt('Assinatura do Consultor',xA1,yC+4,{size:7,color:'#555'});
+    txt('Assinatura do Cliente/Condutor',xA2,yC+4,{size:7,color:'#555'});
+    txt('Nome: ___________________________',xA1,yC+9,{size:6.5,color:'#777'});
+    txt('Nome: ___________________________',xA2,yC+9,{size:6.5,color:'#777'});
   }
 
   doc.save(`Contrato_Royal_${numContrato}_${d.nomeCli.replace(/\s+/g,'_')}.pdf`);
