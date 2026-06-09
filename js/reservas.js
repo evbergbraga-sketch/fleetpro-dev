@@ -319,3 +319,31 @@ function _previewAnexoReserva(file){
     <button onclick="window._resAnexoFile=null;document.getElementById('res-anexo-preview').innerHTML='';document.getElementById('res-anexo-input').value=''" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
   </div>`;
 }
+
+// ── PLANOS DE MOTO ──
+const PLANOS_MOTO = {
+  '379.99': { nome:'Plano 12 meses',        meses:12  },
+  '399.90': { nome:'Plano Conquista 36m',   meses:36  },
+};
+
+function _selecionarPlanoReserva(radio){
+  const val = radio.value;
+  // Atualiza visual dos cards
+  ['res-plano-12-label','res-plano-36-label'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const v = el.querySelector('input')?.value;
+    el.style.borderColor   = v===val ? 'var(--accent)' : 'var(--border2)';
+    el.style.background    = v===val ? 'rgba(37,99,235,.08)' : '';
+  });
+  // Preenche valor cotado
+  const vc = document.getElementById('res-valor-cotado');
+  if(vc) vc.value = val;
+}
+
+function _verificarMotoReserva(){
+  const veiId = document.getElementById('res-vei')?.value;
+  const v = allVeiculos?.find(x=>x.id===veiId);
+  const wrap = document.getElementById('res-planos-wrap');
+  if(wrap) wrap.style.display = v?.tipo==='moto' ? '' : 'none';
+}

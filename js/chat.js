@@ -1489,21 +1489,7 @@ async function crSalvarReserva(notificar=false){
 }
 
 // ── AÇÕES RÁPIDAS DA SIDEBAR DO CHAT ──
-function _chatAcaoReserva(){
-  if(!activeChatId){ notify('Selecione uma conversa primeiro','error'); return; }
-  const c = allClientes.find(x=>x.id===activeChatId);
-  goPage('reservas');
-  setTimeout(()=>{
-    if(typeof abrirModalReserva==='function') abrirModalReserva();
-    // Pré-seleciona o cliente se estiver cadastrado
-    if(c){
-      setTimeout(()=>{
-        const sel = document.getElementById('res-cli');
-        if(sel) sel.value = c.id;
-      }, 300);
-    }
-  }, 400);
-}
+// _chatAcaoReserva definida acima (modal rápido do chat)
 
 function _chatAcaoContrato(){
   if(!activeChatId){ notify('Selecione uma conversa primeiro','error'); return; }
@@ -1559,11 +1545,10 @@ document.addEventListener('visibilitychange', ()=>{
     if(sseCaiu) conectarSSE(cfg.bridgeUrl, cfg.secret||'FleetPro2025');
   }
 
-  // Restaura a página e chat — só se o app ainda não navegou sozinho
+  // Restaura a página e chat sempre que voltar à aba
   const lastPage = sessionStorage.getItem('fp_last_page');
   const lastChat = sessionStorage.getItem('fp_last_chat');
-  if(lastPage && document.querySelector('.page#page-dashboard.active')){
-    // Só restaura se voltou pro dashboard (app reiniciou)
+  if(lastPage){
     sessionStorage.removeItem('fp_last_page');
     sessionStorage.removeItem('fp_last_chat');
     setTimeout(()=>{
@@ -1572,3 +1557,24 @@ document.addEventListener('visibilitychange', ()=>{
     }, 300);
   }
 });
+
+// ── PLANOS MOTO NO MODAL CHAT ──
+function _verificarMotoCR(){
+  const veiId = document.getElementById('cr-vei')?.value;
+  const v = allVeiculos?.find(x=>x.id===veiId);
+  const wrap = document.getElementById('cr-planos-wrap');
+  if(wrap) wrap.style.display = v?.tipo==='moto' ? '' : 'none';
+}
+
+function _selecionarPlanoCR(radio){
+  const val = radio.value;
+  ['cr-plano-12-label','cr-plano-36-label'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const v = el.querySelector('input')?.value;
+    el.style.borderColor = v===val ? '#00a884' : 'rgba(0,168,132,.2)';
+    el.style.background  = v===val ? 'rgba(0,168,132,.15)' : 'rgba(0,168,132,.05)';
+  });
+  const vc = document.getElementById('cr-valor-cotado');
+  if(vc) vc.value = val;
+}

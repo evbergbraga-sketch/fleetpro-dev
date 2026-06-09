@@ -1277,3 +1277,26 @@ async function calSelectDay(d){
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${v.tipo==='carro'?'🚗':'🏍️'}</div><div><div style="font-size:13px;font-weight:500">${v.marca} ${v.modelo}</div><div style="font-size:11px;color:var(--muted)">${v.placa}</div></div></div><span class="badge ${b}">${lb}</span></div>`;
   }).join('')||'<p style="color:var(--muted2)">Sem veículos.</p>';
 }
+
+// ── PLANOS DE MOTO — CONTRATO ──
+function _selecionarPlanoContrato(radio){
+  const val = radio.value;
+  ['c-plano-12-label','c-plano-36-label'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const v = el.querySelector('input')?.value;
+    el.style.borderColor = v===val ? 'var(--accent)' : 'var(--border2)';
+    el.style.background  = v===val ? 'rgba(37,99,235,.08)' : '';
+  });
+  const cDia = document.getElementById('c-dia');
+  if(cDia){ cDia.value = val; previewContrato(); }
+}
+
+function _verificarMotoContrato(){
+  const veiId = document.getElementById('c-vei')?.value;
+  const v = allVeiculos?.find(x=>x.id===veiId);
+  const wrap = document.getElementById('c-planos-moto-wrap');
+  const labelVal = document.getElementById('label-valor-principal');
+  if(wrap) wrap.style.display = v?.tipo==='moto' ? '' : 'none';
+  if(labelVal) labelVal.textContent = v?.tipo==='moto' ? 'Valor semanal (R$)' : 'Valor diária (R$)';
+}
