@@ -1530,41 +1530,14 @@ function setMsg(t){ const i=document.getElementById('chat-msg-input'); if(i){i.v
 
 // ── RECONEXÃO AO VOLTAR PARA A ABA ──
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'hidden'){
-    // Salva estado ao sair da aba — para restaurar ao voltar
-    const pageAtiva = document.querySelector('.page.active')?.id?.replace('page-','');
-    if(pageAtiva) sessionStorage.setItem('fp_last_page', pageAtiva);
-    if(activeChatId) sessionStorage.setItem('fp_last_chat', activeChatId);
-    return;
-  }
+  if(document.visibilityState === 'hidden') return;
 
-  // Ao voltar para a aba: reconecta SSE se caiu
+  // Ao voltar para a aba: APENAS reconecta SSE se caiu
+  // NUNCA navegar para outra página — preserva exatamente o estado atual
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   if(cfg.bridgeUrl){
     const sseCaiu = !sseSource || sseSource.readyState === EventSource.CLOSED;
     if(sseCaiu) conectarSSE(cfg.bridgeUrl, cfg.secret||'FleetPro2025');
-  }
-
-  // Restaura a página e chat ao voltar à aba
-  const lastPage = sessionStorage.getItem('fp_last_page');
-  const lastChat = sessionStorage.getItem('fp_last_chat');
-  if(lastPage){
-    sessionStorage.removeItem('fp_last_page');
-    sessionStorage.removeItem('fp_last_chat');
-    // Verifica se já está na página certa — se sim, NÃO navega (evita reset do formulário)
-    const paginaAtual = document.querySelector('.page.active')?.id?.replace('page-','');
-    if(paginaAtual === lastPage){
-      // Já está na página — só reconecta chat se necessário
-      if(lastPage==='chat' && lastChat && activeChatId !== lastChat){
-        setTimeout(()=>abrirChat(lastChat), 300);
-      }
-      return;
-    }
-    // Página diferente (app reiniciou) — navega
-    setTimeout(()=>{
-      goPage(lastPage);
-      if(lastPage==='chat' && lastChat) setTimeout(()=>abrirChat(lastChat), 500);
-    }, 300);
   }
 });
 
