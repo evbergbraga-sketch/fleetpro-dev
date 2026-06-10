@@ -54,19 +54,19 @@ async function _toggleChecklistInline(){
     _ctchkFotos = [];
     const prev = document.getElementById('ctchk-fotos-preview');
     if(prev) prev.innerHTML = '';
-    // Atualiza título conforme tipo de contrato
-    const tituloEl = document.getElementById('ctchk-titulo');
-    if(tituloEl){
-      const emoji = _tipoContrato === 'carro' ? '🚗' : '🏍️';
-      const label = _tipoContrato === 'carro' ? 'Carro' : 'Moto';
-      tituloEl.textContent = `📋 Checklist de Vistoria — Saída (${emoji} ${label})`;
-    }
     // Define hora padrão
     const horaEl = document.getElementById('ctchk-hora');
     if(horaEl && !horaEl.value){
       const now = new Date();
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       horaEl.value = now.toISOString().slice(0,16);
+    }
+    // Atualiza título conforme tipo de contrato
+    const tituloEl = document.getElementById('ctchk-titulo');
+    if(tituloEl){
+      const emoji = _tipoContrato === 'carro' ? '🚗' : '🏍️';
+      const label = _tipoContrato === 'carro' ? 'Carro' : 'Moto';
+      tituloEl.textContent = `📋 Checklist de Vistoria — Saída (${emoji} ${label})`;
     }
     // Carrega itens filtrados por tipo de contrato
     await _carregarItensChecklistInline();
@@ -77,13 +77,30 @@ async function _carregarItensChecklistInline(){
   const wrap = document.getElementById('ctchk-itens');
   if(!wrap) return;
   if(!sb){ wrap.innerHTML='<div style="color:var(--muted2);font-size:13px">Banco não conectado.</div>'; return; }
-  const tipoVeic = _tipoContrato || 'moto';
-  const {data} = await sb.from('checklist_itens')
-    .select('*')
-    .eq('ativo', true)
-    .in('tipo_veiculo', [tipoVeic, 'ambos'])
-    .order('ordem');
-  const itens = data||[];
+
+  // Tenta filtrar por tipo_veiculo; faz fallback para todos os itens se a coluna não existir
+  const tipo = _tipoContrato || 'moto';
+  let itens = [];
+  try {
+    const {data, error} = await sb.from('checklist_itens')
+      .select('*').eq('ativo', true)
+      .in('tipo_veiculo', [tipo, 'ambos'])
+      .order('ordem');
+    if(error) throw error;
+    itens = data || [];
+    // Fallback: se não retornou nada, tenta sem filtro (coluna pode não existir ainda)
+    if(!itens.length){
+      const {data: data2} = await sb.from('checklist_itens')
+        .select('*').eq('ativo', true).order('ordem');
+      itens = (data2 || []).filter(it => !it.tipo_veiculo || it.tipo_veiculo === tipo || it.tipo_veiculo === 'ambos');
+      // Se ainda vazio, usa tudo (banco ainda sem coluna)
+      if(!itens.length) itens = data2 || [];
+    }
+  } catch(_) {
+    const {data} = await sb.from('checklist_itens').select('*').eq('ativo',true).order('ordem');
+    itens = data || [];
+  }
+
   if(!itens.length){
     wrap.innerHTML='<div style="color:var(--muted2);font-size:13px;text-align:center;padding:10px">Nenhum item configurado em Configurações.</div>';
     return;
@@ -558,7 +575,6 @@ function previewContrato(){
   const taxaAdminVal    = taxaAdminIsenta ? 0 : (totalBruto * taxaAdminPct / 100);
   totalBruto += taxaAdminVal;
 
-  // Display do campo taxa no formulário
   const taxaDisplayForm = document.getElementById('c-taxa-admin-display');
   if(taxaDisplayForm){
     if(taxaAdminIsenta) taxaDisplayForm.textContent = '✓ Taxa isentada';
@@ -1002,21 +1018,19 @@ try{
 
   const franqKm  = document.getElementById('c-franquia-km')?.value||'0';
   const kmExced  = (parseFloat(document.getElementById('c-km-excedente')?.value)||0).toFixed(2).replace('.',',');
-  const kmLivre  = document.getElementById('c-km-livre')?.checked ? 'Sim' : 'Não';
-  const protecao = document.getElementById('c-protecao')?.value||'Básica';
   const planoLabel = d.planoNome ? d.planoNome.split('—')[0].trim() : '';
   const veiLabel = `${d.placa} - ${d.modelo}${planoLabel?' | '+planoLabel:''}`;
 
   rect(M, y, CW, 8, '#f0f8f0', '#ccddcc');
   cx = M;
+  const kmLivre  = document.getElementById('c-km-livre')?.checked ? 'Sim' : 'Não';
+  const protecao = document.getElementById('c-protecao')?.value||'Básica';
   const vRow = isMoto
     ? [veiLabel, franqKm+' km', `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`, `R$ ${kmExced}/km`,
-       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
-       String(d.km||0)+' km',
+       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—', String(d.km||0)+' km',
        d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—']
     : [veiLabel, kmLivre, `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`, protecao,
-       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
-       String(d.km||0)+' km',
+       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—', String(d.km||0)+' km',
        d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—'];
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#111');
   vRow.forEach((v,i)=>{
@@ -1116,6 +1130,7 @@ try{
   doc.text('TERMOS E CONDIÇÕES', M+cellPad, y+3);
   y += 8;
 
+  // Texto completo das cláusulas (fiel à minuta)
   const clausulas = isMoto ? [
     {num:'1. DEFINIÇÕES', secao:true},
     {num:'1.1', txt:'Motocicleta: veículo descrito na Cláusula 2, com todos os acessórios e itens em perfeito estado de uso e conservação (confirme laudo de vistoria).'},
@@ -1232,7 +1247,7 @@ try{
     {bullet:true, txt:'Ocorrência de sinistro não comunicado;'},
     {bullet:true, txt:'Comportamento ofensivo, ameaças ou exaltações perante funcionários ou parceiros da LOCADORA.'},
     {num:'14.3', txt:'Em caso de rescisão por culpa do LOCATÁRIO, serão aplicadas as penalidades previstas no Anexo II, além da perda da caução para cobertura de débitos.'},
-    {num:'14.4', txt:'O veículo não poderá ser retido pelo LOCATÁRIO após a rescisão contratual, sob qualquer justificativa. A retenção indevida do bem poderá caracterizar, em tese, o crime de apropriação indébita (art. 168 do CP). Fica desde já autorizada a LOCADORA a proceder ao bloqueio remoto, à retomada e ao recolhimento do veículo.'},
+    {num:'14.4', txt:'O veículo não poderá ser retido pelo LOCATÁRIO após a rescisão contratual. A retenção indevida poderá caracterizar apropriação indébita (art. 168 do CP). Fica autorizada a LOCADORA a proceder ao bloqueio remoto, à retomada e ao recolhimento do veículo.'},
     {num:'14.5', txt:'Nos contratos com plano pré-pago de mais de 4 (quatro) semanas, a rescisão antecipada por iniciativa do LOCATÁRIO implicará multa de 30% sobre o saldo de semanas restantes.'},
     {num:'15. REEMBOLSO E ACERTO FINAL', secao:true},
     {num:'15.1', txt:'Após rescisão e devolução do veículo, a LOCADORA apurará todos os créditos e débitos do LOCATÁRIO.'},
@@ -1274,7 +1289,7 @@ try{
     {num:'9. ASSISTÊNCIA 24 HORAS', secao:true},
     {num:'9.1', txt:'Em caso de imprevisto, acione a Assistência 24h: +55 (21) 96894-9627. Serviços: mecânicos e elétricos; remoção do veículo em caso de sinistros e/ou panes; troca de pneus e chaveiro.'},
     {num:'10. PRÉ-AUTORIZAÇÃO', secao:true},
-    {num:'10.1', txt:'O bloqueio de valor no cartão de crédito do Locatário garante o pagamento de todas as obrigações do Contrato de Locação e/ou de sua prorrogação. A liberação/devolução desse bloqueio é de responsabilidade exclusiva do banco emissor do cartão e pode ocorrer em até 60 (sessenta) dias contados da devolução do veículo.'},
+    {num:'10.1', txt:'O bloqueio de valor no cartão de crédito do Locatário garante o pagamento de todas as obrigações do Contrato de Locação. A liberação/devolução desse bloqueio é de responsabilidade exclusiva do banco emissor do cartão e pode ocorrer em até 60 (sessenta) dias contados da devolução do veículo.'},
     {num:'11. PRORROGAÇÃO', secao:true},
     {num:'11.1', txt:'Precisa de mais tempo? Compareça, com o Responsável Financeiro (se houver), até a data e horário originalmente previstos para a devolução, apresentando o veículo em uma loja da Locadora Royal para renovar o Contrato de Locação.'},
     {num:'11.2', txt:'Para locações de pessoa jurídica, seguradora ou agência, é necessária a apresentação do voucher. A prorrogação será feita mediante nova pré-autorização no cartão e pagamento dos valores devidos do período inicial.'},
