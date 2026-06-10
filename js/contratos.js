@@ -61,14 +61,7 @@ async function _toggleChecklistInline(){
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       horaEl.value = now.toISOString().slice(0,16);
     }
-    // Atualiza título conforme tipo de contrato
-    const tituloEl = document.getElementById('ctchk-titulo');
-    if(tituloEl){
-      const emoji = _tipoContrato === 'carro' ? '🚗' : '🏍️';
-      const label = _tipoContrato === 'carro' ? 'Carro' : 'Moto';
-      tituloEl.textContent = `📋 Checklist de Vistoria — Saída (${emoji} ${label})`;
-    }
-    // Carrega itens filtrados por tipo de contrato
+    // Carrega itens do checklist (await garante que estão prontos antes de coletar)
     await _carregarItensChecklistInline();
   }
 }
@@ -77,25 +70,8 @@ async function _carregarItensChecklistInline(){
   const wrap = document.getElementById('ctchk-itens');
   if(!wrap) return;
   if(!sb){ wrap.innerHTML='<div style="color:var(--muted2);font-size:13px">Banco não conectado.</div>'; return; }
-  // Filtra por tipo_veiculo; fallback para todos se coluna não existir
-  const tipo = _tipoContrato || 'moto';
-  let itens = [];
-  try {
-    const {data, error} = await sb.from('checklist_itens')
-      .select('*').eq('ativo', true)
-      .in('tipo_veiculo', [tipo, 'ambos'])
-      .order('ordem');
-    if(error) throw error;
-    itens = data || [];
-    if(!itens.length){
-      const {data: data2} = await sb.from('checklist_itens').select('*').eq('ativo', true).order('ordem');
-      itens = (data2||[]).filter(it => !it.tipo_veiculo || it.tipo_veiculo === tipo || it.tipo_veiculo === 'ambos');
-      if(!itens.length) itens = data2 || [];
-    }
-  } catch(_) {
-    const {data} = await sb.from('checklist_itens').select('*').eq('ativo',true).order('ordem');
-    itens = data || [];
-  }
+  const {data} = await sb.from('checklist_itens').select('*').eq('ativo',true).order('ordem');
+  const itens = data||[];
   if(!itens.length){
     wrap.innerHTML='<div style="color:var(--muted2);font-size:13px;text-align:center;padding:10px">Nenhum item configurado em Configurações.</div>';
     return;
@@ -564,19 +540,6 @@ function previewContrato(){
   }
   totalBruto += totalServicos;
 
-  // Taxa administrativa
-  const taxaAdminIsenta = document.getElementById('c-taxa-admin-isenta')?.checked || false;
-  const taxaAdminPct    = taxaAdminIsenta ? 0 : (parseFloat(document.getElementById('c-taxa-admin')?.value)||0);
-  const taxaAdminVal    = taxaAdminIsenta ? 0 : (totalBruto * taxaAdminPct / 100);
-  totalBruto += taxaAdminVal;
-
-  const taxaDisplayForm = document.getElementById('c-taxa-admin-display');
-  if(taxaDisplayForm){
-    if(taxaAdminIsenta) taxaDisplayForm.textContent = '✓ Taxa isentada';
-    else if(taxaAdminPct > 0) taxaDisplayForm.textContent = `+ R$ ${taxaAdminVal.toLocaleString('pt-BR',{minimumFractionDigits:2})} (${taxaAdminPct}%)`;
-    else taxaDisplayForm.textContent = '';
-  }
-
   const valorPago = window._reservaValorPago||0;
   const totalLiq  = Math.max(0, totalBruto - valorPago);
 
@@ -617,12 +580,6 @@ function previewContrato(){
   _set('ct-periodo', diasLabel);
   _set('ct-dia-val', `R$ ${dia.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-servicos-total', totalServicos>0 ? `+ R$ ${totalServicos.toLocaleString('pt-BR',{minimumFractionDigits:2})} (serviços)` : '');
-  const ctTaxaEl = document.getElementById('ct-taxa-admin-display');
-  if(ctTaxaEl){
-    if(taxaAdminIsenta) ctTaxaEl.textContent = '✓ Taxa administrativa isentada';
-    else if(taxaAdminPct > 0) ctTaxaEl.textContent = `+ R$ ${taxaAdminVal.toLocaleString('pt-BR',{minimumFractionDigits:2})} — Taxa administrativa (${taxaAdminPct}%)`;
-    else ctTaxaEl.textContent = '';
-  }
   _set('ct-total-bruto', `R$ ${totalBruto.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-total', `R$ ${totalLiq.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-km', km);
@@ -643,8 +600,7 @@ function previewContrato(){
     placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
     pgto, caucao, numCtrato, periodoVal, ini, fim, localRet,
-    totalServicos, servicos: _servicosLista, days,
-    taxaAdminPct, taxaAdminVal, taxaAdminIsenta};
+    totalServicos, servicos: _servicosLista, days};
 }
 
 function _fmtDatetime(str){
@@ -788,7 +744,6 @@ async function registrarContrato(retornarId=false){
     }
   }catch(e){
     notify('Erro: '+e.message,'error');
-    if(retornarId) return null;
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
   }
@@ -890,9 +845,7 @@ try{
   doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+42, y+15);
 
   // Número e status do contrato (topo direito)
-  const planoTitulo = isMoto
-    ? (d.planoNome?.includes('Conquista') ? 'CONTRATO CONQUISTA#' : 'CONTRATO MASTER#')
-    : 'CONTRATO#';
+  const planoTitulo = d.planoNome?.includes('Conquista') ? 'CONTRATO CONQUISTA#' : 'CONTRATO MASTER#';
   doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
   doc.text(`${planoTitulo}${numContrato}`, PW-M, y+5, {align:'right'});
   doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor('#555');
@@ -1000,10 +953,8 @@ try{
   // TABELA VEÍCULO (7 colunas)
   // ══════════════════════════════════════
   safeY(20);
-  const vCols = isMoto ? [45,18,26,25,22,18,26] : [45,20,26,24,22,18,31];
-  const vHeaders = isMoto
-    ? ['Veículo','Franquia Km','Valor Locação','Valor Km Excedente','Data Entrega','Km Saída','Data Término']
-    : ['Veículo','Km Livre','Valor Diária','Proteção','Data Entrega','Km Saída','Data Término'];
+  const vCols = [45,18,26,25,22,18,26];
+  const vHeaders = ['Veículo','Franquia Km','Valor Locação','Valor Km Excedente','Data Entrega','Km Saída','Data Término'];
 
   rect(M, y, CW, 6, '#006400', '#006400');
   let cx = M;
@@ -1018,15 +969,15 @@ try{
 
   rect(M, y, CW, 8, '#f0f8f0', '#ccddcc');
   cx = M;
-  const kmLivre  = document.getElementById('c-km-livre')?.checked ? 'Sim' : 'Não';
-  const protecao = document.getElementById('c-protecao')?.value||'Básica';
-  const vRow = isMoto
-    ? [veiLabel, franqKm+' km', `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`, `R$ ${kmExced}/km`,
-       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—', String(d.km||0)+' km',
-       d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—']
-    : [veiLabel, kmLivre, `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`, protecao,
-       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—', String(d.km||0)+' km',
-       d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—'];
+  const vRow = [
+    veiLabel,
+    franqKm+' km',
+    `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,
+    `R$ ${kmExced}/km`,
+    d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
+    String(d.km||0)+' km',
+    d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—',
+  ];
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#111');
   vRow.forEach((v,i)=>{
     const trunc = doc.splitTextToSize(v, vCols[i]-3);
@@ -1062,9 +1013,7 @@ try{
   // FORMA DE PAGAMENTO
   // ══════════════════════════════════════
   safeY(16);
-  const temTaxa = !d.taxaAdminIsenta && d.taxaAdminPct > 0;
-  const pgtoBoxH = temTaxa || d.taxaAdminIsenta ? 20 : 14;
-  rect(M, y, CW, pgtoBoxH, '#f0f8f0', '#a8d8a8');
+  rect(M, y, CW, 14, '#f0f8f0', '#a8d8a8');
   doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
   doc.text('FORMA DE PAGAMENTO', M+cellPad, y+5);
   doc.setFont('helvetica','bold'); doc.setTextColor('#111');
@@ -1072,14 +1021,7 @@ try{
   doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: R$ ${(d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+9);
   doc.setFontSize(7.5); doc.setFont('helvetica','normal');
   doc.text(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`, M+cellPad, y+12);
-  if(temTaxa){
-    doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor('#b45309');
-    doc.text(`Taxa Administrativa: ${d.taxaAdminPct}%  —  R$ ${(d.taxaAdminVal||0).toFixed(2).replace('.',',')} (inclusa no valor total)`, M+cellPad, y+16);
-  } else if(d.taxaAdminIsenta){
-    doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor('#16a34a');
-    doc.text('Taxa Administrativa: Isentada', M+cellPad, y+16);
-  }
-  y += pgtoBoxH + 3;
+  y += 17;
 
   // ══════════════════════════════════════
   // OBSERVAÇÕES IMPORTANTES (da minuta)
@@ -1089,9 +1031,7 @@ try{
   doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
   doc.text('OBSERVAÇÕES IMPORTANTES', M+cellPad, y+4.2);
   y += 6;
-  const obsImp = isMoto
-    ? 'A renovação do contrato se dar de forma semanal (a cada 7 dias).\nNecessário informar a cada 1.000km do veículo, para que seja verificado o cronograma de manutenção preventiva. Entre em contato com a Locadora.'
-    : 'O veículo deverá ser devolvido nas mesmas condições de limpeza e nível de combustível em que foi entregue.\nCaso seja necessária lavagem, será cobrada a taxa correspondente. Combustível faltante: R$ 7,00/litro.\nSe o veículo não for devolvido em até 24h após o término do prazo, configura-se apropriação indébita.';
+  const obsImp = 'A renovação do contrato se dar de forma semanal (a cada 7 dias).\nNecessário informar a cada 1.000km do veículo, para que seja verificado o cronograma de manutenção preventiva. Entre em contato com a Locadora.';
   const obsImpLines = doc.splitTextToSize(obsImp, CW-4);
   const obsImpH = obsImpLines.length * 3.8 + 5;
   rect(M, y, CW, obsImpH, '#fffbea', '#f0c040');
@@ -1126,7 +1066,7 @@ try{
   y += 8;
 
   // Texto completo das cláusulas (fiel à minuta)
-  const clausulas = isMoto ? [
+  const clausulas = [
     {num:'1. DEFINIÇÕES', secao:true},
     {num:'1.1', txt:'Motocicleta: veículo descrito na Cláusula 2, com todos os acessórios e itens em perfeito estado de uso e conservação (confirme laudo de vistoria).'},
     {num:'1.2', txt:'Obrigação da LOCADORA — serviços periódicos previstos no Manual do Fabricante (revisões programadas, trocas periódicas e inspeções), conforme Cláusula 8. Manutenção Preventiva.'},
@@ -1242,7 +1182,7 @@ try{
     {bullet:true, txt:'Ocorrência de sinistro não comunicado;'},
     {bullet:true, txt:'Comportamento ofensivo, ameaças ou exaltações perante funcionários ou parceiros da LOCADORA.'},
     {num:'14.3', txt:'Em caso de rescisão por culpa do LOCATÁRIO, serão aplicadas as penalidades previstas no Anexo II, além da perda da caução para cobertura de débitos.'},
-    {num:'14.4', txt:'O veículo não poderá ser retido pelo LOCATÁRIO após a rescisão contratual. A retenção indevida poderá caracterizar apropriação indébita (art. 168 do CP). Fica autorizada a LOCADORA a proceder ao bloqueio remoto, à retomada e ao recolhimento do veículo.'},
+    {num:'14.4', txt:'O veículo não poderá ser retido pelo LOCATÁRIO após a rescisão contratual, sob qualquer justificativa. A retenção indevida do bem poderá caracterizar, em tese, o crime de apropriação indébita (art. 168 do CP). Fica desde já autorizada a LOCADORA a proceder ao bloqueio remoto, à retomada e ao recolhimento do veículo.'},
     {num:'14.5', txt:'Nos contratos com plano pré-pago de mais de 4 (quatro) semanas, a rescisão antecipada por iniciativa do LOCATÁRIO implicará multa de 30% sobre o saldo de semanas restantes.'},
     {num:'15. REEMBOLSO E ACERTO FINAL', secao:true},
     {num:'15.1', txt:'Após rescisão e devolução do veículo, a LOCADORA apurará todos os créditos e débitos do LOCATÁRIO.'},
@@ -1260,54 +1200,6 @@ try{
     {num:'17.4', txt:'Se qualquer cláusula for declarada nula, as demais permanecerão válidas e eficazes.'},
     {num:'17.5', txt:'Este contrato substitui quaisquer acordos verbais ou escritos anteriores entre as partes.'},
     {num:'17.6', txt:'O presente instrumento constitui título executivo extrajudicial nos termos do art. 784 do CPC.'},
-    {num:'18. FORO', secao:true},
-    {num:'18.1', txt:'Fica eleito o foro da Comarca do Rio de Janeiro – RJ, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir quaisquer litígios decorrentes deste contrato.'},
-  ] : [
-    {num:'1. ACEITE ÀS CONDIÇÕES GERAIS E ESPECIAIS', secao:true},
-    {num:'1.1', txt:'Ao assinar este Contrato, VOCÊ declara ciência, aceite e adesão às Condições Gerais do Contrato de Aluguel de Carros da ROYAL RENT A CAR LTDA – CNPJ 18.686.521/0001-00. As Condições Gerais estão disponíveis em https://locadoraroyal.com.br/contrato/ e integram este Contrato para todos os fins, na versão vigente na data da assinatura.'},
-    {num:'2. SEGURO / PROTEÇÕES', secao:true},
-    {num:'2.1', txt:'Pacote Básica: Furto/roubo ou perda total; com coparticipação de 12%, com franquia de 12% do valor da FIPE por evento; Vidros e pneus não incluídos.'},
-    {num:'2.2', txt:'Pacote Completa: Cobertura ampla para danos ao veículo locado, com franquia de 6% do valor da FIPE; cobertura danos a terceiros até R$ 50.000,00; cobertura para ocupantes até R$ 10.000,00; furto/roubo com coparticipação de 6%; vidros e pneus incluídos (sublimite R$ 2.000 por item); isenção de limpeza simples e 1 motorista adicional.'},
-    {num:'3. MULTAS E IDENTIFICAÇÃO DE CONDUTOR', secao:true},
-    {num:'3.1', txt:'Na condição de condutor, VOCÊ assume total responsabilidade por qualquer infração de trânsito e pela pontuação decorrente durante a locação. A ROYAL RENT A CAR LTDA fica desde já constituída sua procuradora para assinar o termo de apresentação do condutor infrator, conforme art. 257 do CTB e Resolução CONTRAN nº 918/2022.'},
-    {num:'4. DADOS PESSOAIS E PRIVACIDADE', secao:true},
-    {num:'4.1', txt:'As informações coletadas serão utilizadas para executar este Contrato e cumprir obrigações legais e regulatórias, nos termos da Lei nº 13.709/2018 (LGPD). Detalhes em: https://locadoraroyal.com.br/privacy-policy/.'},
-    {num:'5. PEDÁGIOS E ESTACIONAMENTOS (TAG)', secao:true},
-    {num:'5.1', txt:'Os veículos podem conter dispositivo eletrônico para abertura de cancelas. Se utilizar filas rápidas, autoriza a cobrança dos valores de uso acrescidos da tarifa TAG da Royal, conforme https://locadoraroyal.com.br/tag/.'},
-    {num:'6. ÁREAS DE FRONTEIRA', secao:true},
-    {num:'6.1', txt:'Não é permitido circular com o veículo num raio de 150 km de fronteiras internacionais. O descumprimento poderá ensejar bloqueio remoto e retomada do veículo, sem prejuízo das demais medidas cabíveis.'},
-    {num:'7. DA LIMPEZA E DO COMBUSTÍVEL', secao:true},
-    {num:'7.1', txt:'O VEÍCULO deverá ser devolvido nas mesmas condições de limpeza em que foi entregue. Na hipótese de devolução em condições inferiores, será cobrada a taxa de lavagem conforme tabela vigente da LOCADORA.'},
-    {num:'7.2', txt:'O VEÍCULO é entregue com o nível de combustível registrado no checklist de saída. Na devolução com nível inferior, será cobrado R$ 7,00 (sete reais) por litro faltante.'},
-    {num:'8. CONSULTA A SISTEMAS DE CRÉDITO', secao:true},
-    {num:'8.1', txt:'Ao assinar, você permite a consulta de seus dados em bureaus de crédito como Serasa, SPC e Boa Vista, para análise cadastral.'},
-    {num:'9. ASSISTÊNCIA 24 HORAS', secao:true},
-    {num:'9.1', txt:'Em caso de imprevisto, acione a Assistência 24h: +55 (21) 96894-9627. Serviços: mecânicos e elétricos; remoção do veículo em caso de sinistros e/ou panes; troca de pneus e chaveiro.'},
-    {num:'10. PRÉ-AUTORIZAÇÃO', secao:true},
-    {num:'10.1', txt:'O bloqueio de valor no cartão de crédito do Locatário garante o pagamento de todas as obrigações do Contrato de Locação. A liberação/devolução desse bloqueio é de responsabilidade exclusiva do banco emissor do cartão e pode ocorrer em até 60 (sessenta) dias contados da devolução do veículo.'},
-    {num:'11. PRORROGAÇÃO', secao:true},
-    {num:'11.1', txt:'Precisa de mais tempo? Compareça, com o Responsável Financeiro (se houver), até a data e horário originalmente previstos para a devolução, apresentando o veículo em uma loja da Locadora Royal para renovar o Contrato de Locação.'},
-    {num:'11.2', txt:'Para locações de pessoa jurídica, seguradora ou agência, é necessária a apresentação do voucher. A prorrogação será feita mediante nova pré-autorização no cartão e pagamento dos valores devidos do período inicial.'},
-    {num:'12. ATENÇÃO — DEVOLUÇÃO DO VEÍCULO', secao:true},
-    {num:'12.1', txt:'Se o veículo não for devolvido em até 24 (vinte e quatro) horas após o término do prazo contratual, configura-se apropriação indébita, independentemente de notificação, autorizando a Locadora Royal a adotar as medidas legais cabíveis, inclusive comunicar o fato à autoridade policial.'},
-    {num:'13. MULTAS DE TRÂNSITO', secao:true},
-    {num:'13.1', txt:'O Locatário e/ou Condutor Adicional são exclusivamente responsáveis por todas as multas ocorridas durante a locação e obrigam-se, solidariamente com o Responsável Financeiro, ao pagamento das respectivas multas acrescidas de 12% a título de custo administrativo.'},
-    {num:'13.2', txt:'Após a cobrança, os detalhes da multa serão enviados para o e-mail cadastrado na Locadora Royal. Mantenha seus dados sempre atualizados e verifique também Lixo eletrônico/Spam.'},
-    {num:'14. ROUBO E/OU FURTO', secao:true},
-    {num:'14.1', txt:'O Locatário deverá comunicar: (i) imediatamente a Polícia Militar (190); (ii) em até 1 (uma) hora a Locadora Royal – Assistência 24h: +55 (21) 96894-9627; e (iii) em até 6 (seis) horas providenciar o Boletim de Ocorrência.'},
-    {num:'15. AVARIAS', secao:true},
-    {num:'15.1', txt:'Todos os veículos são vistoriados antes da entrega; eventuais avarias ocorridas durante o período de locação serão cobradas na devolução. Se pequenas, seguirá tabela de preços da Royal. Se médias/grandes, serão apuradas e cobradas posteriormente, ressalvada a eventual proteção contratada.'},
-    {num:'16. INCIDENTES E EMERGÊNCIAS', secao:true},
-    {num:'16.1', txt:'Ocorrências com o veículo (roubo, furto, incêndio, acidente de trânsito). Procedimentos padrão:'},
-    {bullet:true, txt:'Comunicar imediatamente a Polícia Militar (190);'},
-    {bullet:true, txt:'Avisar a Locadora Royal (24h): +55 (21) 96894-9627 em até 1 hora ou na loja mais próxima;'},
-    {bullet:true, txt:'Registrar B.O. em até 6 horas;'},
-    {bullet:true, txt:'Enviar à Royal o nº do registro/protocolo em até 3 dias úteis;'},
-    {bullet:true, txt:'É proibido tratar direto com terceiros/seguradoras ou consertar por conta própria, sob pena de perda das proteções e cobrança de valores adicionais.'},
-    {num:'17. DISPOSIÇÕES GERAIS', secao:true},
-    {num:'17.1', txt:'A assinatura eletrônica/digital tem plena validade jurídica, conforme MP 2.200/2001.'},
-    {num:'17.2', txt:'As informações deste documento são informativas e não substituem os Termos e Condições Gerais de Locação de Veículos da Locadora Royal. Para conhecer o inteiro teor, acesse www.locadoraroyal.com.br/contrato.'},
-    {num:'17.3', txt:'O presente instrumento constitui título executivo extrajudicial nos termos do art. 784 do CPC.'},
     {num:'18. FORO', secao:true},
     {num:'18.1', txt:'Fica eleito o foro da Comarca do Rio de Janeiro – RJ, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir quaisquer litígios decorrentes deste contrato.'},
   ];
@@ -1343,8 +1235,8 @@ try{
   // ══════════════════════════════════════
   // ASSINATURAS
   // ══════════════════════════════════════
-  safeY(70);
-  y += 20;
+  safeY(35);
+  y += 10;
   const colW3A = CW/3;
   doc.setDrawColor('#555'); doc.setLineWidth(0.4);
 
@@ -1485,7 +1377,8 @@ try{
     }
 
     if(y>248) newChkPage();
-    y = Math.max(y+10, 252);
+    safeYC(18);
+    y += 10;
     doc.setDrawColor('#aaaaaa'); doc.setLineWidth(0.3);
     doc.setLineDashPattern([1.5,1.5],0);
     doc.line(M,y,M+80,y); doc.line(PW-M-80,y,PW-M,y);
@@ -1787,14 +1680,6 @@ function _onChangePgto(){
   const pgto = document.getElementById('c-pgto')?.value||'';
   const isCard = pgto.toLowerCase().includes('cartão')||pgto.toLowerCase().includes('cartao');
   const wrap = document.getElementById('c-campos-cartao');
-  if(wrap) wrap.style.display = isCard ? '' : 'none';
-  previewContrato();
-}
-
-function _onChangePgtoCaucao(){
-  const pgto = document.getElementById('c-pgto-caucao')?.value||'';
-  const isCard = pgto.toLowerCase().includes('cartão')||pgto.toLowerCase().includes('cartao');
-  const wrap = document.getElementById('c-campos-cartao-caucao');
   if(wrap) wrap.style.display = isCard ? '' : 'none';
   previewContrato();
 }
