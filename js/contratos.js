@@ -802,20 +802,17 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   // PÁGINA 1 — CABEÇALHO COM LOGO E DADOS
   // ══════════════════════════════════════
 
-  // Logo Royal (topo esquerdo)
+  // Logo Royal (topo esquerdo) — base64 embedded
   try{
-    const logo = document.querySelector('img[src*="logo"], .sidebar-logo img, img.logo');
-    if(logo?.src){
-      doc.addImage(logo.src, 'PNG', M, y, 28, 14);
-    }
+    doc.addImage('data:image/png;base64,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', 'JPEG', M, y, 30, 16);
   }catch(_){}
 
   // Dados da empresa (topo direito do logo)
   doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
-  doc.text('ROYAL RENT A CAR LTDA', M+32, y+5);
+  doc.text('ROYAL RENT A CAR LTDA', M+34, y+6);
   doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-  doc.text('CNPJ: 18.686.521/0002-90', M+32, y+9.5);
-  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+32, y+13.5);
+  doc.text('CNPJ: 18.686.521/0002-90', M+34, y+11);
+  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+34, y+15.5);
 
   // Número e status do contrato (topo direito)
   doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
@@ -902,20 +899,23 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
   rect(M+colW1,         y, colW2, cellH, '#f9f9f9', '#dddddd');
   rect(M+colW1+colW2,   y, colW3, cellH, '#f9f9f9', '#dddddd');
 
-  const renderCellLines = (lines, xBase, yBase) => {
+  const renderCellLines = (lines, xBase, yBase, maxW) => {
     let cy = yBase + 4;
     lines.forEach(l => {
       doc.setFont('helvetica', l.bold?'bold':'normal');
       doc.setFontSize(l.bold?8:7.5);
       doc.setTextColor(l.bold?'#004400':'#222');
-      doc.text(String(l.text||''), xBase+cellPad, cy);
+      // Truncar texto respeitando largura da célula
+      const available = (maxW||55) - cellPad - 2;
+      const splitL = doc.splitTextToSize(String(l.text||''), available);
+      doc.text(splitL[0]||'', xBase+cellPad, cy);
       cy += lineH;
     });
   };
 
-  renderCellLines(conteudoCliente,   M, y);
-  renderCellLines(conteudoRetirada,  M+colW1, y);
-  renderCellLines(conteudoDevolucao, M+colW1+colW2, y);
+  renderCellLines(conteudoCliente,   M, y, colW1);
+  renderCellLines(conteudoRetirada,  M+colW1, y, colW2);
+  renderCellLines(conteudoDevolucao, M+colW1+colW2, y, colW3);
   y += cellH + 2;
 
   // ══════════════════════════════════════
@@ -1286,9 +1286,11 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
     y+=7;
   });
   y+=3;
-  const notaII = doc.splitTextToSize("* Os valores marcados como 'A definir' serão preenchidos pela LOCADORA conforme tarifário vigente e comunicados ao LOCATÁRIO na assinatura do contrato.", CW);
+  const notaII = doc.splitTextToSize("* Os valores marcados como 'A definir' serão preenchidos pela LOCADORA conforme tarifário vigente e comunicados ao LOCATÁRIO na assinatura do contrato.", CW-4);
+  const notaIIH = notaII.length * 3.8 + 5;
+  rect(M, y, CW, notaIIH, '#f9f9f9', '#dddddd');
   doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
-  doc.text(notaII, M, y); y += notaII.length*3.5+4;
+  doc.text(notaII, M+2, y+4); y += notaIIH + 3;
 
   // ══════════════════════════════════════
   // ANEXO III — PLANO DE MANUTENÇÃO
@@ -1313,9 +1315,11 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
     y+=7;
   });
   y+=3;
-  const notaIII = doc.splitTextToSize('Observação: Os intervalos exatos serão preenchidos com os dados do manual do modelo específico da motocicleta locada. Para uso em delivery (uso severo), aplicar o intervalo reduzido quando o manual assim prever.',CW);
+  const notaIII = doc.splitTextToSize('Observação: Os intervalos exatos serão preenchidos com os dados do manual do modelo específico da motocicleta locada. Para uso em delivery (uso severo), aplicar o intervalo reduzido quando o manual assim prever.',CW-4);
+  const notaIIIH = notaIII.length * 3.8 + 5;
+  rect(M, y, CW, notaIIIH, '#f9f9f9', '#dddddd');
   doc.setFontSize(6.5); doc.setFont('helvetica','italic'); doc.setTextColor('#555');
-  doc.text(notaIII,M,y); y+=notaIII.length*3.5+5;
+  doc.text(notaIII, M+2, y+4); y += notaIIIH + 4;
 
   // ══════════════════════════════════════
   // ANEXO IV — SEGURO SUHAI
@@ -1351,9 +1355,12 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
     y+=rh;
   });
   y+=4;
-  const notaIV = doc.splitTextToSize('IMPORTANTE: Em caso de divergência entre este resumo e a apólice original da Suhai Seguradora, prevalece o documento original da apólice. O LOCATÁRIO declara ter recebido cópia da apólice e estar ciente de todas as condições.',CW);
+  const notaIV = doc.splitTextToSize('IMPORTANTE: Em caso de divergência entre este resumo e a apólice original da Suhai Seguradora, prevalece o documento original da apólice. O LOCATÁRIO declara ter recebido cópia da apólice e estar ciente de todas as condições.',CW-4);
+  const notaIVH = notaIV.length * 4 + 6;
+  safeY(notaIVH);
+  rect(M, y, CW, notaIVH, '#fff5f5', '#ffcccc');
   doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor('#cc0000');
-  doc.text(notaIV,M,y); y+=notaIV.length*3.8+6;
+  doc.text(notaIV, M+2, y+4); y += notaIVH + 2;
   safeY(12);
   doc.setDrawColor('#555'); doc.line(M,y,M+100,y);
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
