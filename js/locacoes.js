@@ -189,8 +189,8 @@ async function abrirModalLocacao(locId){
     </div>
   `;
 
-  // Carrega itens do checklist
-  await _carregarItensChecklist();
+  // Carrega itens do checklist filtrado por tipo de veículo
+  await _carregarItensChecklist(loc.veiculos?.tipo || 'moto');
 }
 
 function showLocTab(tab){
@@ -336,11 +336,20 @@ function _renderFormChecklist(tipo, locId, loc){
 }
 
 // ══ CARREGA ITENS DO CHECKLIST DO BANCO ══
-async function _carregarItensChecklist(){
+async function _carregarItensChecklist(tipoVeiculo){
+  // Limpa cache ao trocar tipo
+  if(tipoVeiculo && _checklistItens._tipoCarregado !== tipoVeiculo){
+    _checklistItens = [];
+  }
   if(_checklistItens.length) return _renderItensNosFormularios();
+  const tipo = tipoVeiculo || 'moto';
   const {data} = await sb.from('checklist_itens')
-    .select('*').eq('ativo',true).order('ordem');
+    .select('*')
+    .eq('ativo', true)
+    .in('tipo_veiculo', [tipo, 'ambos'])
+    .order('ordem');
   _checklistItens = data||[];
+  _checklistItens._tipoCarregado = tipo;
   _renderItensNosFormularios();
 }
 
