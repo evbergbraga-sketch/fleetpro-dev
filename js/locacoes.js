@@ -191,6 +191,39 @@ async function abrirModalLocacao(locId){
 
   // Carrega itens do checklist filtrado por tipo de veículo
   await _carregarItensChecklist(loc.veiculos?.tipo || 'moto');
+
+  // Se checklist de entrada existe, carrega custos registrados no financeiro
+  if(checkEntrada){
+    const {data:lancCustos} = await sb.from('lancamentos')
+      .select('*')
+      .eq('locacao_id', locId)
+      .eq('origem','checklist_entrada')
+      .order('id');
+    if(lancCustos?.length){
+      // Renderiza custos da entrada como view (somente leitura)
+      const custosDiv = document.getElementById('custos-view-entrada');
+      if(custosDiv){
+        const total = lancCustos.reduce((a,l)=>a+Number(l.valor||0), 0);
+        custosDiv.innerHTML = `
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💸 Custos Registrados na Devolução</div>
+          <div style="background:var(--bg2);border-radius:10px;padding:12px">
+            ${lancCustos.map(l=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:15px">${l.categoria==='Tag / Pedágio'?'🛣️':l.categoria==='Reparo'?'🔧':l.categoria==='Lavagem'?'🫧':'⚠️'}</span>
+              <div style="flex:1">
+                <div style="font-size:11px;font-weight:700;color:var(--text)">${l.descricao?.split(' — ')[0]||l.categoria}</div>
+                ${l.descricao?.split(' — ').slice(3).join(' — ')?`<div style="font-size:10px;color:var(--muted2)">${l.descricao.split(' — ').slice(3).join(' — ')}</div>`:''}
+              </div>
+              <span style="font-size:13px;font-weight:700;color:var(--red,#dc2626)">− R$ ${Number(l.valor||0).toFixed(2).replace('.',',')}</span>
+            </div>`).join('')}
+            <div style="text-align:right;font-size:13px;font-weight:700;color:var(--accent);padding-top:8px">
+              Total: R$ ${total.toFixed(2).replace('.',',')}
+            </div>
+          </div>`;
+        custosDiv.style.display = '';
+      }
+    }
+  }
 }
 
 function showLocTab(tab){
@@ -270,7 +303,9 @@ function _renderChecklistExistente(check){
         }).join('')}
       </div>
     </div>`:''}
-  </div>`;
+  </div>
+  ${check.tipo==='entrada' ? '<div id="custos-view-entrada" style="display:none;margin-top:12px"></div>' : ''}
+  `;
 }
 
 // ══ RENDER FORMULÁRIO DE CHECKLIST ══
@@ -607,21 +642,27 @@ function _renderCustosDevolucao(){
   }
 
   wrap.innerHTML = _custosDevolucao.map(c=>`
-    <div id="custo-row-${c.id}" style="display:grid;grid-template-columns:auto 1fr 120px 1fr auto;gap:6px;align-items:center;margin-bottom:8px;padding:8px;background:var(--bg3,var(--bg));border-radius:8px;border:1px solid var(--border)">
-      <span style="font-size:16px">${c.categoria==='Tag / Pedágio'?'🛣️':c.categoria==='Reparo'?'🔧':c.categoria==='Lavagem'?'🫧':'⚠️'}</span>
+    <div id="custo-row-${c.id}" style="display:grid;grid-template-columns:28px 1fr 100px 1fr 28px;gap:8px;align-items:center;padding:10px 12px;margin-bottom:6px;background:var(--bg3,var(--bg));border-radius:10px;border:1px solid var(--border2)">
+      <span style="font-size:18px;text-align:center">${c.categoria==='Tag / Pedágio'?'🛣️':c.categoria==='Reparo'?'🔧':c.categoria==='Lavagem'?'🫧':'⚠️'}</span>
       <div>
-        <div style="font-size:9px;color:var(--muted2);margin-bottom:2px">${c.categoria}</div>
-        <input type="text" placeholder="Descrição" value="${c.nome}"
+        <div style="font-size:9px;color:var(--muted2);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">${c.categoria}</div>
+        <input type="text" placeholder="Descrição do custo" value="${c.nome}"
           oninput="_custosDevolucao.find(x=>x.id===${c.id}).nome=this.value"
-          style="width:100%;font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
+          style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
       </div>
-      <input type="number" placeholder="R$ 0,00" value="${c.valor||''}" step="0.01" min="0"
-        oninput="_custosDevolucao.find(x=>x.id===${c.id}).valor=parseFloat(this.value)||0;_recalcularTotalCustos()"
-        style="font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);width:100%">
-      <input type="text" placeholder="Observação (opcional)" value="${c.observacao}"
-        oninput="_custosDevolucao.find(x=>x.id===${c.id}).observacao=this.value"
-        style="width:100%;font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
-      <button onclick="_removeCusto(${c.id})" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--red,#dc2626);padding:0 4px">×</button>
+      <div>
+        <div style="font-size:9px;color:var(--muted2);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Valor (R$)</div>
+        <input type="number" placeholder="0,00" value="${c.valor||''}" step="0.01" min="0"
+          oninput="_custosDevolucao.find(x=>x.id===${c.id}).valor=parseFloat(this.value)||0;_recalcularTotalCustos()"
+          style="font-size:12px;padding:5px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);width:100%">
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--muted2);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Observação</div>
+        <input type="text" placeholder="Opcional" value="${c.observacao}"
+          oninput="_custosDevolucao.find(x=>x.id===${c.id}).observacao=this.value"
+          style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
+      </div>
+      <button onclick="_removeCusto(${c.id})" title="Remover" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--red,#dc2626);padding:0;line-height:1;align-self:center">×</button>
     </div>`).join('');
 
   _recalcularTotalCustos();
