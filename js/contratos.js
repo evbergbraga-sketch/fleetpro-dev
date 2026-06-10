@@ -744,6 +744,7 @@ async function registrarContrato(retornarId=false){
     }
   }catch(e){
     notify('Erro: '+e.message,'error');
+    if(retornarId) return null;
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
   }
