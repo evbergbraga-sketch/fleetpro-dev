@@ -196,6 +196,10 @@ async function abrirModalLocacao(locId){
 function showLocTab(tab){
   document.getElementById('painel-saida').style.display  = tab==='saida'  ? '' : 'none';
   document.getElementById('painel-entrada').style.display = tab==='entrada' ? '' : 'none';
+  // Mostrar bloco de custos somente na aba entrada
+  const bCustos = document.getElementById('bloco-custos-devolucao');
+  if(bCustos){ bCustos.style.display = tab==='entrada' ? '' : 'none'; }
+  if(tab==='entrada'){ _custosDevolucao=[]; _renderCustosDevolucao(); }
   document.querySelectorAll('.loc-tab').forEach(t=>{
     const isSaida = t.id==='tab-saida';
     const active = (tab==='saida')===isSaida;
@@ -329,18 +333,26 @@ function _renderFormChecklist(tipo, locId, loc){
       <textarea id="chk-obs-${tipo}" rows="2" style="width:100%;resize:vertical" placeholder="Descreva avarias, itens faltantes..."></textarea>
     </div>
 
-
-    \${tipo==='entrada' ? \`
-    <!-- BLOCO CUSTOS — só no checklist de entrada -->
-    <div style="margin-bottom:16px">
+    <div id="bloco-custos-devolucao" style="margin-bottom:16px;display:none">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💸 Custos da Devolução</div>
       <div style="background:var(--bg2);border-radius:10px;padding:12px">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
-          \${['Tag / Pedágio','Reparo','Lavagem','Multa'].map(cat=>\`
-          <button type="button" onclick="_addCustoDevolucao('\${cat}')"
+          <button type="button" onclick="_addCustoDevolucao('Tag / Pedágio')"
             style="padding:7px 4px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:11px;font-weight:600;color:var(--text)">
-            \${cat==='Tag / Pedágio'?'🛣️':cat==='Reparo'?'🔧':cat==='Lavagem'?'🫧':'⚠️'} \${cat}
-          </button>\`).join('')}
+            🛣️ Tag / Pedágio
+          </button>
+          <button type="button" onclick="_addCustoDevolucao('Reparo')"
+            style="padding:7px 4px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:11px;font-weight:600;color:var(--text)">
+            🔧 Reparo
+          </button>
+          <button type="button" onclick="_addCustoDevolucao('Lavagem')"
+            style="padding:7px 4px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:11px;font-weight:600;color:var(--text)">
+            🫧 Lavagem
+          </button>
+          <button type="button" onclick="_addCustoDevolucao('Multa')"
+            style="padding:7px 4px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:11px;font-weight:600;color:var(--text)">
+            ⚠️ Multa
+          </button>
         </div>
         <div id="custos-lista-entrada" style="margin-bottom:6px"></div>
         <div id="custos-total-entrada" style="text-align:right;font-size:12px;font-weight:700;color:var(--accent);padding-top:6px;border-top:1px solid var(--border2);display:none">
@@ -348,7 +360,6 @@ function _renderFormChecklist(tipo, locId, loc){
         </div>
       </div>
     </div>
-    \` : ''}
 
     <button class="btn btn-primary" style="width:100%" onclick="salvarChecklist('${tipo}','${locId}')">
       💾 Salvar vistoria de ${label}
