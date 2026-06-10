@@ -77,8 +77,7 @@ async function _carregarItensChecklistInline(){
   const wrap = document.getElementById('ctchk-itens');
   if(!wrap) return;
   if(!sb){ wrap.innerHTML='<div style="color:var(--muted2);font-size:13px">Banco não conectado.</div>'; return; }
-
-  // Tenta filtrar por tipo_veiculo; faz fallback para todos os itens se a coluna não existir
+  // Filtra por tipo_veiculo; fallback para todos se coluna não existir
   const tipo = _tipoContrato || 'moto';
   let itens = [];
   try {
@@ -88,19 +87,15 @@ async function _carregarItensChecklistInline(){
       .order('ordem');
     if(error) throw error;
     itens = data || [];
-    // Fallback: se não retornou nada, tenta sem filtro (coluna pode não existir ainda)
     if(!itens.length){
-      const {data: data2} = await sb.from('checklist_itens')
-        .select('*').eq('ativo', true).order('ordem');
-      itens = (data2 || []).filter(it => !it.tipo_veiculo || it.tipo_veiculo === tipo || it.tipo_veiculo === 'ambos');
-      // Se ainda vazio, usa tudo (banco ainda sem coluna)
+      const {data: data2} = await sb.from('checklist_itens').select('*').eq('ativo', true).order('ordem');
+      itens = (data2||[]).filter(it => !it.tipo_veiculo || it.tipo_veiculo === tipo || it.tipo_veiculo === 'ambos');
       if(!itens.length) itens = data2 || [];
     }
   } catch(_) {
     const {data} = await sb.from('checklist_itens').select('*').eq('ativo',true).order('ordem');
     itens = data || [];
   }
-
   if(!itens.length){
     wrap.innerHTML='<div style="color:var(--muted2);font-size:13px;text-align:center;padding:10px">Nenhum item configurado em Configurações.</div>';
     return;
@@ -1792,6 +1787,14 @@ function _onChangePgto(){
   const pgto = document.getElementById('c-pgto')?.value||'';
   const isCard = pgto.toLowerCase().includes('cartão')||pgto.toLowerCase().includes('cartao');
   const wrap = document.getElementById('c-campos-cartao');
+  if(wrap) wrap.style.display = isCard ? '' : 'none';
+  previewContrato();
+}
+
+function _onChangePgtoCaucao(){
+  const pgto = document.getElementById('c-pgto-caucao')?.value||'';
+  const isCard = pgto.toLowerCase().includes('cartão')||pgto.toLowerCase().includes('cartao');
+  const wrap = document.getElementById('c-campos-cartao-caucao');
   if(wrap) wrap.style.display = isCard ? '' : 'none';
   previewContrato();
 }
