@@ -274,6 +274,7 @@ function _coletarCamposCliente(prefix){
     data_nascimento:  g('nascimento')||null,
     status_analise:   g('status-analise')||'em_analise',
     origem:           g('origem')||null,
+    redes_sociais:    _coletarRedesSociais('mc')||null,
     // CNH expandida
     cnh:              g('cnh')||null,
     cnh_registro:     g('cnh-registro')||null,
@@ -297,6 +298,7 @@ function _coletarCamposCliente(prefix){
     // Múltiplos contatos (JSON)
     telefones: (_cliTelefones[prefix]||[]).length ? JSON.stringify(_cliTelefones[prefix]) : null,
     emails:    (_cliEmails[prefix]||[]).length    ? JSON.stringify(_cliEmails[prefix])    : null,
+    redes_sociais: (_coletarRedesSociais && _coletarRedesSociais(prefix))||null,
     // Compatibilidade: primeiro telefone/email nos campos legados
     telefone:  (_cliTelefones[prefix]||[])[0]?.numero || null,
     email:     (_cliEmails[prefix]||[])[0]?.email     || null,
@@ -308,6 +310,7 @@ function _preencherCamposCliente(prefix, c){
   s('nascimento',    c.data_nascimento);
   s('status-analise',c.status_analise||'em_analise');
   s('origem',        c.origem);
+  _renderRedesSociais('ec', c.redes_sociais||[]);
   s('cnh',           c.cnh);
   s('cnh-registro',  c.cnh_registro);
   s('cnh-seguranca', c.cnh_seguranca);
@@ -524,6 +527,7 @@ async function _renderPerfilCliente(c){
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">CPF</div><div style="font-size:13px;font-weight:500">${c.cpf||'—'}</div></div>
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Nascimento</div><div style="font-size:13px">${c.data_nascimento?fmtData(c.data_nascimento):'—'}</div></div>
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Origem</div><div style="font-size:13px">${c.origem||'—'}</div></div>
+      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px;grid-column:1/-1"><div style="font-size:10px;color:var(--muted2);margin-bottom:6px">🌐 Redes Sociais</div><div style="display:flex;gap:8px;flex-wrap:wrap">${(()=>{const rs=c.redes_sociais||[];if(!rs.length)return'<span style="font-size:13px;color:var(--muted)">—</span>';const icons={'Instagram':'📸','Facebook':'👥','Twitter':'🐦','TikTok':'🎵','YouTube':'▶️','LinkedIn':'💼','WhatsApp':'💬','Outro':'🔗'};return rs.map(r=>`<a href="${r.url||'#'}" target="_blank" style="display:flex;align-items:center;gap:5px;background:var(--bg3,var(--bg));padding:4px 10px;border-radius:20px;font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--border)">${icons[r.rede]||'🔗'} ${r.rede} ${r.usuario?'<span style=\'color:var(--muted)\'>'+r.usuario+'</span>':''}</a>`).join('')})()}</div></div>
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Status análise</div><div>${_statusBadge(c.status_analise||'em_analise')}</div></div>
     </div>
 
@@ -761,4 +765,54 @@ function maskCEP(el){
   let v = el.value.replace(/\D/g,'').slice(0,8);
   if(v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
   el.value = v;
+}
+
+// ══ REDES SOCIAIS ══
+const REDES_OPTIONS = ['Instagram','Facebook','Twitter/X','TikTok','YouTube','LinkedIn','WhatsApp','Outro'];
+
+function _renderRedesSociais(prefix, lista){
+  const wrap = document.getElementById(prefix+'-redes-lista');
+  if(!wrap) return;
+  lista = lista||[];
+  if(!lista.length){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = lista.map((r,i)=>
+    `<div id="${prefix}-rede-${i}" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <select style="flex:0 0 120px;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:8px;padding:7px 8px;font-size:12px;color:var(--text)">
+        ${REDES_OPTIONS.map(op=>`<option${op===r.rede?' selected':''}>${op}</option>`).join('')}
+      </select>
+      <input type="text" placeholder="@usuario ou URL" value="${r.usuario||r.url||''}"
+        style="flex:1;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text)">
+      <button onclick="this.closest('[id]').remove()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--red,#dc2626)">×</button>
+    </div>`
+  ).join('');
+}
+
+function _addRedeSocial(prefix){
+  const wrap = document.getElementById(prefix+'-redes-lista');
+  if(!wrap) return;
+  const idx = wrap.children.length;
+  const div = document.createElement('div');
+  div.id = `${prefix}-rede-${idx}`;
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
+  div.innerHTML = `
+    <select style="flex:0 0 120px;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:8px;padding:7px 8px;font-size:12px;color:var(--text)">
+      ${REDES_OPTIONS.map(op=>`<option>${op}</option>`).join('')}
+    </select>
+    <input type="text" placeholder="@usuario ou URL"
+      style="flex:1;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text)">
+    <button onclick="this.closest('div').remove()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--red,#dc2626)">×</button>`;
+  wrap.appendChild(div);
+  div.querySelector('input').focus();
+}
+
+function _coletarRedesSociais(prefix){
+  const wrap = document.getElementById(prefix+'-redes-lista');
+  if(!wrap) return null;
+  const rows = [...wrap.querySelectorAll('div[id]')];
+  const lista = rows.map(row=>{
+    const rede    = row.querySelector('select')?.value||'';
+    const usuario = row.querySelector('input')?.value?.trim()||'';
+    return rede && usuario ? {rede, usuario} : null;
+  }).filter(Boolean);
+  return lista.length ? lista : null;
 }
