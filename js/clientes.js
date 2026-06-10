@@ -527,6 +527,16 @@ async function _renderPerfilCliente(c){
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">CPF</div><div style="font-size:13px;font-weight:500">${c.cpf||'—'}</div></div>
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Nascimento</div><div style="font-size:13px">${c.data_nascimento?fmtData(c.data_nascimento):'—'}</div></div>
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Origem</div><div style="font-size:13px">${c.origem||'—'}</div></div>
+      ${c.cartao_dados ? `
+      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px;grid-column:1/-1">
+        <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">💳 Cartão Registrado</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:600">${c.cartao_dados.bandeira||'—'}</span>
+          <span style="font-size:13px;letter-spacing:2px">•••• •••• •••• ${c.cartao_dados.ultimos4||'????'}</span>
+          <span style="font-size:12px;color:var(--muted2)">Val: ${c.cartao_dados.validade||'—'}</span>
+          <span style="font-size:12px;color:var(--muted2)">Titular: ${c.cartao_dados.titular||'—'}</span>
+        </div>
+      </div>` : ''}
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px;grid-column:1/-1"><div style="font-size:10px;color:var(--muted2);margin-bottom:6px">🌐 Redes Sociais</div><div style="display:flex;gap:8px;flex-wrap:wrap">${(()=>{const rs=c.redes_sociais||[];if(!rs.length)return'<span style="font-size:13px;color:var(--muted)">—</span>';const icons={'Instagram':'📸','Facebook':'👥','Twitter':'🐦','TikTok':'🎵','YouTube':'▶️','LinkedIn':'💼','WhatsApp':'💬','Outro':'🔗'};return rs.map(r=>`<a href="${r.url||'#'}" target="_blank" style="display:flex;align-items:center;gap:5px;background:var(--bg3,var(--bg));padding:4px 10px;border-radius:20px;font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--border)">${icons[r.rede]||'🔗'} ${r.rede} ${r.usuario?'<span style=\'color:var(--muted)\'>'+r.usuario+'</span>':''}</a>`).join('')})()}</div></div>
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Status análise</div><div>${_statusBadge(c.status_analise||'em_analise')}</div></div>
     </div>

@@ -484,9 +484,12 @@ function previewContrato(){
   const caucao= parseFloat(document.getElementById('c-caucao')?.value)||0;
   const pgto       = document.getElementById('c-pgto')?.value||'PIX';
   const pgtoCaucao = document.getElementById('c-pgto-caucao')?.value||pgto;
-  const parcelas   = parseInt(document.getElementById('c-cartao-parcelas')?.value)||1;
-  const cartao4dig = document.getElementById('c-cartao-numero')?.value?.trim()||'';
-  const cartaoBand = document.getElementById('c-cartao-bandeira')?.value||'';
+  const parcelas      = parseInt(document.getElementById('c-cartao-parcelas')?.value)||1;
+  const cartao4dig    = document.getElementById('c-cartao-numero')?.value?.trim()||'';
+  const cartaoVal     = document.getElementById('c-cartao-validade')?.value?.trim()||'';
+  const cartaoBand    = document.getElementById('c-cartao-bandeira')?.value||'';
+  const cartaoTitular = document.getElementById('c-cartao-titular')?.value?.trim()||'';
+  const cartaoSalvar  = document.getElementById('c-cartao-salvar')?.checked||false;
   const pgtoLabel  = (pgto.toLowerCase().includes('cartão')||pgto.toLowerCase().includes('cartao'))
     ? `${pgto}${cartaoBand?' ('+cartaoBand+')':''}${cartao4dig?' ****'+cartao4dig:''}${parcelas>1?' '+parcelas+'x':' à vista'}`
     : pgto;
@@ -592,7 +595,7 @@ function previewContrato(){
     if(valorPago>0) avisoEl.innerHTML = `⚠️ Valor já pago na reserva: <strong>R$ ${valorPago.toFixed(2).replace('.',',')}</strong> · Total ajustado: <strong>R$ ${totalLiq.toFixed(2).replace('.',',')}</strong>`;
   }
 
-  return {totalBruto, totalLiq, valorPago, pgtoCaucao, descricao, planoNome, nomeCli, cpfCli, telCli, pgtoLabel, parcelas, cartao4dig, cartaoBand,
+  return {totalBruto, totalLiq, valorPago, pgtoCaucao, descricao, planoNome, nomeCli, cpfCli, telCli, pgtoLabel, parcelas, cartao4dig, cartaoVal, cartaoBand, cartaoTitular, cartaoSalvar,
     emailCli, cnhCli, cnhValCli, cnhCatCli, endCli, nascCli,
     placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
@@ -714,6 +717,19 @@ async function registrarContrato(retornarId=false){
     // Gera PDF normal (sem checklist)
     setTimeout(()=> gerarPdfContrato(numContrato, d), 500);
     await carregarTudo();
+
+    // Salvar cartão no perfil do cliente (se marcado)
+    if(d.cartaoSalvar && d.cartao4dig && cid){
+      const cartaoData = {
+        bandeira:  d.cartaoBand||'',
+        ultimos4:  d.cartao4dig,
+        validade:  d.cartaoVal||'',
+        titular:   d.cartaoTitular||'',
+        atualizado: new Date().toISOString(),
+      };
+      await sb.from('clientes').update({cartao_dados: cartaoData}).eq('id', cid);
+      console.log('[cartão] salvo no perfil do cliente');
+    }
 
     // WhatsApp resumo
     const c = allClientes.find(x=>x.id===cid);

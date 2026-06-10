@@ -500,7 +500,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </div>
               <div class="form-group">
                 <label>Pagamento do contrato</label>
-                <select id="c-pgto" style="width:100%" onchange="previewContrato()">
+                <select id="c-pgto" style="width:100%" onchange="_onChangePgto()">
                   <option value="PIX">PIX</option>
                   <option value="Cartão de Crédito">Cartão de Crédito</option>
                   <option value="Cartão de Débito">Cartão de Débito</option>
@@ -519,6 +519,54 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                   <option value="Transferência">Transferência</option>
                 </select>
               </div>
+            </div>
+
+            <!-- Campos cartão — FORA do form-grid para não ser cortado pelo overflow -->
+            <div id="c-campos-cartao" style="display:none;margin-top:4px">
+              <div class="form-section-title">💳 Dados do Cartão</div>
+              <div class="form-grid" style="gap:10px">
+                <div class="form-group">
+                  <label>Titular do cartão</label>
+                  <input type="text" id="c-cartao-titular" placeholder="Nome como no cartão" style="width:100%" oninput="previewContrato()">
+                </div>
+                <div class="form-group">
+                  <label>Últimos 4 dígitos</label>
+                  <input type="text" id="c-cartao-numero" placeholder="0000" maxlength="4" style="width:100%"
+                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,4);previewContrato()">
+                </div>
+                <div class="form-group">
+                  <label>Validade (MM/AA)</label>
+                  <input type="text" id="c-cartao-validade" placeholder="MM/AA" maxlength="5" style="width:100%"
+                    oninput="this.value=this.value.replace(/[^\d\/]/g,'');if(this.value.length===2&&!this.value.includes('/'))this.value+='/';previewContrato()">
+                </div>
+                <div class="form-group">
+                  <label>Bandeira</label>
+                  <select id="c-cartao-bandeira" style="width:100%" onchange="previewContrato()">
+                    <option value="">— Selecione</option>
+                    <option>Visa</option><option>Mastercard</option><option>Elo</option>
+                    <option>American Express</option><option>Hipercard</option><option>Outra</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Parcelamento</label>
+                  <select id="c-cartao-parcelas" style="width:100%" onchange="previewContrato()">
+                    <option value="1">À vista (1x)</option>
+                    <option value="2">2x</option><option value="3">3x</option>
+                    <option value="4">4x</option><option value="5">5x</option>
+                    <option value="6">6x</option><option value="7">7x</option>
+                    <option value="8">8x</option><option value="9">9x</option>
+                    <option value="10">10x</option><option value="11">11x</option>
+                    <option value="12">12x</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label style="display:flex;align-items:center;gap:6px">
+                    <input type="checkbox" id="c-cartao-salvar" style="width:16px;height:16px">
+                    Salvar cartão no perfil do cliente
+                  </label>
+                </div>
+              </div>
+              <div style="font-size:11px;color:var(--muted2);margin-top:4px">⚠️ Apenas últimos 4 dígitos e validade são armazenados. CVV nunca é salvo.</div>
             </div>
 
             <div id="campos-moto">
