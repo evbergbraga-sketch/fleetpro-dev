@@ -1062,7 +1062,7 @@ try{
   safeY(15);
   rect(M, y, CW, 4, '#006400', '#006400');
   doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
-  doc.text('TERMOS E CONDIÇÕES', M+cellPad, y+4.2);
+  doc.text('TERMOS E CONDIÇÕES', M+cellPad, y+3);
   y += 8;
 
   // Texto completo das cláusulas (fiel à minuta)
