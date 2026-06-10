@@ -71,7 +71,12 @@ async function _carregarItensChecklistInline(){
   const wrap = document.getElementById('ctchk-itens');
   if(!wrap) return;
   if(!sb){ wrap.innerHTML='<div style="color:var(--muted2);font-size:13px">Banco não conectado.</div>'; return; }
-  const {data} = await sb.from('checklist_itens').select('*').eq('ativo',true).order('ordem');
+  const tipoV = _tipoContrato||'moto';
+  const {data} = await sb.from('checklist_itens')
+    .select('*')
+    .eq('ativo',true)
+    .in('tipo_veiculo',[tipoV,'ambos'])
+    .order('ordem');
   const itens = data||[];
   if(!itens.length){
     wrap.innerHTML='<div style="color:var(--muted2);font-size:13px;text-align:center;padding:10px">Nenhum item configurado em Configurações.</div>';
@@ -86,8 +91,9 @@ async function _carregarItensChecklistInline(){
         <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
           <div style="font-size:12px">${it.descricao}</div>
           <select id="ctchk-item-${it.id}" style="font-size:11px;padding:3px 6px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
-            <option value="ok">✓ Sem avaria</option>
+            <option value="ok">✓ Ok / Sem avaria</option>
             <option value="avaria">✕ Com avaria</option>
+            <option value="nao_houve">— Não Houve</option>
           </select>
           <input type="text" id="ctchk-obs-${it.id}" placeholder="obs..." style="font-size:11px;width:90px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;color:var(--text)">
         </div>`).join('')}
@@ -1415,21 +1421,28 @@ async function gerarPdfContrato(numContrato, d, checklist=null){
         for(let i=0; i<its.length; i+=2){
           const it1=its[i], it2=its[i+1]||null;
           const av1=it1.status==='avaria', av2=it2?it2.status==='avaria':false;
+          const nh1=it1.status==='nao_houve', nh2=it2?it2.status==='nao_houve':false;
           const rh=(it1.obs||it2?.obs)?13:10;
           safeYC(rh+1);
-          rect(M,      y,COL2,rh,av1?'#fff5f5':'#ffffff',av1?'#ffcccc':'#e0e0e0');
+          const bg1=av1?'#fff5f5':nh1?'#f5f5f5':'#ffffff', bd1=av1?'#ffcccc':nh1?'#cccccc':'#e0e0e0';
+          const cl1=av1?'#cc0000':nh1?'#888888':'#006400';
+          const lb1=av1?'✕ COM AVARIA':nh1?'— NÃO HOUVE':'✓ OK / SEM AVARIA';
+          rect(M,y,COL2,rh,bg1,bd1);
           doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#1a1a1a');
           doc.text(it1.descricao.slice(0,30),M+2,y+4);
-          doc.setFont('helvetica','bold'); doc.setTextColor(av1?'#cc0000':'#006400'); doc.setFontSize(6);
-          doc.text(av1?'✕ COM AVARIA':'✓ SEM AVARIA',M+2,y+8.5);
-          if(it1.obs){ doc.setFont('helvetica','italic'); doc.setTextColor('#666'); doc.setFontSize(5.5); doc.text('Obs: '+it1.obs.slice(0,28),M+32,y+8.5); }
+          doc.setFont('helvetica','bold'); doc.setTextColor(cl1); doc.setFontSize(6);
+          doc.text(lb1,M+2,y+8.5);
+          if(it1.obs){ doc.setFont('helvetica','italic'); doc.setTextColor('#666'); doc.setFontSize(5.5); doc.text('Obs: '+it1.obs.slice(0,28),M+36,y+8.5); }
           if(it2){
-            rect(M+COL2,y,COL2,rh,av2?'#fff5f5':'#ffffff',av2?'#ffcccc':'#e0e0e0');
+            const bg2=av2?'#fff5f5':nh2?'#f5f5f5':'#ffffff', bd2=av2?'#ffcccc':nh2?'#cccccc':'#e0e0e0';
+            const cl2=av2?'#cc0000':nh2?'#888888':'#006400';
+            const lb2=av2?'✕ COM AVARIA':nh2?'— NÃO HOUVE':'✓ OK / SEM AVARIA';
+            rect(M+COL2,y,COL2,rh,bg2,bd2);
             doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#1a1a1a');
             doc.text(it2.descricao.slice(0,30),M+COL2+2,y+4);
-            doc.setFont('helvetica','bold'); doc.setTextColor(av2?'#cc0000':'#006400'); doc.setFontSize(6);
-            doc.text(av2?'✕ COM AVARIA':'✓ SEM AVARIA',M+COL2+2,y+8.5);
-            if(it2.obs){ doc.setFont('helvetica','italic'); doc.setTextColor('#666'); doc.setFontSize(5.5); doc.text('Obs: '+it2.obs.slice(0,28),M+COL2+32,y+8.5); }
+            doc.setFont('helvetica','bold'); doc.setTextColor(cl2); doc.setFontSize(6);
+            doc.text(lb2,M+COL2+2,y+8.5);
+            if(it2.obs){ doc.setFont('helvetica','italic'); doc.setTextColor('#666'); doc.setFontSize(5.5); doc.text('Obs: '+it2.obs.slice(0,28),M+COL2+36,y+8.5); }
           } else { rect(M+COL2,y,COL2,rh,'#fafafa','#e0e0e0'); }
           y += rh+1;
         }

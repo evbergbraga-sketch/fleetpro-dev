@@ -230,11 +230,13 @@ function _renderChecklistExistente(check){
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">Itens vistoriados</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
       ${itens.map(it=>{
-        const avaria = it.status==='avaria';
-        const cor    = avaria?'#dc2626':'#16a34a';
-        const badge  = avaria
+        const avaria  = it.status==='avaria';
+        const naoHouve= it.status==='nao_houve';
+        const badge   = avaria
           ? '<span style="font-size:10px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:2px 6px;border-radius:4px;white-space:nowrap">✕ Com avaria</span>'
-          : '<span style="font-size:10px;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:2px 6px;border-radius:4px;white-space:nowrap">✓ Sem avaria</span>';
+          : naoHouve
+          ? '<span style="font-size:10px;font-weight:700;color:#888;background:rgba(128,128,128,.1);padding:2px 6px;border-radius:4px;white-space:nowrap">— Não Houve</span>'
+          : '<span style="font-size:10px;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:2px 6px;border-radius:4px;white-space:nowrap">✓ Ok / Sem avaria</span>';
         return `<div style="background:var(--bg3,var(--bg2));border:1px solid ${avaria?'rgba(220,38,38,.2)':'var(--border)'};border-radius:6px;padding:6px 8px">
           <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px">${it.descricao}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
