@@ -834,7 +834,7 @@ try{
     reader.onloadend = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
-  doc.addImage(base64, 'PNG', M, y, 35, 19);
+  doc.addImage(base64, 'PNG', M, y, 35, 23);
 }catch(_){}
 
   // Dados da empresa (topo direito do logo)
@@ -1018,9 +1018,9 @@ try{
   doc.text('FORMA DE PAGAMENTO', M+cellPad, y+5);
   doc.setFont('helvetica','bold'); doc.setTextColor('#111');
   doc.setFontSize(8);
-  doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: R$ ${(d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+10);
+  doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: R$ ${(d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+9);
   doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-  doc.text(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`, M+cellPad, y+14);
+  doc.text(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`, M+cellPad, y+12);
   y += 17;
 
   // ══════════════════════════════════════
