@@ -540,6 +540,20 @@ function previewContrato(){
   }
   totalBruto += totalServicos;
 
+  // Taxa administrativa
+  const taxaAdminIsenta = document.getElementById('c-taxa-admin-isenta')?.checked || false;
+  const taxaAdminPct    = taxaAdminIsenta ? 0 : (parseFloat(document.getElementById('c-taxa-admin')?.value)||0);
+  const taxaAdminVal    = taxaAdminIsenta ? 0 : (totalBruto * taxaAdminPct / 100);
+  totalBruto += taxaAdminVal;
+
+  // Display do campo taxa no formulário
+  const taxaDisplayForm = document.getElementById('c-taxa-admin-display');
+  if(taxaDisplayForm){
+    if(taxaAdminIsenta) taxaDisplayForm.textContent = '✓ Taxa isentada';
+    else if(taxaAdminPct > 0) taxaDisplayForm.textContent = `+ R$ ${taxaAdminVal.toLocaleString('pt-BR',{minimumFractionDigits:2})} (${taxaAdminPct}%)`;
+    else taxaDisplayForm.textContent = '';
+  }
+
   const valorPago = window._reservaValorPago||0;
   const totalLiq  = Math.max(0, totalBruto - valorPago);
 
@@ -580,6 +594,15 @@ function previewContrato(){
   _set('ct-periodo', diasLabel);
   _set('ct-dia-val', `R$ ${dia.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-servicos-total', totalServicos>0 ? `+ R$ ${totalServicos.toLocaleString('pt-BR',{minimumFractionDigits:2})} (serviços)` : '');
+
+  // Taxa administrativa no preview
+  const ctTaxaEl = document.getElementById('ct-taxa-admin-display');
+  if(ctTaxaEl){
+    if(taxaAdminIsenta) ctTaxaEl.textContent = '✓ Taxa administrativa isentada';
+    else if(taxaAdminPct > 0) ctTaxaEl.textContent = `+ R$ ${taxaAdminVal.toLocaleString('pt-BR',{minimumFractionDigits:2})} — Taxa administrativa (${taxaAdminPct}%)`;
+    else ctTaxaEl.textContent = '';
+  }
+
   _set('ct-total-bruto', `R$ ${totalBruto.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-total', `R$ ${totalLiq.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-km', km);
@@ -600,7 +623,8 @@ function previewContrato(){
     placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
     pgto, caucao, numCtrato, periodoVal, ini, fim, localRet,
-    totalServicos, servicos: _servicosLista, days};
+    totalServicos, servicos: _servicosLista, days,
+    taxaAdminPct, taxaAdminVal, taxaAdminIsenta};
 }
 
 function _fmtDatetime(str){
@@ -744,7 +768,6 @@ async function registrarContrato(retornarId=false){
     }
   }catch(e){
     notify('Erro: '+e.message,'error');
-    if(retornarId) return null;
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
   }
@@ -1014,7 +1037,9 @@ try{
   // FORMA DE PAGAMENTO
   // ══════════════════════════════════════
   safeY(16);
-  rect(M, y, CW, 14, '#f0f8f0', '#a8d8a8');
+  const temTaxa = !d.taxaAdminIsenta && d.taxaAdminPct > 0;
+  const pgtoBoxH = temTaxa ? 18 : 14;
+  rect(M, y, CW, pgtoBoxH, '#f0f8f0', '#a8d8a8');
   doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
   doc.text('FORMA DE PAGAMENTO', M+cellPad, y+5);
   doc.setFont('helvetica','bold'); doc.setTextColor('#111');
@@ -1022,7 +1047,14 @@ try{
   doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: R$ ${(d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+9);
   doc.setFontSize(7.5); doc.setFont('helvetica','normal');
   doc.text(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`, M+cellPad, y+12);
-  y += 17;
+  if(temTaxa){
+    doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor('#b45309');
+    doc.text(`Taxa Administrativa: ${d.taxaAdminPct}%  —  R$ ${(d.taxaAdminVal||0).toFixed(2).replace('.',',')} (inclusa no valor total)`, M+cellPad, y+16);
+  } else if(d.taxaAdminIsenta){
+    doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor('#16a34a');
+    doc.text('Taxa Administrativa: Isentada', M+cellPad, y+16);
+  }
+  y += pgtoBoxH + 3;
 
   // ══════════════════════════════════════
   // OBSERVAÇÕES IMPORTANTES (da minuta)
