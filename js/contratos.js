@@ -834,7 +834,7 @@ try{
     reader.onloadend = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
-  doc.addImage(base64, 'PNG', M, y, 35, 23);
+  doc.addImage(base64, 'PNG', M, y, 35, 20);
 }catch(_){}
 
   // Dados da empresa (topo direito do logo)
@@ -842,7 +842,7 @@ try{
   doc.text('ROYAL RENT A CAR LTDA', M+42, y+7);
   doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
   doc.text('CNPJ: 18.686.521/0002-90', M+42, y+12);
-  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+42, y+17);
+  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+42, y+15);
 
   // Número e status do contrato (topo direito)
   const planoTitulo = d.planoNome?.includes('Conquista') ? 'CONTRATO CONQUISTA#' : 'CONTRATO MASTER#';
@@ -1060,7 +1060,7 @@ try{
   // TERMOS E CONDIÇÕES
   // ══════════════════════════════════════
   safeY(15);
-  rect(M, y, CW, 6, '#006400', '#006400');
+  rect(M, y, CW, 4, '#006400', '#006400');
   doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
   doc.text('TERMOS E CONDIÇÕES', M+cellPad, y+4.2);
   y += 8;
@@ -1235,8 +1235,8 @@ try{
   // ══════════════════════════════════════
   // ASSINATURAS
   // ══════════════════════════════════════
-  safeY(40);
-  y += 6;
+  safeY(70);
+  y += 20;
   const colW3A = CW/3;
   doc.setDrawColor('#555'); doc.setLineWidth(0.4);
 
