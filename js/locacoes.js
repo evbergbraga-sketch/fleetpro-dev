@@ -40,7 +40,7 @@ function renderLocacoes(){
       <td>
         <div style="display:flex;gap:6px">
           <button class="btn btn-primary" style="font-size:11px;padding:5px 12px" onclick="abrirModalLocacao('${l.id}')">📋 Detalhes</button>
-          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="confirmarDevolucao('${l.id}','${l.veiculo_id}','${(l.veiculos?.marca||'')+' '+(l.veiculos?.modelo||'')}')">✅ Devolver</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="abrirModalLocacaoEntrada('${l.id}')">✅ Devolver</button>
         </div>
       </td>
     </tr>`;
@@ -329,6 +329,27 @@ function _renderFormChecklist(tipo, locId, loc){
       <textarea id="chk-obs-${tipo}" rows="2" style="width:100%;resize:vertical" placeholder="Descreva avarias, itens faltantes..."></textarea>
     </div>
 
+
+    \${tipo==='entrada' ? \`
+    <!-- BLOCO CUSTOS — só no checklist de entrada -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💸 Custos da Devolução</div>
+      <div style="background:var(--bg2);border-radius:10px;padding:12px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+          \${['Tag / Pedágio','Reparo','Lavagem','Multa'].map(cat=>\`
+          <button type="button" onclick="_addCustoDevolucao('\${cat}')"
+            style="padding:7px 4px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:11px;font-weight:600;color:var(--text)">
+            \${cat==='Tag / Pedágio'?'🛣️':cat==='Reparo'?'🔧':cat==='Lavagem'?'🫧':'⚠️'} \${cat}
+          </button>\`).join('')}
+        </div>
+        <div id="custos-lista-entrada" style="margin-bottom:6px"></div>
+        <div id="custos-total-entrada" style="text-align:right;font-size:12px;font-weight:700;color:var(--accent);padding-top:6px;border-top:1px solid var(--border2);display:none">
+          Total: R$ <span id="custos-total-val">0,00</span>
+        </div>
+      </div>
+    </div>
+    \` : ''}
+
     <button class="btn btn-primary" style="width:100%" onclick="salvarChecklist('${tipo}','${locId}')">
       💾 Salvar vistoria de ${label}
     </button>
@@ -505,6 +526,28 @@ async function salvarChecklist(tipo, locId){
     if(error) throw error;
 
     notify(`Vistoria de ${tipo==='saida'?'saída':'entrada'} salva!`,'success');
+
+    // Se for entrada, registrar custos no financeiro
+    if(tipo==='entrada' && _custosDevolucao.length){
+      const loc = (await sb.from('locacoes').select('*, veiculos(*), clientes(*)').eq('id', locId).single()).data;
+      for(const custo of _custosDevolucao){
+        if(!custo.valor || custo.valor<=0) continue;
+        await sb.from('lancamentos').insert({
+          tipo:        'despesa',
+          categoria:   custo.categoria,
+          descricao:   `${custo.nome||custo.categoria} — ${loc?.clientes?.nome||''} — ${loc?.veiculos?.placa||''} [Devolução Contrato #${loc?.num_contrato||locId.slice(0,8)}]${custo.observacao?' — '+custo.observacao:''}`,
+          valor:        custo.valor,
+          data:         new Date().toISOString().slice(0,10),
+          veiculo_id:   loc?.veiculo_id||null,
+          locacao_id:   locId,
+          origem:       'checklist_entrada',
+          criado_por:   currentUser?.id,
+        });
+      }
+      _custosDevolucao = []; // limpa após salvar
+      notify(`${_custosDevolucao.length} custo(s) registrados no financeiro!`,'success');
+    }
+
     // Reabre o modal atualizado
     closeModal('locacao-detalhe');
     setTimeout(()=>abrirModalLocacao(locId), 200);
@@ -512,4 +555,72 @@ async function salvarChecklist(tipo, locId){
     notify('Erro: '+e.message,'error');
     if(btn){ btn.disabled=false; btn.textContent=`💾 Salvar vistoria de ${tipo==='saida'?'Saída':'Entrada'}`; }
   }
+}
+
+// ══ ABRIR MODAL DIRETO NA ABA ENTRADA (botão Devolver da tabela) ══
+async function abrirModalLocacaoEntrada(locId){
+  await abrirModalLocacao(locId);
+  // Aguarda o modal renderizar e muda para aba Entrada
+  setTimeout(()=>{
+    const tabEntrada = document.getElementById('tab-entrada');
+    if(tabEntrada) tabEntrada.click();
+    // Scroll até o painel de entrada
+    const painel = document.getElementById('painel-entrada');
+    if(painel) painel.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 350);
+}
+
+// ══ CUSTOS DA DEVOLUÇÃO ══
+let _custosDevolucao = [];
+
+function _addCustoDevolucao(categoria){
+  const id = Date.now();
+  _custosDevolucao.push({id, categoria, nome:'', valor:0, observacao:''});
+  _renderCustosDevolucao();
+}
+
+function _removeCusto(id){
+  _custosDevolucao = _custosDevolucao.filter(c=>c.id!==id);
+  _renderCustosDevolucao();
+}
+
+function _renderCustosDevolucao(){
+  const wrap = document.getElementById('custos-lista-entrada');
+  const totalWrap = document.getElementById('custos-total-entrada');
+  if(!wrap) return;
+
+  if(!_custosDevolucao.length){
+    wrap.innerHTML = '<div style="text-align:center;padding:10px;color:var(--muted2);font-size:12px">Nenhum custo adicionado</div>';
+    if(totalWrap) totalWrap.style.display='none';
+    return;
+  }
+
+  wrap.innerHTML = _custosDevolucao.map(c=>`
+    <div id="custo-row-${c.id}" style="display:grid;grid-template-columns:auto 1fr 120px 1fr auto;gap:6px;align-items:center;margin-bottom:8px;padding:8px;background:var(--bg3,var(--bg));border-radius:8px;border:1px solid var(--border)">
+      <span style="font-size:16px">${c.categoria==='Tag / Pedágio'?'🛣️':c.categoria==='Reparo'?'🔧':c.categoria==='Lavagem'?'🫧':'⚠️'}</span>
+      <div>
+        <div style="font-size:9px;color:var(--muted2);margin-bottom:2px">${c.categoria}</div>
+        <input type="text" placeholder="Descrição" value="${c.nome}"
+          oninput="_custosDevolucao.find(x=>x.id===${c.id}).nome=this.value"
+          style="width:100%;font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
+      </div>
+      <input type="number" placeholder="R$ 0,00" value="${c.valor||''}" step="0.01" min="0"
+        oninput="_custosDevolucao.find(x=>x.id===${c.id}).valor=parseFloat(this.value)||0;_recalcularTotalCustos()"
+        style="font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);width:100%">
+      <input type="text" placeholder="Observação (opcional)" value="${c.observacao}"
+        oninput="_custosDevolucao.find(x=>x.id===${c.id}).observacao=this.value"
+        style="width:100%;font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
+      <button onclick="_removeCusto(${c.id})" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--red,#dc2626);padding:0 4px">×</button>
+    </div>`).join('');
+
+  _recalcularTotalCustos();
+  if(totalWrap) totalWrap.style.display = _custosDevolucao.length ? '' : 'none';
+}
+
+function _recalcularTotalCustos(){
+  const total = _custosDevolucao.reduce((a,c)=>a+(c.valor||0), 0);
+  const el = document.getElementById('custos-total-val');
+  const wrap = document.getElementById('custos-total-entrada');
+  if(el) el.textContent = total.toFixed(2).replace('.',',');
+  if(wrap) wrap.style.display = _custosDevolucao.length ? '' : 'none';
 }
