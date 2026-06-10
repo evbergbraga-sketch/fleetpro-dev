@@ -499,18 +499,6 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <input type="number" id="c-caucao" placeholder="600,00" step="0.01" style="width:100%" oninput="previewContrato()">
               </div>
               <div class="form-group">
-                <label>Taxa Administrativa</label>
-                <div style="display:flex;gap:8px;align-items:center">
-                  <input type="number" id="c-taxa-admin" placeholder="0" min="0" max="100" step="0.1" style="width:80px" oninput="previewContrato()">
-                  <span style="font-size:13px;color:var(--muted)">%</span>
-                  <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;cursor:pointer;margin:0">
-                    <input type="checkbox" id="c-taxa-admin-isenta" onchange="previewContrato()" style="width:14px;height:14px">
-                    Isentar taxa
-                  </label>
-                </div>
-                <div id="c-taxa-admin-display" style="font-size:11px;color:var(--accent);margin-top:3px"></div>
-              </div>
-              <div class="form-group">
                 <label>Pagamento do contrato</label>
                 <select id="c-pgto" style="width:100%" onchange="_onChangePgto()">
                   <option value="PIX">PIX</option>
@@ -658,7 +646,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <!-- CHECKLIST INLINE — aparece ao clicar em "Contrato + Checklist" -->
             <div id="ct-checklist-inline" style="display:none;margin-top:16px;border:2px solid var(--accent);border-radius:12px;padding:16px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-                <div style="font-weight:700;font-size:14px;color:var(--accent)">📋 Checklist de Vistoria — Saída</div>
+                <div style="font-weight:700;font-size:14px;color:var(--accent)" id="ctchk-titulo">📋 Checklist de Vistoria — Saída</div>
                 <button onclick="_toggleChecklistInline()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
@@ -781,7 +769,6 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 </tbody>
               </table>
               <div id="ct-servicos-total" style="font-size:10px;color:#555;text-align:right;margin-bottom:4px"></div>
-              <div id="ct-taxa-admin-display" style="font-size:10px;color:#b45309;text-align:right;margin-bottom:4px"></div>
               <div style="display:flex;gap:8px;font-size:10px;margin-bottom:8px;flex-wrap:wrap">
                 <div style="flex:1;border:1px solid #ddd;border-radius:4px;padding:5px 8px">
                   <span style="color:#555">Pagamento:</span> <strong id="ct-pgto">PIX</strong>
