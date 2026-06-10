@@ -54,6 +54,13 @@ async function _toggleChecklistInline(){
     _ctchkFotos = [];
     const prev = document.getElementById('ctchk-fotos-preview');
     if(prev) prev.innerHTML = '';
+    // Atualiza título conforme tipo de contrato
+    const tituloEl = document.getElementById('ctchk-titulo');
+    if(tituloEl){
+      const emoji = _tipoContrato === 'carro' ? '🚗' : '🏍️';
+      const label = _tipoContrato === 'carro' ? 'Carro' : 'Moto';
+      tituloEl.textContent = `📋 Checklist de Vistoria — Saída (${emoji} ${label})`;
+    }
     // Define hora padrão
     const horaEl = document.getElementById('ctchk-hora');
     if(horaEl && !horaEl.value){
@@ -61,7 +68,7 @@ async function _toggleChecklistInline(){
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       horaEl.value = now.toISOString().slice(0,16);
     }
-    // Carrega itens do checklist (await garante que estão prontos antes de coletar)
+    // Carrega itens filtrados por tipo de contrato
     await _carregarItensChecklistInline();
   }
 }
@@ -70,7 +77,12 @@ async function _carregarItensChecklistInline(){
   const wrap = document.getElementById('ctchk-itens');
   if(!wrap) return;
   if(!sb){ wrap.innerHTML='<div style="color:var(--muted2);font-size:13px">Banco não conectado.</div>'; return; }
-  const {data} = await sb.from('checklist_itens').select('*').eq('ativo',true).order('ordem');
+  const tipoVeic = _tipoContrato || 'moto';
+  const {data} = await sb.from('checklist_itens')
+    .select('*')
+    .eq('ativo', true)
+    .in('tipo_veiculo', [tipoVeic, 'ambos'])
+    .order('ordem');
   const itens = data||[];
   if(!itens.length){
     wrap.innerHTML='<div style="color:var(--muted2);font-size:13px;text-align:center;padding:10px">Nenhum item configurado em Configurações.</div>';
@@ -594,15 +606,12 @@ function previewContrato(){
   _set('ct-periodo', diasLabel);
   _set('ct-dia-val', `R$ ${dia.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-servicos-total', totalServicos>0 ? `+ R$ ${totalServicos.toLocaleString('pt-BR',{minimumFractionDigits:2})} (serviços)` : '');
-
-  // Taxa administrativa no preview
   const ctTaxaEl = document.getElementById('ct-taxa-admin-display');
   if(ctTaxaEl){
     if(taxaAdminIsenta) ctTaxaEl.textContent = '✓ Taxa administrativa isentada';
     else if(taxaAdminPct > 0) ctTaxaEl.textContent = `+ R$ ${taxaAdminVal.toLocaleString('pt-BR',{minimumFractionDigits:2})} — Taxa administrativa (${taxaAdminPct}%)`;
     else ctTaxaEl.textContent = '';
   }
-
   _set('ct-total-bruto', `R$ ${totalBruto.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-total', `R$ ${totalLiq.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-km', km);
@@ -768,6 +777,7 @@ async function registrarContrato(retornarId=false){
     }
   }catch(e){
     notify('Erro: '+e.message,'error');
+    if(retornarId) return null;
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
   }
@@ -869,7 +879,9 @@ try{
   doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+42, y+15);
 
   // Número e status do contrato (topo direito)
-  const planoTitulo = d.planoNome?.includes('Conquista') ? 'CONTRATO CONQUISTA#' : 'CONTRATO MASTER#';
+  const planoTitulo = isMoto
+    ? (d.planoNome?.includes('Conquista') ? 'CONTRATO CONQUISTA#' : 'CONTRATO MASTER#')
+    : 'CONTRATO#';
   doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
   doc.text(`${planoTitulo}${numContrato}`, PW-M, y+5, {align:'right'});
   doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor('#555');
@@ -977,8 +989,10 @@ try{
   // TABELA VEÍCULO (7 colunas)
   // ══════════════════════════════════════
   safeY(20);
-  const vCols = [45,18,26,25,22,18,26];
-  const vHeaders = ['Veículo','Franquia Km','Valor Locação','Valor Km Excedente','Data Entrega','Km Saída','Data Término'];
+  const vCols = isMoto ? [45,18,26,25,22,18,26] : [45,20,26,24,22,18,31];
+  const vHeaders = isMoto
+    ? ['Veículo','Franquia Km','Valor Locação','Valor Km Excedente','Data Entrega','Km Saída','Data Término']
+    : ['Veículo','Km Livre','Valor Diária','Proteção','Data Entrega','Km Saída','Data Término'];
 
   rect(M, y, CW, 6, '#006400', '#006400');
   let cx = M;
@@ -988,20 +1002,22 @@ try{
 
   const franqKm  = document.getElementById('c-franquia-km')?.value||'0';
   const kmExced  = (parseFloat(document.getElementById('c-km-excedente')?.value)||0).toFixed(2).replace('.',',');
+  const kmLivre  = document.getElementById('c-km-livre')?.checked ? 'Sim' : 'Não';
+  const protecao = document.getElementById('c-protecao')?.value||'Básica';
   const planoLabel = d.planoNome ? d.planoNome.split('—')[0].trim() : '';
   const veiLabel = `${d.placa} - ${d.modelo}${planoLabel?' | '+planoLabel:''}`;
 
   rect(M, y, CW, 8, '#f0f8f0', '#ccddcc');
   cx = M;
-  const vRow = [
-    veiLabel,
-    franqKm+' km',
-    `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`,
-    `R$ ${kmExced}/km`,
-    d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
-    String(d.km||0)+' km',
-    d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—',
-  ];
+  const vRow = isMoto
+    ? [veiLabel, franqKm+' km', `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`, `R$ ${kmExced}/km`,
+       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
+       String(d.km||0)+' km',
+       d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—']
+    : [veiLabel, kmLivre, `R$ ${(d.dia||0).toFixed(2).replace('.',',')}`, protecao,
+       d.ini ? d.ini.slice(0,10).split('-').reverse().join('/') : '—',
+       String(d.km||0)+' km',
+       d.fim ? d.fim.slice(0,10).split('-').reverse().join('/') : '—'];
   doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor('#111');
   vRow.forEach((v,i)=>{
     const trunc = doc.splitTextToSize(v, vCols[i]-3);
@@ -1038,7 +1054,7 @@ try{
   // ══════════════════════════════════════
   safeY(16);
   const temTaxa = !d.taxaAdminIsenta && d.taxaAdminPct > 0;
-  const pgtoBoxH = temTaxa ? 18 : 14;
+  const pgtoBoxH = temTaxa || d.taxaAdminIsenta ? 20 : 14;
   rect(M, y, CW, pgtoBoxH, '#f0f8f0', '#a8d8a8');
   doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
   doc.text('FORMA DE PAGAMENTO', M+cellPad, y+5);
@@ -1064,7 +1080,9 @@ try{
   doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
   doc.text('OBSERVAÇÕES IMPORTANTES', M+cellPad, y+4.2);
   y += 6;
-  const obsImp = 'A renovação do contrato se dar de forma semanal (a cada 7 dias).\nNecessário informar a cada 1.000km do veículo, para que seja verificado o cronograma de manutenção preventiva. Entre em contato com a Locadora.';
+  const obsImp = isMoto
+    ? 'A renovação do contrato se dar de forma semanal (a cada 7 dias).\nNecessário informar a cada 1.000km do veículo, para que seja verificado o cronograma de manutenção preventiva. Entre em contato com a Locadora.'
+    : 'O veículo deverá ser devolvido nas mesmas condições de limpeza e nível de combustível em que foi entregue.\nCaso seja necessária lavagem, será cobrada a taxa correspondente. Combustível faltante: R$ 7,00/litro.\nSe o veículo não for devolvido em até 24h após o término do prazo, configura-se apropriação indébita.';
   const obsImpLines = doc.splitTextToSize(obsImp, CW-4);
   const obsImpH = obsImpLines.length * 3.8 + 5;
   rect(M, y, CW, obsImpH, '#fffbea', '#f0c040');
@@ -1233,6 +1251,189 @@ try{
     {num:'17.4', txt:'Se qualquer cláusula for declarada nula, as demais permanecerão válidas e eficazes.'},
     {num:'17.5', txt:'Este contrato substitui quaisquer acordos verbais ou escritos anteriores entre as partes.'},
     {num:'17.6', txt:'O presente instrumento constitui título executivo extrajudicial nos termos do art. 784 do CPC.'},
+    {num:'18. FORO', secao:true},
+  const clausulas = isMoto ? [
+    {num:'1. DEFINIÇÕES', secao:true},
+    {num:'1.1', txt:'Motocicleta: veículo descrito na Cláusula 2, com todos os acessórios e itens em perfeito estado de uso e conservação (confirme laudo de vistoria).'},
+    {num:'1.2', txt:'Obrigação da LOCADORA — serviços periódicos previstos no Manual do Fabricante (revisões programadas, trocas periódicas e inspeções), conforme Cláusula 8. Manutenção Preventiva.'},
+    {num:'1.3', txt:'Obrigação do LOCATÁRIO — reparos decorrentes de falha, quebra, impacto, colisão, queda, mau uso, negligência ou qualquer evento não enquadrado como Manutenção Preventiva. "Manutenção Corretiva/Danos."'},
+    {num:'1.4', txt:'Semana de Locação: período de 7 (sete) dias corridos contados da data de início, vencendo as seguintes sempre no mesmo dia da semana, independente da data do efetivo pagamento.'},
+    {num:'1.5', txt:'Caução: valor de garantia de R$ 600,00 (seiscentos reais), descrito na Cláusula 5.'},
+    {num:'1.6', txt:'Seguro Suhai: proteção contratada junto à seguradora Suhai, cobrindo roubo/furto e danos a terceiros, conforme condições no Anexo IV.'},
+    {num:'2. OBJETO', secao:true},
+    {num:'2.1', txt:'O presente contrato tem por objeto a locação da motocicleta mencionada acima para uso exclusivo em atividade de delivery e deslocamentos compatíveis.'},
+    {num:'2.2', txt:'A locação é sem transferência de propriedade, sendo a posse exercida pelo LOCATÁRIO de natureza precária, temporária e resolúvel, não gerando direito de retenção, indenização ou qualquer direito real sobre o bem.'},
+    {num:'3. PRAZO', secao:true},
+    {num:'3.1', txt:'O contrato é firmado por prazo indeterminado, com pagamento semanal, iniciando na data de retirada da motocicleta.'},
+    {num:'3.2', txt:'Cada semana locada corresponde a 7 (sete) dias corridos. A renovação é automática enquanto houver adimplência.'},
+    {num:'3.3', txt:'Para encerrar o contrato, qualquer das partes deverá comunicar a outra com antecedência mínima de 48 (quarenta e oito) horas, conforme Cláusula 15.'},
+    {num:'4. PREÇO, PAGAMENTO E ENCARGOS', secao:true},
+    {num:'4.1', txt:'O LOCATÁRIO pagará à LOCADORA o valor semanal definido no plano contratado, com vencimento sempre no mesmo dia da semana em que foi firmado o contrato, por PIX, cartão ou boleto.'},
+    {num:'4.2', txt:'O pagamento é ANTECIPADO: deve ser efetuado antes do início de cada semana. A inadimplência autoriza a LOCADORA a bloquear e recolher a motocicleta sem necessidade de aviso adicional.'},
+    {num:'4.3', txt:'Encargos por atraso:'},
+    {bullet:true, txt:'Multa de 5% (cinco por cento) sobre o valor semanal em atraso;'},
+    {bullet:true, txt:'Juros de 1% (um por cento) ao mês, calculados pro rata die a partir do primeiro dia de atraso;'},
+    {bullet:true, txt:'Correção monetária pelo IPCA/IBGE acumulado no período.'},
+    {num:'4.4', txt:'O não pagamento de qualquer valor devido até o prazo de 2 (dois) dias corridos após o vencimento caracterizará mora automática, considerando-se o contrato rescindido de pleno direito, independentemente de aviso prévio. A LOCADORA fica autorizada a promover, de imediato, o bloqueio, a retomada e o recolhimento da motocicleta.'},
+    {num:'4.5', txt:'O valor semanal poderá ser reajustado pela variação positiva do IPCA/IBGE nos contratos com mais de 12 (doze) meses de duração, mediante comunicação com 15 dias de antecedência.'},
+    {num:'5. CAUÇÃO', secao:true},
+    {num:'5.1', txt:'O LOCATÁRIO pagará caução de R$ 600,00 (seiscentos reais) no ato da assinatura deste contrato, por PIX ou depósito bancário.'},
+    {num:'5.2', txt:'A caução poderá ser utilizada pela LOCADORA para quitar débitos do LOCATÁRIO, incluindo aluguéis em atraso, multas, danos, franquias do seguro e tarifas operacionais.'},
+    {num:'5.3', txt:'A caução NÃO substitui e NÃO cobre automaticamente danos ao veículo; o saldo devedor eventualmente superior a R$ 600,00 será cobrado separadamente.'},
+    {num:'5.4', txt:'Não havendo pendências, a caução será devolvida em até 10 (dez) dias úteis após a devolução e conferência final da motocicleta.'},
+    {num:'5.5', txt:'Se a caução for utilizada parcialmente, o LOCATÁRIO deverá complementá-la ao valor original em até 5 (cinco) dias úteis após notificação.'},
+    {num:'6. ENTREGA, VISTORIA E DEVOLUÇÃO', secao:true},
+    {num:'6.1', txt:'A motocicleta será entregue mediante assinatura do ANEXO I – Termo de Entrega e Vistoria, com registro fotográfico e checklist.'},
+    {num:'6.2', txt:'A devolução ocorrerá na sede da LOCADORA (Av. das Américas, 12.900 – Barra da Tijuca, RJ), em dia útil e horário comercial, nas mesmas condições de conservação, ressalvado o desgaste normal.'},
+    {num:'6.3', txt:'Na devolução será realizada vistoria presencial. Constatados danos, será emitido relatório e orçamento, aplicando-se a Cláusula 9.'},
+    {num:'6.4', txt:'A devolução fora da sede ou em outra localidade somente será aceita com autorização prévia e escrita da LOCADORA, podendo incidir taxa conforme Anexo II.'},
+    {num:'7. REQUISITOS E CONDUTOR AUTORIZADO', secao:true},
+    {num:'7.1', txt:'Somente o LOCATÁRIO identificado neste contrato poderá conduzir a motocicleta. É PROIBIDO emprestar, ceder ou sublocar o veículo a terceiros, salvo autorização escrita da LOCADORA.'},
+    {num:'7.2', txt:'O LOCATÁRIO declara possuir CNH categoria A válida, sem suspensão ou cassação, e experiência adequada para condução de motocicleta em ambiente urbano.'},
+    {num:'7.3', txt:'O descumprimento desta cláusula enseja rescisão imediata e responsabilidade integral por todos os danos e custos decorrentes.'},
+    {num:'7.4', txt:'O LOCATÁRIO deverá possuir ou alugar garagem fechada e segura para guardar o veículo fora dos períodos de uso.'},
+    {num:'8. MANUTENÇÃO PREVENTIVA – RESPONSABILIDADE DA LOCADORA', secao:true},
+    {num:'8.1', txt:'A LOCADORA realizará a manutenção preventiva da motocicleta conforme o Manual do Fabricante, incluindo o plano de uso severo quando aplicável ao perfil de delivery.'},
+    {num:'8.2', txt:'São serviços preventivos, exemplificativamente:'},
+    {bullet:true, txt:'Trocas de óleo do motor e filtro nos intervalos do manual;'},
+    {bullet:true, txt:'Inspeções e ajustes periódicos previstos (corrente, pneus, freios, faróis);'},
+    {bullet:true, txt:'Substituições periódicas de vela, filtro de ar, filtro de combustível (quando aplicável);'},
+    {bullet:true, txt:'Demais itens do cronograma de revisões do fabricante.'},
+    {num:'8.3', txt:'Agendamento obrigatório: o LOCATÁRIO deve agendar a preventiva via WhatsApp ou aplicativo da LOCADORA com antecedência mínima de 5 (cinco) dias.'},
+    {num:'8.4', txt:'Intervalo máximo: o LOCATÁRIO compromete-se a não exceder o limite de km/tempo definido no Manual do Fabricante para cada serviço preventivo.'},
+    {num:'8.5', txt:'Caso o LOCATÁRIO exceda o intervalo do manual por omissão ou atraso, e disso resultar desgaste anormal ou dano, o evento será considerado Manutenção Corretiva (Cláusula 9).'},
+    {num:'8.6', txt:'A preventiva será realizada EXCLUSIVAMENTE na LOCADORA ou em oficina por ela indicada. É VEDADO ao LOCATÁRIO realizar reparos ou revisões por conta própria sem autorização escrita.'},
+    {num:'8.7', txt:'Não comparecimento: o LOCATÁRIO que não comparecer à manutenção agendada estará sujeito à Taxa de Ausência (Anexo II), ao bloqueio do veículo e à rescisão contratual.'},
+    {num:'9. RESPONSABILIDADE DO LOCATÁRIO – MANUTENÇÃO CORRETIVA E DANOS', secao:true},
+    {num:'9.1', txt:'Qualquer evento FORA da manutenção preventiva prevista no Manual do Fabricante é de responsabilidade exclusiva do LOCATÁRIO, incluindo:'},
+    {bullet:true, txt:'Danos por queda, colisão, impacto, enchente ou qualquer sinistro;'},
+    {bullet:true, txt:'Quebras por mau uso, negligência, condução agressiva, sobrecarga ou adaptação irregular;'},
+    {bullet:true, txt:'Danos por rodar com nível baixo de óleo, vazamentos não comunicados ou superaquecimento ignorado;'},
+    {bullet:true, txt:'Avarias estéticas (riscos, carenagem, retrovisores, manetes), pneu rasgado por buraco, roda empenada;'},
+    {bullet:true, txt:'Custos de reboque/guincho por pane causada por mau uso ou negligência;'},
+    {bullet:true, txt:'Instalação/remoção de acessórios sem autorização (escape, modificações elétricas, alterações de relação etc.).'},
+    {num:'9.2', txt:'Cuidados operacionais diários obrigatórios do LOCATÁRIO:'},
+    {bullet:true, txt:'Verificar diariamente nível de óleo, pressão e calibragem dos pneus, corrente/relação e freios;'},
+    {bullet:true, txt:'Comunicar IMEDIATAMENTE qualquer anormalidade (vazamento, fumaça, ruído, falha, luz de painel acesa);'},
+    {bullet:true, txt:'Cessar o uso se houver risco de dano mecânico e acionar a LOCADORA antes de continuar.'},
+    {num:'9.3', txt:'O LOCATÁRIO autoriza a LOCADORA a realizar orçamento e reparo de qualquer dano fora da preventiva, cobrando o custo de peças, mão de obra e demais despesas, podendo descontar da caução.'},
+    {num:'9.4', txt:'Lucros cessantes: se a motocicleta ficar indisponível por culpa do LOCATÁRIO (sinistro, mau uso, atraso na devolução), será cobrado valor diário conforme Anexo II, por até 30 (trinta) dias.'},
+    {num:'10. SEGURO / PROTEÇÃO – SUHAI SEGURADORA', secao:true},
+    {num:'10.1', txt:'A motocicleta conta com proteção junto à Suhai Seguradora, com cobertura de:'},
+    {bullet:true, txt:'Roubo e furto total;'},
+    {bullet:true, txt:'Danos a terceiros (responsabilidade civil).'},
+    {num:'10.2', txt:'As condições completas, coberturas, exclusões e franquias constam no ANEXO IV – Condições do Seguro Suhai, que integra este contrato.'},
+    {num:'10.3', txt:'Em caso de sinistro coberto pelo seguro, o LOCATÁRIO será responsável pelo pagamento da franquia/participação obrigatória conforme apólice Suhai.'},
+    {num:'10.4', txt:'A cobertura do seguro NÃO se aplica quando o sinistro decorrer de:'},
+    {bullet:true, txt:'Condução sob efeito de álcool ou substâncias psicoativas;'},
+    {bullet:true, txt:'Condutor não autorizado (terceiro que não seja o LOCATÁRIO identificado no contrato);'},
+    {bullet:true, txt:'Mau uso, participação em rachas ou manobras proibidas;'},
+    {bullet:true, txt:'Ausência de registro de Boletim de Ocorrência no prazo exigido;'},
+    {bullet:true, txt:'Quaisquer outras exclusões previstas na apólice Suhai.'},
+    {num:'10.5', txt:'Nos casos de exclusão da cobertura, a responsabilidade recai integralmente sobre o LOCATÁRIO, conforme Cláusula 9.'},
+    {num:'11. USO PERMITIDO, LIMITAÇÕES E PROIBIÇÕES', secao:true},
+    {num:'11.1', txt:'É PROIBIDO ao LOCATÁRIO:'},
+    {bullet:true, txt:'Conduzir sob efeito de álcool, narcóticos ou qualquer substância psicoativa;'},
+    {bullet:true, txt:'Participar de corrida, racha, manobras ou provas de velocidade;'},
+    {bullet:true, txt:'Transportar carga acima do limite estabelecido pelo fabricante;'},
+    {bullet:true, txt:'Adulterar hodômetro, lacres, rastreador ou placa;'},
+    {bullet:true, txt:'Sublocar, emprestar ou ceder o veículo a terceiros;'},
+    {bullet:true, txt:'Trafegar em dunas, praias, minerações ou submergir o veículo em água;'},
+    {bullet:true, txt:'Usar o veículo fora do estado do Rio de Janeiro sem autorização prévia escrita;'},
+    {bullet:true, txt:'Circular com o veículo em um raio inferior a 150 km de fronteiras internacionais;'},
+    {bullet:true, txt:'Modificar, remover ou instalar acessórios sem autorização (escapamento, sistema elétrico, guidão, adesivos etc.).'},
+    {num:'11.2', txt:'O LOCATÁRIO é responsável por: combustível, lavagem/limpeza comum e conservação diária da motocicleta.'},
+    {num:'11.3', txt:'O veículo possui rastreador/telemetria para fins de segurança patrimonial e recuperação em caso de sinistro. O LOCATÁRIO declara ciência e concordância com o monitoramento e eventual bloqueio remoto do veículo.'},
+    {num:'12. MULTAS E INFRAÇÕES DE TRÂNSITO', secao:true},
+    {num:'12.1', txt:'O LOCATÁRIO é integralmente responsável por multas, taxas, remoção ao pátio e demais penalidades decorrentes de sua conduta, durante toda a vigência do contrato.'},
+    {num:'12.2', txt:'O LOCATÁRIO autoriza a LOCADORA a indicá-lo como condutor infrator perante os órgãos de trânsito, nos termos do art. 257 do CTB.'},
+    {num:'12.3', txt:'Sobre o valor de cada multa será acrescido 20% (vinte por cento) a título de custo operacional da LOCADORA.'},
+    {num:'12.4', txt:'Caso o LOCATÁRIO opte por não ser indicado (NIC), arcará com o valor da penalidade NIC, conforme Tarifário vigente (Anexo II).'},
+    {num:'13. SINISTROS, FURTO E PROVIDÊNCIAS OBRIGATÓRIAS', secao:true},
+    {num:'13.1', txt:'Em caso de acidente, furto, roubo ou qualquer sinistro, o LOCATÁRIO deverá:'},
+    {bullet:true, txt:'Comunicar a LOCADORA IMEDIATAMENTE pelo WhatsApp/telefone;'},
+    {bullet:true, txt:'Registrar Boletim de Ocorrência em até 48 (quarenta e oito) horas;'},
+    {bullet:true, txt:'Enviar fotos, local, horário, dados de terceiros e todos os documentos solicitados;'},
+    {bullet:true, txt:'Providenciar laudo pericial ou protocolo quando houver vítima fatal.'},
+    {num:'13.2', txt:'O não cumprimento das providências acima no prazo estabelecido poderá implicar perda da cobertura securitária e responsabilidade integral do LOCATÁRIO pelos danos.'},
+    {num:'13.3', txt:'A LOCADORA poderá acionar a seguradora Suhai para sinistros cobertos pela apólice, cabendo ao LOCATÁRIO pagar a franquia correspondente.'},
+    {num:'14. RESCISÃO E POLÍTICA DE ENCERRAMENTO', secao:true},
+    {num:'14.1', txt:'Rescisão pelo LOCATÁRIO: deverá comunicar a LOCADORA com antecedência mínima de 48 (quarenta e oito) horas, devolver a motocicleta na sede em dia útil e quitar todos os débitos pendentes. Não haverá devolução de valor proporcional da semana em curso.'},
+    {num:'14.2', txt:'Rescisão pela LOCADORA: a LOCADORA poderá rescindir o contrato IMEDIATAMENTE, sem necessidade de aviso prévio, nas seguintes hipóteses:'},
+    {bullet:true, txt:'Inadimplência de 2 (dois) ou mais dias após o vencimento semanal;'},
+    {bullet:true, txt:'Qualquer hipótese de mau uso descrita na Cláusula 11.1;'},
+    {bullet:true, txt:'Não comparecimento à manutenção preventiva agendada;'},
+    {bullet:true, txt:'Condutor não autorizado ao volante;'},
+    {bullet:true, txt:'Adulteração de hodômetro, lacres, rastreador ou placa;'},
+    {bullet:true, txt:'Ocorrência de sinistro não comunicado;'},
+    {bullet:true, txt:'Comportamento ofensivo, ameaças ou exaltações perante funcionários ou parceiros da LOCADORA.'},
+    {num:'14.3', txt:'Em caso de rescisão por culpa do LOCATÁRIO, serão aplicadas as penalidades previstas no Anexo II, além da perda da caução para cobertura de débitos.'},
+    {num:'14.4', txt:'O veículo não poderá ser retido pelo LOCATÁRIO após a rescisão contratual, sob qualquer justificativa. A retenção indevida do bem poderá caracterizar, em tese, o crime de apropriação indébita (art. 168 do CP). Fica desde já autorizada a LOCADORA a proceder ao bloqueio remoto, à retomada e ao recolhimento do veículo.'},
+    {num:'14.5', txt:'Nos contratos com plano pré-pago de mais de 4 (quatro) semanas, a rescisão antecipada por iniciativa do LOCATÁRIO implicará multa de 30% sobre o saldo de semanas restantes.'},
+    {num:'15. REEMBOLSO E ACERTO FINAL', secao:true},
+    {num:'15.1', txt:'Após rescisão e devolução do veículo, a LOCADORA apurará todos os créditos e débitos do LOCATÁRIO.'},
+    {num:'15.2', txt:'Havendo saldo a favor do LOCATÁRIO após quitação integral de débitos, o reembolso ocorrerá em até 15 (quinze) dias úteis.'},
+    {num:'15.3', txt:'Havendo saldo devedor do LOCATÁRIO após aplicação da caução, o valor será cobrado pelos meios disponíveis, constituindo o presente instrumento título executivo extrajudicial. O LOCATÁRIO autoriza a negativação de seu nome junto aos órgãos de proteção ao crédito (SPC, Serasa) em caso de inadimplemento.'},
+    {num:'16. TRATAMENTO DE DADOS PESSOAIS – LGPD', secao:true},
+    {num:'16.1', txt:'A LOCADORA trata os dados pessoais do LOCATÁRIO na posição de controladora, nos termos da Lei nº 13.709/2018 (LGPD), para fins de execução deste contrato, prevenção a fraudes e segurança patrimonial.'},
+    {num:'16.2', txt:'Os dados poderão ser compartilhados com: oficinas parceiras, seguradora Suhai, órgãos de trânsito e autoridades competentes.'},
+    {num:'16.3', txt:'O LOCATÁRIO autoriza a coleta de imagem (fotos, câmeras da sede) e dados de telemetria/rastreamento para fins de segurança patrimonial e recuperação do veículo em caso de sinistro.'},
+    {num:'16.4', txt:'O LOCATÁRIO autoriza expressamente a LOCADORA a realizar consulta de dados cadastrais e financeiros junto a bureaus de crédito, para fins de análise de risco.'},
+    {num:'17. DISPOSIÇÕES GERAIS', secao:true},
+    {num:'17.1', txt:'Os ANEXOS I, II, III e IV integram este contrato para todos os fins de direito.'},
+    {num:'17.2', txt:'A assinatura eletrônica/digital tem plena validade jurídica, conforme MP 2.200/2001.'},
+    {num:'17.3', txt:'A tolerância de qualquer das partes não implica renúncia de direitos.'},
+    {num:'17.4', txt:'Se qualquer cláusula for declarada nula, as demais permanecerão válidas e eficazes.'},
+    {num:'17.5', txt:'Este contrato substitui quaisquer acordos verbais ou escritos anteriores entre as partes.'},
+    {num:'17.6', txt:'O presente instrumento constitui título executivo extrajudicial nos termos do art. 784 do CPC.'},
+    {num:'18. FORO', secao:true},
+    {num:'18.1', txt:'Fica eleito o foro da Comarca do Rio de Janeiro – RJ, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir quaisquer litígios decorrentes deste contrato.'},
+  ] : [
+    {num:'1. ACEITE ÀS CONDIÇÕES GERAIS E ESPECIAIS', secao:true},
+    {num:'1.1', txt:'Ao assinar este Contrato, VOCÊ declara ciência, aceite e adesão às Condições Gerais do Contrato de Aluguel de Carros da ROYAL RENT A CAR LTDA – CNPJ 18.686.521/0001-00. As Condições Gerais estão disponíveis em https://locadoraroyal.com.br/contrato/ e integram este Contrato para todos os fins, na versão vigente na data da assinatura.'},
+    {num:'2. SEGURO / PROTEÇÕES', secao:true},
+    {num:'2.1', txt:'Pacote Básica: Furto/roubo ou perda total; com coparticipação de 12%, com franquia de 12% do valor da FIPE por evento; Vidros e pneus não incluídos.'},
+    {num:'2.2', txt:'Pacote Completa: Cobertura ampla para danos ao veículo locado, com franquia de 6% do valor da FIPE; cobertura danos a terceiros até R$ 50.000,00; cobertura para ocupantes até R$ 10.000,00; furto/roubo com coparticipação de 6%; vidros e pneus incluídos (sublimite R$ 2.000 por item); isenção de limpeza simples e 1 motorista adicional.'},
+    {num:'3. MULTAS E IDENTIFICAÇÃO DE CONDUTOR', secao:true},
+    {num:'3.1', txt:'Na condição de condutor, VOCÊ assume total responsabilidade por qualquer infração de trânsito e pela pontuação decorrente durante a locação. A ROYAL RENT A CAR LTDA fica desde já constituída sua procuradora para assinar o termo de apresentação do condutor infrator, conforme art. 257 do CTB e Resolução CONTRAN nº 918/2022.'},
+    {num:'4. DADOS PESSOAIS E PRIVACIDADE', secao:true},
+    {num:'4.1', txt:'As informações coletadas serão utilizadas para executar este Contrato e cumprir obrigações legais e regulatórias, nos termos da Lei nº 13.709/2018 (LGPD). Detalhes em: https://locadoraroyal.com.br/privacy-policy/.'},
+    {num:'5. PEDÁGIOS E ESTACIONAMENTOS (TAG)', secao:true},
+    {num:'5.1', txt:'Os veículos podem conter dispositivo eletrônico para abertura de cancelas. Se utilizar filas rápidas, autoriza a cobrança dos valores de uso acrescidos da tarifa TAG da Royal, conforme https://locadoraroyal.com.br/tag/.'},
+    {num:'6. ÁREAS DE FRONTEIRA', secao:true},
+    {num:'6.1', txt:'Não é permitido circular com o veículo num raio de 150 km de fronteiras internacionais. O descumprimento poderá ensejar bloqueio remoto e retomada do veículo, sem prejuízo das demais medidas cabíveis.'},
+    {num:'7. DA LIMPEZA E DO COMBUSTÍVEL', secao:true},
+    {num:'7.1', txt:'O VEÍCULO deverá ser devolvido nas mesmas condições de limpeza em que foi entregue. Na hipótese de devolução em condições inferiores, será cobrada a taxa de lavagem conforme tabela vigente da LOCADORA.'},
+    {num:'7.2', txt:'O VEÍCULO é entregue com o nível de combustível registrado no checklist de saída. Na devolução com nível inferior, será cobrado R$ 7,00 (sete reais) por litro faltante.'},
+    {num:'8. CONSULTA A SISTEMAS DE CRÉDITO', secao:true},
+    {num:'8.1', txt:'Ao assinar, você permite a consulta de seus dados em bureaus de crédito como Serasa, SPC e Boa Vista, para análise cadastral.'},
+    {num:'9. ASSISTÊNCIA 24 HORAS', secao:true},
+    {num:'9.1', txt:'Em caso de imprevisto, acione a Assistência 24h: +55 (21) 96894-9627. Serviços: mecânicos e elétricos; remoção do veículo em caso de sinistros e/ou panes; troca de pneus e chaveiro.'},
+    {num:'10. PRÉ-AUTORIZAÇÃO', secao:true},
+    {num:'10.1', txt:'O bloqueio de valor no cartão de crédito do Locatário garante o pagamento de todas as obrigações do Contrato de Locação e/ou de sua prorrogação. A liberação/devolução desse bloqueio é de responsabilidade exclusiva do banco emissor do cartão e pode ocorrer em até 60 (sessenta) dias contados da devolução do veículo.'},
+    {num:'11. PRORROGAÇÃO', secao:true},
+    {num:'11.1', txt:'Precisa de mais tempo? Compareça, com o Responsável Financeiro (se houver), até a data e horário originalmente previstos para a devolução, apresentando o veículo em uma loja da Locadora Royal para renovar o Contrato de Locação.'},
+    {num:'11.2', txt:'Para locações de pessoa jurídica, seguradora ou agência, é necessária a apresentação do voucher. A prorrogação será feita mediante nova pré-autorização no cartão e pagamento dos valores devidos do período inicial.'},
+    {num:'12. ATENÇÃO — DEVOLUÇÃO DO VEÍCULO', secao:true},
+    {num:'12.1', txt:'Se o veículo não for devolvido em até 24 (vinte e quatro) horas após o término do prazo contratual, configura-se apropriação indébita, independentemente de notificação, autorizando a Locadora Royal a adotar as medidas legais cabíveis, inclusive comunicar o fato à autoridade policial.'},
+    {num:'13. MULTAS DE TRÂNSITO', secao:true},
+    {num:'13.1', txt:'O Locatário e/ou Condutor Adicional são exclusivamente responsáveis por todas as multas ocorridas durante a locação e obrigam-se, solidariamente com o Responsável Financeiro, ao pagamento das respectivas multas acrescidas de 12% a título de custo administrativo.'},
+    {num:'13.2', txt:'Após a cobrança, os detalhes da multa serão enviados para o e-mail cadastrado na Locadora Royal. Mantenha seus dados sempre atualizados e verifique também Lixo eletrônico/Spam.'},
+    {num:'14. ROUBO E/OU FURTO', secao:true},
+    {num:'14.1', txt:'O Locatário deverá comunicar: (i) imediatamente a Polícia Militar (190); (ii) em até 1 (uma) hora a Locadora Royal – Assistência 24h: +55 (21) 96894-9627; e (iii) em até 6 (seis) horas providenciar o Boletim de Ocorrência.'},
+    {num:'15. AVARIAS', secao:true},
+    {num:'15.1', txt:'Todos os veículos são vistoriados antes da entrega; eventuais avarias ocorridas durante o período de locação serão cobradas na devolução. Se pequenas, seguirá tabela de preços da Royal. Se médias/grandes, serão apuradas e cobradas posteriormente, ressalvada a eventual proteção contratada.'},
+    {num:'16. INCIDENTES E EMERGÊNCIAS', secao:true},
+    {num:'16.1', txt:'Ocorrências com o veículo (roubo, furto, incêndio, acidente de trânsito). Procedimentos padrão:'},
+    {bullet:true, txt:'Comunicar imediatamente a Polícia Militar (190);'},
+    {bullet:true, txt:'Avisar a Locadora Royal (24h): +55 (21) 96894-9627 em até 1 hora ou na loja mais próxima;'},
+    {bullet:true, txt:'Registrar B.O. em até 6 horas;'},
+    {bullet:true, txt:'Enviar à Royal o nº do registro/protocolo em até 3 dias úteis;'},
+    {bullet:true, txt:'É proibido tratar direto com terceiros/seguradoras ou consertar por conta própria, sob pena de perda das proteções e cobrança de valores adicionais.'},
+    {num:'17. DISPOSIÇÕES GERAIS', secao:true},
+    {num:'17.1', txt:'A assinatura eletrônica/digital tem plena validade jurídica, conforme MP 2.200/2001.'},
+    {num:'17.2', txt:'As informações deste documento são informativas e não substituem os Termos e Condições Gerais de Locação de Veículos da Locadora Royal. Para conhecer o inteiro teor, acesse www.locadoraroyal.com.br/contrato.'},
+    {num:'17.3', txt:'O presente instrumento constitui título executivo extrajudicial nos termos do art. 784 do CPC.'},
     {num:'18. FORO', secao:true},
     {num:'18.1', txt:'Fica eleito o foro da Comarca do Rio de Janeiro – RJ, com renúncia a qualquer outro, por mais privilegiado que seja, para dirimir quaisquer litígios decorrentes deste contrato.'},
   ];
