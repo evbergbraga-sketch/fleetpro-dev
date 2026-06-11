@@ -1808,9 +1808,11 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     if(!resp.ok){ const t=await resp.text(); throw new Error(t); }
     const result = await resp.json();
 
-    // 4. Pegar link do cliente
-    const linkCliente = result.links?.[emailCliente] || result.links?.[d.nomeCli] || null;
-    const linkLocadora = result.links?.['sac@locadoraroyal.com.br'] || null;
+    // 4. Pegar links em ordem de inserção (1º = cliente, 2º = locadora)
+    const _todosLinks = Object.values(result.links||{}).filter(Boolean);
+    const linkCliente  = _todosLinks[0] || null;
+    const linkLocadora = _todosLinks[1] || null;
+    console.log('[autentique] links recebidos:', result.links, '| cliente:', linkCliente);
 
     notify('✅ Documento enviado ao Autentique!', 'success');
 
