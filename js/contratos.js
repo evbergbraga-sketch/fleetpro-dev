@@ -1843,12 +1843,17 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     if(linkCliente || linkLocadora){
       const _modalId = 'aut'+Date.now(); // sem hífens — identificador JS válido
       // Guarda função de envio em variável global (sem nome dinâmico)
+      // Extrair telefone — pode estar em telefone (string) ou telefones (JSONB)
+      let _cTel = c?.telefone||'';
+      if(!_cTel && c?.telefones){
+        try{ const _ta=JSON.parse(c.telefones); if(_ta?.length) _cTel=_ta[0].numero||''; }catch(_){}
+      }
       window._autentiqueWppFn = async (btnEl) => {
-        if(!c?.telefone){ notify('Cliente sem telefone cadastrado','error'); return; }
+        if(!_cTel){ notify('Cliente sem telefone cadastrado','error'); return; }
         btnEl.disabled=true; btnEl.textContent='⏳ Enviando...';
         try{
-          await evoSendText(c.telefone, msgWpp);
-          await salvarMsgDB(d.clienteId, c.telefone, msgWpp, 'text', 'saida', null);
+          await evoSendText(_cTel, msgWpp);
+          await salvarMsgDB(d.clienteId, _cTel, msgWpp, 'text', 'saida', null);
           btnEl.textContent='✅ Enviado!';
           btnEl.style.background='var(--green)';
           notify('Mensagem enviada no WhatsApp ✓','success');
