@@ -718,6 +718,10 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <button class="btn btn-ghost" onclick="_toggleChecklistInline()" style="flex:1;min-width:160px;border-color:var(--accent);color:var(--accent)" id="btn-checklist-inline">📋 Contrato + Checklist</button>
               <button class="btn btn-ghost" onclick="_baixarPdfSemRegistrar()" style="padding:8px 14px">⬇️ PDF</button>
             </div>
+            <div style="margin-top:8px">
+              <button id="btn-assinar-digital" class="btn btn-ghost" style="width:100%;border-color:#7c3aed;color:#7c3aed;font-weight:700"
+                onclick="_iniciarAssinaturaDigital()">✍️ Assinar Digitalmente (Autentique)</button>
+            </div>
 
             <!-- CHECKLIST INLINE — aparece ao clicar em "Contrato + Checklist" -->
             <div id="ct-checklist-inline" style="display:none;margin-top:16px;border:2px solid var(--accent);border-radius:12px;padding:16px">

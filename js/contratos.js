@@ -1738,6 +1738,135 @@ async function calSelectDay(d){
   }).join('')||'<p style="color:var(--muted2)">Sem veículos.</p>';
 }
 
+
+// ══ AUTENTIQUE — ASSINATURA DIGITAL ══
+async function enviarParaAssinatura(numContrato, d, locacaoId){
+  const cfg  = JSON.parse(localStorage.getItem('fleetpro_evo_cfg')||'{}');
+  const bridge = (cfg.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+
+  const btnAs = document.getElementById('btn-assinar-digital');
+  if(btnAs){ btnAs.disabled=true; btnAs.textContent='⏳ Enviando para assinatura...'; }
+
+  try{
+    // 1. Gera o PDF como blob (sem baixar)
+    if(!window.jspdf){ notify('jsPDF não carregado','error'); return; }
+    const {jsPDF} = window.jspdf;
+    const docPdf = await _gerarPdfBlob(numContrato, d);
+    const pdfBase64 = docPdf.split(',')[1]; // remove "data:application/pdf;base64,"
+
+    // 2. Monta signatários
+    const c = allClientes.find(x=>x.id===d.clienteId);
+    const emailCliente  = c?.email || '';
+    const signatarios = [];
+
+    if(emailCliente){
+      signatarios.push({ nome: d.nomeCli, email: emailCliente });
+    } else {
+      // Sem email: Autentique gera link público para assinar
+      signatarios.push({ nome: d.nomeCli });
+    }
+    // Locadora sempre assina também
+    signatarios.push({ nome: 'Royal Rent A Car Ltda', email: 'sac@locadoraroyal.com.br' });
+
+    // 3. Enviar para o bridge → Autentique
+    const resp = await fetch(bridge + '/api/autentique/enviar-contrato', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'x-secret': 'FleetPro2025' },
+      body: JSON.stringify({
+        pdfBase64,
+        nomeDoc:    `Contrato #${numContrato} — ${d.nomeCli}`,
+        signatarios,
+        locacaoId,
+      }),
+    });
+
+    if(!resp.ok){ const t=await resp.text(); throw new Error(t); }
+    const result = await resp.json();
+
+    // 4. Pegar link do cliente
+    const linkCliente = result.links?.[emailCliente] || result.links?.[d.nomeCli] || null;
+    const linkLocadora = result.links?.['sac@locadoraroyal.com.br'] || null;
+
+    notify('Documento enviado ao Autentique! ✅', 'success');
+
+    // 5. Enviar link por WhatsApp se cliente tem telefone
+    if(linkCliente && c?.telefone){
+      const msgAssinatura =
+        `📝 *CONTRATO #${numContrato} — LOCADORA ROYAL*\n\n` +
+        `Olá *${d.nomeCli}*! Seu contrato está pronto para assinatura digital.\n\n` +
+        `🔗 *Link para assinar:*\n${linkCliente}\n\n` +
+        `⚠️ O link é pessoal e intransferível. Ao clicar, você poderá revisar e assinar o contrato eletronicamente.\n\n` +
+        `_Qualquer dúvida, fale conosco. Equipe Royal 🚗🏍️_`;
+
+      try{
+        await evoSendText(c.telefone, msgAssinatura);
+        await salvarMsgDB(d.clienteId, c.telefone, msgAssinatura, 'text', 'saida', null);
+        notify('Link de assinatura enviado no WhatsApp ✓','success');
+      }catch(e){ console.warn('WPP assinatura:', e.message); }
+    }
+
+    // 6. Mostrar links na tela
+    if(linkCliente || linkLocadora){
+      const modal = document.createElement('div');
+      modal.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+      modal.innerHTML=`
+        <div style="background:var(--bg);border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+          <div style="font-size:18px;font-weight:700;margin-bottom:16px">✅ Contrato enviado para assinatura</div>
+          <div style="font-size:12px;color:var(--muted2);margin-bottom:16px">Contrato #${numContrato} — ${d.nomeCli}</div>
+          ${linkCliente?`
+          <div style="margin-bottom:12px">
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">🔗 Link do Cliente:</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input value="${linkCliente}" readonly style="flex:1;font-size:11px;padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)">
+              <button onclick="navigator.clipboard.writeText('${linkCliente}');notify('Copiado!','success')" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:12px">Copiar</button>
+            </div>
+          </div>`:``}
+          ${linkLocadora?`
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">🔗 Link da Locadora:</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input value="${linkLocadora}" readonly style="flex:1;font-size:11px;padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)">
+              <button onclick="navigator.clipboard.writeText('${linkLocadora}');notify('Copiado!','success')" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:12px">Copiar</button>
+            </div>
+          </div>`:``}
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--border2);cursor:pointer;color:var(--text);font-size:13px">Fechar</button>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+
+  }catch(e){
+    notify('Erro ao enviar para Autentique: '+e.message,'error');
+    console.error('[autentique]', e);
+  }finally{
+    if(btnAs){ btnAs.disabled=false; btnAs.textContent='✍️ Assinar Digitalmente'; }
+  }
+}
+
+// Gera PDF como dataURL (sem baixar) — usado pelo Autentique
+async function _gerarPdfBlob(numContrato, d){
+  // Reutiliza gerarPdfContrato mas captura o output antes do doc.save()
+  // Abordagem: gera o doc e retorna como dataURL
+  if(!window.jspdf) throw new Error('jsPDF não carregado');
+  const {jsPDF} = window.jspdf;
+
+  // Cria o PDF igual ao gerarPdfContrato mas retorna base64
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+
+  // Delega para a função existente via hack: intercepta doc.save
+  const origSave = doc.save.bind(doc);
+  let dataUrl = null;
+  doc.save = (filename) => {
+    dataUrl = doc.output('datauristring');
+  };
+
+  // Chama a função de geração passando o doc
+  await _gerarPdfNoDoc(doc, numContrato, d, null);
+
+  if(!dataUrl) dataUrl = doc.output('datauristring');
+  doc.save = origSave;
+  return dataUrl;
+}
+
 // ── PLANOS DE MOTO — CONTRATO ──
 function _selecionarPlanoContrato(radio){
   const val = radio.value;
@@ -1798,4 +1927,24 @@ function _onChangePgtoCaucao(){
   const wrap = document.getElementById('c-campos-cartao-caucao');
   if(wrap) wrap.style.display = isCard ? '' : 'none';
   previewContrato();
+}
+
+// ══ INICIAR ASSINATURA — registra contrato e envia para Autentique ══
+async function _iniciarAssinaturaDigital(){
+  // Verifica se o contrato já foi registrado (tem locacaoId na sessão)
+  const d = previewContrato();
+  if(!d){ notify('Preencha os dados do contrato primeiro','error'); return; }
+
+  let locId = window._ultimoLocacaoId || null;
+
+  if(!locId){
+    // Registra o contrato primeiro para ter o ID
+    notify('Registrando contrato antes de enviar para assinatura...','info');
+    locId = await registrarContrato(true); // true = retornar ID
+    if(!locId){ notify('Erro ao registrar contrato','error'); return; }
+    window._ultimoLocacaoId = locId;
+  }
+
+  const numContrato = _peekNumContrato() || '?';
+  await enviarParaAssinatura(numContrato, d, locId);
 }
