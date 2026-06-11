@@ -167,7 +167,8 @@ function _injectHamburguer(){
   overlay.id = 'sidebar-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99;display:none;';
   overlay.onclick = closeSidebar;
-  document.body.appendChild(overlay);
+  // Inserir no layer-app para ficar no mesmo contexto de stacking da sidebar
+  (document.getElementById('layer-app') || document.body).appendChild(overlay);
 
   // Mostra o botão só em mobile via resize
   function checkMobile(){

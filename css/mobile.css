@@ -62,7 +62,7 @@
     position: fixed;
     left: -280px;
     top: 0;
-    z-index: 100;
+    z-index: 110;
     height: 100dvh;
     width: 260px;
     transition: left .28s cubic-bezier(.4,0,.2,1);
@@ -72,11 +72,10 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.5);
-    z-index: 99;
-    backdrop-filter: blur(2px);
+    background: rgba(0,0,0,.55);
+    z-index: 105;
+    cursor: pointer;
   }
-  #sidebar-overlay.visible { display: block; }
 
   /* ── Main ── */
   .main { width: 100%; height: auto; overflow: visible; }
