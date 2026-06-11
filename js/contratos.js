@@ -240,7 +240,8 @@ async function registrarComChecklist(){
   await gerarPdfContrato(numContrato, d, chk);
 
   // PASSO 7b: Enviar para assinatura digital
-  if(locId) await enviarParaAssinatura(numContrato, d, locId);
+  const _cidChk = document.getElementById('c-cli')?.value||null;
+  if(locId) await enviarParaAssinatura(numContrato, d, locId, null, _cidChk);
 
   // PASSO 8: Recarregar dados DEPOIS de tudo concluído
   await carregarTudo();
@@ -777,7 +778,7 @@ async function registrarContrato(retornarId=false){
         notify(`PDF do Contrato #${numContrato} gerado!`,'success');
       }
       // Envia para Autentique com o PDF já gerado (sem regerar)
-      if(_locIdParaAssinatura) await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura, _pdfDataUrl);
+      if(_locIdParaAssinatura) await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura, _pdfDataUrl, cid);
     }, 500);
     await carregarTudo();
 
@@ -1762,7 +1763,7 @@ async function calSelectDay(d){
 
 
 // ══ AUTENTIQUE — ASSINATURA DIGITAL ══
-async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=null){
+async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=null, cidParam=null){
   const cfg  = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
   const bridge = (cfg.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
 
@@ -1779,8 +1780,17 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     const pdfBase64 = docPdf.split(',')[1]; // remove "data:application/pdf;base64,"
 
     // 2. Monta signatários
-    const _cidFinal = d.clienteId || document.getElementById('c-cli')?.value;
+    const _cidFinal = cidParam || d.clienteId || document.getElementById('c-cli')?.value;
     const c = allClientes.find(x=>x.id===_cidFinal);
+    // Extrair telefone — mesmo padrão do restante do sistema
+    let _cTel = c?.telefone||'';
+    if(!_cTel && c?.telefones){
+      try{
+        const _ta = Array.isArray(c.telefones) ? c.telefones : JSON.parse(c.telefones);
+        if(_ta?.length) _cTel = _ta[0].numero||'';
+      }catch(_){}
+    }
+    console.log('[autentique] cliente:', c?.nome, '| tel:', _cTel, '| cid:', _cidFinal);
     // Sempre usar só nome (sem email) — quando tem email, Autentique envia direto
     // e NÃO retorna o link na API. Com só nome, gera link público que podemos enviar no WhatsApp.
     const signatarios = [
@@ -1842,17 +1852,6 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     // 6. Modal com links e botão WhatsApp
     if(linkCliente || linkLocadora){
       const _modalId = 'aut'+Date.now(); // sem hífens — identificador JS válido
-      // Guarda função de envio em variável global (sem nome dinâmico)
-      // Extrair telefone — padrão do sistema: telefones (JSONB array ou objeto) ou telefone (string)
-      let _cTel = c?.telefone||'';
-      if(!_cTel && c?.telefones){
-        try{
-          // Supabase retorna JSONB já como objeto — não precisa de JSON.parse
-          const _ta = Array.isArray(c.telefones) ? c.telefones
-                    : (typeof c.telefones==='string' ? JSON.parse(c.telefones) : null);
-          if(_ta?.length) _cTel = _ta[0].numero||'';
-        }catch(_){}
-      }
       window._autentiqueWppFn = async (btnEl) => {
         if(!_cTel){ notify('Cliente sem telefone cadastrado','error'); return; }
         btnEl.disabled=true; btnEl.textContent='⏳ Enviando...';
