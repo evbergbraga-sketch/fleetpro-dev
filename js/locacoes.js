@@ -19,7 +19,7 @@ function renderLocacoes(){
       : diff===0
         ? '<span class="badge badge-yellow">Vence hoje</span>'
         : `<span class="badge badge-green">+${diff}d</span>`;
-    const icone = l.veiculos?.tipo==='moto'?'🏍️':'🚗';
+    const icone = SVG_VEICULO(l.veiculos?.tipo);
     return `<tr>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
@@ -146,9 +146,9 @@ async function abrirModalLocacao(locId){
         ${loc.caucao>0?`<div style="font-size:12px"><strong>Caução:</strong> R$ ${(loc.caucao||0).toFixed(2).replace('.',',')}</div>`:''}
       </div>
       <div style="background:var(--bg2);border-radius:10px;padding:14px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:8px">🚗 Veículo</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:8px">Veículo</div>
         <div style="font-size:12px"><strong>Km saída:</strong> ${loc.km_inicial||'—'}</div>
-        <div style="font-size:12px"><strong>Tipo:</strong> ${loc.tipo_contrato==='moto'?'🏍️ Moto':'🚗 Carro'}</div>
+        <div style="font-size:12px"><strong>Tipo:</strong> ${loc.tipo_contrato==='moto'?'Moto':'Carro'}</div>
         ${loc.servicos_adicionais?.length>0?`<div style="font-size:12px"><strong>Serviços:</strong> ${loc.servicos_adicionais.map(s=>s.descricao).join(', ')}</div>`:''}
       </div>
     </div>
@@ -163,7 +163,7 @@ async function abrirModalLocacao(locId){
     <div style="border-bottom:2px solid var(--border2);margin-bottom:16px;display:flex;gap:0">
       <button id="tab-saida" class="loc-tab active" onclick="showLocTab('saida')"
         style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid var(--accent);color:var(--accent);margin-bottom:-2px">
-        🚗 Saída ${checkSaida?'✓':''}
+        Saída ${checkSaida?'✓':''}
       </button>
       <button id="tab-entrada" class="loc-tab" onclick="showLocTab('entrada')"
         style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
@@ -731,13 +731,13 @@ function renderHistoricoLocacoes(){
   const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : '—';
   const fmtR = v => `R$ ${Number(v||0).toFixed(2).replace('.',',')}`;
   const kmRod = l => (l.km_final && l.km_inicial) ? `${l.km_final - l.km_inicial} km` : '—';
-  const icoTipo = l => l.veiculos?.tipo==='moto'||l.tipo_contrato==='moto' ? '🏍️' : '🚗';
+  const icoTipo = l => SVG_VEICULO(l.veiculos?.tipo||l.tipo_contrato);
 
   tb.innerHTML = lista.map(l=>`
     <tr>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:18px">${icoTipo(l)}</span>
+          <span style="display:flex;align-items:center;color:var(--accent)">${icoTipo(l)}</span>
           <div>
             <div style="font-weight:600;font-size:13px">${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}</div>
             <div style="font-size:11px;color:var(--muted2)">${l.veiculos?.placa||'—'}</div>

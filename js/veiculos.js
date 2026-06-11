@@ -437,7 +437,7 @@ function renderVeiculos(){
       const invBadge = inv ? `<span style="font-size:10px;color:#7c3aed;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.15);border-radius:4px;padding:2px 6px">📈 ${inv.nome.split(' ')[0]}</span>` : '';
       return `<tr>
         <td><div style="display:flex;align-items:center;gap:10px">
-          <div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${v.tipo==='carro'?'🚗':'🏍️'}</div>
+          <div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${SVG_VEICULO(v.tipo)}</div>
           <div>
             <div style="font-weight:500">${v.marca} ${v.modelo}</div>
             <div style="font-size:11px;color:var(--muted)">${v.cor||''} · ${v.cambio||''} ${invBadge}</div>
