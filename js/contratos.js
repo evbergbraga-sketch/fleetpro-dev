@@ -251,17 +251,21 @@ async function registrarComChecklist(){
 // Sincroniza o número do contrato com o banco (maior num_contrato + 1)
 async function _sincronizarNumContrato(){
   try{
+    // Busca todos para garantir pegar o maior (evita ordenação errada em strings)
     const {data} = await sb.from('locacoes')
       .select('num_contrato')
+      .not('num_contrato', 'is', null)
       .order('num_contrato', {ascending:false})
-      .limit(1)
-      .single();
-    const maiorNoBanco = parseInt(data?.num_contrato||'0');
+      .limit(10);
+    // Converte para número e pega o maior
+    const nums = (data||[]).map(r=>parseInt(r.num_contrato||'0')).filter(n=>!isNaN(n)&&n>0);
+    const maiorNoBanco = nums.length ? Math.max(...nums) : 0;
     const noLocal      = parseInt(localStorage.getItem('fp_contrato_seq')||'0');
-    const maior = Math.max(maiorNoBanco, noLocal);
+    // Mínimo 40 para garantir continuidade
+    const maior = Math.max(maiorNoBanco, noLocal, 40);
     localStorage.setItem('fp_contrato_seq', String(maior));
     return maior;
-  }catch(_){ return parseInt(localStorage.getItem('fp_contrato_seq')||'0'); }
+  }catch(_){ return Math.max(parseInt(localStorage.getItem('fp_contrato_seq')||'0'), 40); }
 }
 
 function _proximoNumContrato(){
@@ -1844,7 +1848,7 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
       `📍 Local: *${d.localRet||'Loja'}*\n` +
       `⏱️ Período: *${_semanas} semanas*\n` +
       `💰 Valor semanal: *R$ ${_semFmt}*\n` +
-      `💳 Total: *R$ ${_totalFmt}*\n\n` +
+      (_icVei==='🏍️' ? '' : `💳 Total: *R$ ${_totalFmt}*\n`) +
       `✅ Contrato registrado com sucesso!\n\n` +
       `✍️ *Assine agora pelo link:*\n${linkCliente||'(sem link)'}\n\n` +
       `_Equipe Locadora Royal 🚗_`;
