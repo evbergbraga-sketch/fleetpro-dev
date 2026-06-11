@@ -355,10 +355,41 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
       <!-- LOCAÇÕES EM ANDAMENTO -->
       <div class="page" id="page-locacoes">
-        <div class="card">
+        <!-- ATIVAS -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><span class="card-title">🏍️ Locações Ativas</span></div>
           <table>
             <thead><tr><th>Veículo</th><th>Cliente</th><th>Início</th><th>Devolução</th><th>Status</th><th></th></tr></thead>
             <tbody id="tb-locacoes"></tbody>
+          </table>
+        </div>
+
+        <!-- HISTÓRICO ENCERRADAS -->
+        <div class="card">
+          <div class="card-header" style="flex-wrap:wrap;gap:10px">
+            <span class="card-title">📋 Histórico de Locações</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <input type="text" id="hist-filtro-cliente" placeholder="🔍 Cliente" oninput="renderHistoricoLocacoes()"
+                style="padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:12px;width:140px">
+              <input type="text" id="hist-filtro-veiculo" placeholder="🚗 Placa ou modelo" oninput="renderHistoricoLocacoes()"
+                style="padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:12px;width:150px">
+              <input type="date" id="hist-filtro-de" onchange="renderHistoricoLocacoes()"
+                style="padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:12px">
+              <input type="date" id="hist-filtro-ate" onchange="renderHistoricoLocacoes()"
+                style="padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:12px">
+              <button onclick="renderHistoricoLocacoes()" class="btn btn-ghost" style="font-size:12px;padding:6px 12px">🔄 Atualizar</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Veículo</th><th>Cliente</th><th>Início</th><th>Devolução</th>
+                <th>Km Rodados</th><th>Total</th><th>Contrato</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="tb-historico-locacoes">
+              <tr class="empty-row"><td colspan="8">Carregando histórico...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>

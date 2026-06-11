@@ -765,6 +765,7 @@ async function confirmarDevolucao(locId, veiculoId, nomeVeiculo){
     notify('Devolução confirmada! Veículo disponível. ✅','success');
     await Promise.all([loadVeiculos(), loadLocacoes(), loadLocacoesCompletas()]);
     renderDashboard(); renderVeiculos(); renderLocacoes();
+    if(typeof loadHistoricoLocacoes==='function') loadHistoricoLocacoes();
   }catch(e){
     notify('Erro ao confirmar devolução: '+e.message,'error');
   }

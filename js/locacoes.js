@@ -578,10 +578,16 @@ async function salvarChecklist(tipo, locId){
       const loc = (await sb.from('locacoes').select('*, veiculos(*), clientes(*)').eq('id', locId).single()).data;
       for(const custo of _custosDevolucao){
         if(!custo.valor || custo.valor<=0) continue;
-        await sb.from('lancamentos').insert({
-          tipo:        'despesa',
-          categoria:   custo.categoria,
-          descricao:   `${custo.nome||custo.categoria} — ${loc?.clientes?.nome||''} — ${loc?.veiculos?.placa||''} [Devolução Contrato #${loc?.num_contrato||locId.slice(0,8)}]${custo.observacao?' — '+custo.observacao:''}`,
+        // Reparo = despesa de manutenção; demais = receita cobrada do cliente
+      const tipoLan  = custo.categoria==='Reparo' ? 'despesa' : 'receita';
+      const catLan   = custo.categoria==='Reparo'  ? 'Manutenção'
+                     : custo.categoria==='Tag / Pedágio' ? 'Tag / Pedágio'
+                     : custo.categoria==='Lavagem' ? 'Lavagem'
+                     : 'Multa';
+      await sb.from('lancamentos').insert({
+          tipo:        tipoLan,
+          categoria:   catLan,
+          descricao:   `${custo.nome||catLan} — ${loc?.clientes?.nome||''} — ${loc?.veiculos?.placa||''} [Devolução Contrato #${loc?.num_contrato||locId.slice(0,8)}]${custo.observacao?' — '+custo.observacao:''}`,
           valor:        custo.valor,
           data:         new Date().toISOString().slice(0,10),
           veiculo_id:   loc?.veiculo_id||null,
@@ -675,4 +681,81 @@ function _recalcularTotalCustos(){
   const wrap = document.getElementById('custos-total-entrada');
   if(el) el.textContent = total.toFixed(2).replace('.',',');
   if(wrap) wrap.style.display = _custosDevolucao.length ? '' : 'none';
+}
+
+// ══ HISTÓRICO DE LOCAÇÕES ENCERRADAS ══
+let _historicoLocacoes = [];
+
+async function loadHistoricoLocacoes(){
+  try{
+    const {data} = await sb
+      .from('locacoes')
+      .select(`
+        id, num_contrato, data_inicio, data_fim, data_inicio_hora, data_fim_hora,
+        km_inicial, km_final, diaria, total, status, forma_pgto, tipo_contrato,
+        veiculos(id, marca, modelo, placa, tipo),
+        clientes(id, nome, telefone)
+      `)
+      .eq('status','encerrada')
+      .order('data_fim',{ascending:false})
+      .limit(200);
+    _historicoLocacoes = data||[];
+    renderHistoricoLocacoes();
+  }catch(e){ console.warn('[histórico]', e.message); }
+}
+
+function renderHistoricoLocacoes(){
+  const tb = document.getElementById('tb-historico-locacoes');
+  if(!tb) return;
+
+  const filtCliente = (document.getElementById('hist-filtro-cliente')?.value||'').toLowerCase().trim();
+  const filtVeiculo = (document.getElementById('hist-filtro-veiculo')?.value||'').toLowerCase().trim();
+  const filtDe      = document.getElementById('hist-filtro-de')?.value||'';
+  const filtAte     = document.getElementById('hist-filtro-ate')?.value||'';
+
+  let lista = _historicoLocacoes;
+
+  if(filtCliente) lista = lista.filter(l=>(l.clientes?.nome||'').toLowerCase().includes(filtCliente));
+  if(filtVeiculo) lista = lista.filter(l=>{
+    const str = `${l.veiculos?.placa||''} ${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}`.toLowerCase();
+    return str.includes(filtVeiculo);
+  });
+  if(filtDe)  lista = lista.filter(l=> l.data_inicio >= filtDe);
+  if(filtAte) lista = lista.filter(l=> l.data_inicio <= filtAte);
+
+  if(!lista.length){
+    tb.innerHTML='<tr class="empty-row"><td colspan="8">Nenhuma locação encerrada encontrada</td></tr>';
+    return;
+  }
+
+  const fmtD = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+  const fmtR = v => `R$ ${Number(v||0).toFixed(2).replace('.',',')}`;
+  const kmRod = l => (l.km_final && l.km_inicial) ? `${l.km_final - l.km_inicial} km` : '—';
+  const icoTipo = l => l.veiculos?.tipo==='moto'||l.tipo_contrato==='moto' ? '🏍️' : '🚗';
+
+  tb.innerHTML = lista.map(l=>`
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">${icoTipo(l)}</span>
+          <div>
+            <div style="font-weight:600;font-size:13px">${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}</div>
+            <div style="font-size:11px;color:var(--muted2)">${l.veiculos?.placa||'—'}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div style="font-weight:500;font-size:13px">${l.clientes?.nome||'—'}</div>
+        <div style="font-size:11px;color:var(--muted2)">${l.clientes?.telefone||''}</div>
+      </td>
+      <td style="font-size:12px">${fmtD(l.data_inicio)}</td>
+      <td style="font-size:12px">${fmtD(l.data_fim)}</td>
+      <td style="font-size:12px;text-align:center">${kmRod(l)}</td>
+      <td style="font-size:13px;font-weight:700;color:var(--accent)">${fmtR(l.total)}</td>
+      <td style="font-size:12px;color:var(--muted2)">${l.num_contrato ? `#${l.num_contrato}` : '—'}</td>
+      <td>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px"
+          onclick="abrirModalLocacao('${l.id}')">📋 Detalhes</button>
+      </td>
+    </tr>`).join('');
 }

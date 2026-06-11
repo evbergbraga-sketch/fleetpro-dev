@@ -33,6 +33,7 @@ function goPage(id, navEl){
   else { const ni=document.getElementById('nav-'+id); if(ni) ni.classList.add('active'); }
   const c=PAGE_CFG[id];
   document.getElementById('page-title').textContent=c.title;
+  if(id==='locacoes' && typeof loadHistoricoLocacoes==='function') loadHistoricoLocacoes();
   const btn=document.getElementById('primary-action');
   btn.style.display=c.action?'':'none';
   btn.textContent=c.action;
