@@ -1100,11 +1100,23 @@ async function sendMsg(){
   const c = allClientes.find(x=>x.id===activeChatId);
   const telefone = c?.telefone || (activeChatId.includes('-') ? null : activeChatId);
   if(!telefone){ notify('Cliente sem telefone cadastrado','error'); return; }
-  adicionarMsgLocal(activeChatId, texto, 'text', null);
+
+  // ── ASSINATURA DO ATENDENTE ──
+  const _nomeAtend = currentPerfil?.nome || '';
+  const _roleLabel = {
+    admin:      'Administrador',
+    atendente:  'Atendente',
+    financeiro: 'Financeiro',
+    investidor: 'Investidor',
+  }[currentPerfil?.perfil] || 'Atendente';
+  const _assinatura = _nomeAtend ? `\n\n*${_roleLabel} ${_nomeAtend}*` : '';
+  const textoFinal = texto + _assinatura;
+
+  adicionarMsgLocal(activeChatId, textoFinal, 'text', null);
   inp.value = '';
   try{
-    await evoSendText(telefone, texto);
-    await salvarMsgDB(c?.id||null, telefone, texto, 'text', 'saida', null);
+    await evoSendText(telefone, textoFinal);
+    await salvarMsgDB(c?.id||null, telefone, textoFinal, 'text', 'saida', null);
   }catch(e){
     notify('Erro ao enviar: '+e.message,'error');
   }
