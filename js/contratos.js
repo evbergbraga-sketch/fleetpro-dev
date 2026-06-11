@@ -799,17 +799,7 @@ async function registrarContrato(retornarId=false){
       console.log('[cartão] salvo no perfil do cliente');
     }
 
-    // WhatsApp resumo
-    const c = allClientes.find(x=>x.id===cid);
-    const v = allVeiculos.find(x=>x.id===vid);
-    if(c?.telefone){
-      const txt = _msgWppContrato(numContrato, c, v, d);
-      try{
-        await evoSendText(c.telefone, txt);
-        await salvarMsgDB(cid, c.telefone, txt, 'text', 'saida', null);
-        notify('Resumo enviado pelo WhatsApp ✓','success');
-      }catch(e){ console.warn('WPP:', e.message); }
-    }
+    // WhatsApp — enviado pelo modal do Autentique (não automático aqui)
   }catch(e){
     notify('Erro: '+e.message,'error');
     if(retornarId) return null;
