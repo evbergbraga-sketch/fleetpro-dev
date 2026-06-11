@@ -1761,7 +1761,7 @@ async function calSelectDay(d){
 
 // ══ AUTENTIQUE — ASSINATURA DIGITAL ══
 async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=null){
-  const cfg  = JSON.parse(localStorage.getItem('fleetpro_evo_cfg')||'{}');
+  const cfg  = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
   const bridge = (cfg.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
 
   const btnAs = document.getElementById('btn-assinar-digital');
@@ -1793,7 +1793,7 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     // 3. Enviar para o bridge → Autentique
     const resp = await fetch(bridge + '/api/autentique/enviar-contrato', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'x-secret': JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}').secret||'' },
+      headers: { 'Content-Type': 'application/json', 'x-secret': cfg.secret||'' },
       body: JSON.stringify({
         pdfBase64,
         nomeDoc:    `Contrato #${numContrato} — ${d.nomeCli}`,
