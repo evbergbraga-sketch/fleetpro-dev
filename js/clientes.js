@@ -744,7 +744,7 @@ async function excluirCliente(id, nome){
   try{
     // Verificar vínculos antes de excluir
     const [resLoc, resRes, resCond] = await Promise.all([
-      sb.from('locacoes').select('id',   {count:'exact',head:true}).eq('cliente_id', id),
+      sb.from('locacoes').select('id',   {count:'exact',head:true}).eq('cliente_id', id).eq('status','ativa'),
       sb.from('reservas').select('id',   {count:'exact',head:true}).eq('cliente_id', id),
       sb.from('condutores').select('id', {count:'exact',head:true}).eq('cliente_id', id),
     ]);
@@ -754,7 +754,7 @@ async function excluirCliente(id, nome){
 
     // Bloquear se tiver locações (histórico importante)
     if(totalLoc > 0){
-      notify(`Não é possível excluir "${nome}": possui ${totalLoc} locação(ões) vinculada(s). Encerre as locações antes.`, 'error');
+      notify(`Não é possível excluir "${nome}": possui ${totalLoc} locação(ões) ativa(s). Encerre as locações antes.`, 'error');
       return;
     }
 
