@@ -1781,17 +1781,12 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     // 2. Monta signatários
     const _cidFinal = d.clienteId || document.getElementById('c-cli')?.value;
     const c = allClientes.find(x=>x.id===_cidFinal);
-    const emailCliente  = c?.email || '';
-    const signatarios = [];
-
-    if(emailCliente){
-      signatarios.push({ nome: d.nomeCli, email: emailCliente });
-    } else {
-      // Sem email: Autentique gera link público para assinar
-      signatarios.push({ nome: d.nomeCli });
-    }
-    // Locadora sempre assina também
-    signatarios.push({ nome: 'Royal Rent A Car Ltda', email: 'sac@locadoraroyal.com.br' });
+    // Sempre usar só nome (sem email) — quando tem email, Autentique envia direto
+    // e NÃO retorna o link na API. Com só nome, gera link público que podemos enviar no WhatsApp.
+    const signatarios = [
+      { nome: d.nomeCli },
+      { nome: 'Royal Rent A Car Ltda' },
+    ];
 
     // 3. Enviar para o bridge → Autentique
     const resp = await fetch(bridge + '/api/autentique/enviar-contrato', {
