@@ -762,9 +762,10 @@ async function registrarContrato(retornarId=false){
     }
 
     // Gera PDF e envia para assinatura digital
+    const _locIdParaAssinatura = locSalva?.id || null;
     setTimeout(async ()=>{
       await gerarPdfContrato(numContrato, d);
-      if(locId) await enviarParaAssinatura(numContrato, d, locId);
+      if(_locIdParaAssinatura) await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura);
     }, 500);
     await carregarTudo();
 
