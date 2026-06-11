@@ -1024,6 +1024,7 @@ function abrirModalContato(){
 function abrirChat(cid){
   activeChatId = cid;
   clearUnread(cid);
+  _chatAbrirMobile(); // mobile: desliza para a conversa
   atualizarBadgeNotif();
   const c = allClientes.find(x=>x.id===cid);
   if(!c){
@@ -1560,4 +1561,22 @@ function _selecionarPlanoCR(radio){
   });
   const vc = document.getElementById('cr-valor-cotado');
   if(vc) vc.value = val;
+}
+
+// ══ CHAT MOBILE — slide entre lista e conversa ══
+// Chamado quando um contato é selecionado no mobile
+function _chatAbrirMobile(){
+  if(window.innerWidth > 768) return;
+  const layout = document.querySelector('.chat-layout');
+  const backBtn = document.querySelector('.chat-back-btn');
+  if(layout)  layout.classList.add('chat-open');
+  if(backBtn) backBtn.style.display = 'flex';
+}
+
+// Chamado pelo botão ← para voltar à lista
+function _chatVoltar(){
+  const layout = document.querySelector('.chat-layout');
+  const backBtn = document.querySelector('.chat-back-btn');
+  if(layout)  layout.classList.remove('chat-open');
+  if(backBtn) backBtn.style.display = 'none';
 }
