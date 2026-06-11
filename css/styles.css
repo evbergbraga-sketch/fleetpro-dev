@@ -164,7 +164,7 @@ nav { flex:1; padding:10px 10px 10px 8px; overflow-y:auto; }
 .stat-label { font-size:10px; color:var(--muted); letter-spacing:.8px; text-transform:uppercase; font-weight:600; margin-bottom:10px; }
 .stat-val { font-family:var(--font-display); font-size:30px; font-weight:800; color:var(--text); margin-bottom:4px; line-height:1; }
 .stat-sub  { font-size:11px; color:var(--muted); }
-.stat-icon { position:absolute; right:14px; top:14px; font-size:20px; opacity:.08; }
+.stat-icon { position:absolute; right:14px; top:14px; color:var(--accent); opacity:.15; }
 
 .stat-alert { background:rgba(220,38,38,0.08); border-color:rgba(220,38,38,0.2); }
 .stat-alert::before { background:var(--red); }

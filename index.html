@@ -195,31 +195,31 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <!-- LINHA 1: 5 KPIs compactos -->
         <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
           <div class="stat-card" onclick="goPage('carros')" style="cursor:pointer">
-            <div class="stat-icon">🚗</div>
+            <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l3-4h8l3 4h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/><circle cx="7.5" cy="17" r="2.5"/><circle cx="16.5" cy="17" r="2.5"/><path d="M5 9h14"/></svg></div>
             <div class="stat-label">Carros disp.</div>
             <div class="stat-val" id="st-carros">—</div>
             <div class="stat-sub" id="st-carros-s">de 0 total</div>
           </div>
           <div class="stat-card" onclick="goPage('motos')" style="cursor:pointer">
-            <div class="stat-icon">🏍️</div>
+            <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h-5L7 17"/><path d="M15 6l3 5.5"/><path d="M15 6l2-3h3"/><path d="M10 6l2 5"/></svg></div>
             <div class="stat-label">Motos disp.</div>
             <div class="stat-val" id="st-motos">—</div>
             <div class="stat-sub" id="st-motos-s">de 0 total</div>
           </div>
           <div class="stat-card" onclick="goPage('clientes')" style="cursor:pointer">
-            <div class="stat-icon">👥</div>
+            <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div class="stat-label">Clientes</div>
             <div class="stat-val" id="st-clientes">—</div>
             <div class="stat-sub">cadastrados</div>
           </div>
           <div class="stat-card" onclick="goPage('locacoes')" style="cursor:pointer">
-            <div class="stat-icon">📋</div>
+            <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div class="stat-label">Locações ativas</div>
             <div class="stat-val" id="st-locacoes">—</div>
             <div class="stat-sub">em andamento</div>
           </div>
           <div id="st-alert-card" class="stat-card" onclick="goPage('locacoes')" style="cursor:pointer">
-            <div class="stat-icon">⚠️</div>
+            <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
             <div class="stat-label">Alertas de atraso</div>
             <div class="stat-val" id="st-alert-val">—</div>
             <div class="stat-sub" id="st-alert-sub">verificando...</div>
