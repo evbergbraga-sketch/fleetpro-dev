@@ -647,7 +647,9 @@ function previewContrato(){
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
     pgto, caucao, numCtrato, periodoVal, ini, fim, localRet,
     totalServicos, servicos: _servicosLista, days,
-    taxaAdminPct, taxaAdminVal, taxaAdminIsenta};
+    taxaAdminPct, taxaAdminVal, taxaAdminIsenta,
+    clienteId: document.getElementById('c-cli')?.value||null,
+    veiculoId:  document.getElementById('c-vei')?.value||null};
 }
 
 function _fmtDatetime(str){
@@ -1777,7 +1779,8 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     const pdfBase64 = docPdf.split(',')[1]; // remove "data:application/pdf;base64,"
 
     // 2. Monta signatários
-    const c = allClientes.find(x=>x.id===d.clienteId);
+    const _cidFinal = d.clienteId || document.getElementById('c-cli')?.value;
+    const c = allClientes.find(x=>x.id===_cidFinal);
     const emailCliente  = c?.email || '';
     const signatarios = [];
 
