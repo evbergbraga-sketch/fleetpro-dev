@@ -239,6 +239,9 @@ async function registrarComChecklist(){
   // PASSO 7: Gerar PDF com página de checklist
   await gerarPdfContrato(numContrato, d, chk);
 
+  // PASSO 7b: Enviar para assinatura digital
+  if(locId) await enviarParaAssinatura(numContrato, d, locId);
+
   // PASSO 8: Recarregar dados DEPOIS de tudo concluído
   await carregarTudo();
 }
@@ -758,8 +761,11 @@ async function registrarContrato(retornarId=false){
       return { locId: locSalva.id, numContrato, d };
     }
 
-    // Gera PDF normal (sem checklist)
-    setTimeout(()=> gerarPdfContrato(numContrato, d), 500);
+    // Gera PDF e envia para assinatura digital
+    setTimeout(async ()=>{
+      await gerarPdfContrato(numContrato, d);
+      if(locId) await enviarParaAssinatura(numContrato, d, locId);
+    }, 500);
     await carregarTudo();
 
     // Salvar cartão no perfil do cliente (se marcado)
@@ -819,7 +825,7 @@ function _baixarPdfSemRegistrar(){
 
 // ══ GERAR PDF ══
 
-async function gerarPdfContrato(numContrato, d, checklist=null){
+async function gerarPdfContrato(numContrato, d, checklist=null, returnBase64=false){
   if(!d||typeof d!=='object') d = previewContrato();
   if(!d) return;
   if(!window.jspdf){ notify('jsPDF não carregado. Recarregue a página.','error'); return; }
@@ -1505,6 +1511,9 @@ try{
     }
   }
 
+  if(returnBase64){
+    return doc.output('datauristring');
+  }
   doc.save(`Contrato_Royal_${numContrato}_${(d.nomeCli||'').replace(/\s+/g,'_')}.pdf`);
   notify(`PDF do Contrato #${numContrato} gerado!`,'success');
 }
@@ -1844,26 +1853,8 @@ async function enviarParaAssinatura(numContrato, d, locacaoId){
 
 // Gera PDF como dataURL (sem baixar) — usado pelo Autentique
 async function _gerarPdfBlob(numContrato, d){
-  // Reutiliza gerarPdfContrato mas captura o output antes do doc.save()
-  // Abordagem: gera o doc e retorna como dataURL
-  if(!window.jspdf) throw new Error('jsPDF não carregado');
-  const {jsPDF} = window.jspdf;
-
-  // Cria o PDF igual ao gerarPdfContrato mas retorna base64
-  const doc = new jsPDF({unit:'mm', format:'a4'});
-
-  // Delega para a função existente via hack: intercepta doc.save
-  const origSave = doc.save.bind(doc);
-  let dataUrl = null;
-  doc.save = (filename) => {
-    dataUrl = doc.output('datauristring');
-  };
-
-  // Chama a função de geração passando o doc
-  await _gerarPdfNoDoc(doc, numContrato, d, null);
-
-  if(!dataUrl) dataUrl = doc.output('datauristring');
-  doc.save = origSave;
+  // Usa gerarPdfContrato com returnBase64=true
+  const dataUrl = await gerarPdfContrato(numContrato, d, null, true);
   return dataUrl;
 }
 
