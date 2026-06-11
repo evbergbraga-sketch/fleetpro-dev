@@ -1781,7 +1781,7 @@ async function enviarParaAssinatura(numContrato, d, locacaoId){
     // 3. Enviar para o bridge → Autentique
     const resp = await fetch(bridge + '/api/autentique/enviar-contrato', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'x-secret': 'FleetPro2025' },
+      headers: { 'Content-Type': 'application/json', 'x-secret': JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}').secret||'' },
       body: JSON.stringify({
         pdfBase64,
         nomeDoc:    `Contrato #${numContrato} — ${d.nomeCli}`,

@@ -314,7 +314,7 @@ async function conectarWpp(){
   const apiKey = (document.getElementById('wpp-apikey')?.value||'').trim();
   const inst   = (document.getElementById('wpp-inst')?.value||'fleetpro').trim();
   const bridge = (document.getElementById('wpp-bridge')?.value||'').trim().replace(/\/$/,'');
-  const secret = (document.getElementById('wpp-secret')?.value||'FleetPro2025').trim();
+  const secret = (document.getElementById('wpp-secret')?.value||'').trim();
 
   if(!bridge){ notify('Preencha a URL do Bridge Server','error'); return; }
 
@@ -1349,7 +1349,7 @@ async function toggleSara(){
   try{
     const r = await fetch((cfg.bridgeUrl||'').replace(/\/$/,'')+endpoint, {
       method:'POST',
-      headers:{'Content-Type':'application/json','x-secret': (JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}').secret||'FleetPro2025')},
+      headers:{'Content-Type':'application/json','x-secret': (JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}').secret||'')},
       body: JSON.stringify({ numero: numLimpo })
     });
     const data = await r.json();
@@ -1365,7 +1365,7 @@ async function _checarStatusSara(telefone){
   if(!raw){ _renderBotaoSara(false); return; }
   const numChave = raw.startsWith('55') ? raw : '55' + raw.slice(-11);
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
-  const secret = cfg.secret || 'FleetPro2025';
+  const secret = cfg.secret ||'';
   try{
     const r = await fetch((cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'')+'/sara-status/'+numChave+'?secret='+encodeURIComponent(secret));
     const data = await r.json();
@@ -1537,7 +1537,7 @@ document.addEventListener('visibilitychange', ()=>{
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   if(cfg.bridgeUrl){
     const sseCaiu = !sseSource || sseSource.readyState === EventSource.CLOSED;
-    if(sseCaiu) conectarSSE(cfg.bridgeUrl, cfg.secret||'FleetPro2025');
+    if(sseCaiu) conectarSSE(cfg.bridgeUrl, cfg.secret||'');
   }
 });
 

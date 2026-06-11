@@ -178,7 +178,8 @@ async function _getSignedUrl(url){
   const bridge = (cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
   const bucket = url.includes('wpp-media') ? 'wpp-media' : url.includes('veiculos-docs') ? 'veiculos-docs' : 'checklists';
   try{
-    const r = await fetch(`${bridge}/media-url?bucket=${bucket}&path=${encodeURIComponent(url)}&secret=FleetPro2025`);
+    const _bSecret = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}').secret||'';
+    const r = await fetch(`${bridge}/media-url?bucket=${bucket}&path=${encodeURIComponent(url)}&secret=${encodeURIComponent(_bSecret)}`);
     const data = await r.json();
     if(data.ok && data.url){
       _urlCache[url] = { signed: data.url, exp: Date.now() + 3500000 };
