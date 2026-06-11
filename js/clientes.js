@@ -97,13 +97,20 @@ function _renderTelefones(prefix){
     return;
   }
   wrap.innerHTML = arr.map((t,i)=>`
-    <div style="display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:center;margin-bottom:6px">
-      <select onchange="_cliTelefones['${prefix}'][${i}].tipo=this.value" style="width:100%">
-        ${['Particular','Familiar','Trabalho','WhatsApp','Outro'].map(o=>`<option${o===t.tipo?' selected':''}>${o}</option>`).join('')}
-      </select>
-      <input type="text" value="${t.numero}" placeholder="(21) 99999-0000" style="width:100%"
-        oninput="_cliTelefones['${prefix}'][${i}].numero=this.value">
-      <button onclick="_removeTelefone('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+    <div style="margin-bottom:6px">
+      <div style="display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:center">
+        <select onchange="_cliTelefones['${prefix}'][${i}].tipo=this.value;_renderTelefones('${prefix}')" style="width:100%">
+          ${['Particular','Familiar','Trabalho','WhatsApp','Outro'].map(o=>`<option${o===t.tipo?' selected':''}>${o}</option>`).join('')}
+        </select>
+        <input type="text" value="${t.numero}" placeholder="(21) 99999-0000" style="width:100%"
+          oninput="_cliTelefones['${prefix}'][${i}].numero=this.value">
+        <button onclick="_removeTelefone('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+      </div>
+      ${t.tipo==='Familiar'?`
+      <div style="margin-top:5px;padding-left:4px">
+        <input type="text" value="${t.nome_familiar||''}" placeholder="Nome do familiar" style="width:100%;font-size:12px"
+          oninput="_cliTelefones['${prefix}'][${i}].nome_familiar=this.value">
+      </div>`:''}
     </div>`).join('');
 }
 
@@ -550,7 +557,7 @@ async function _renderPerfilCliente(c){
 
     ${_podVerCampo('telefone') && tels.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
       <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">📱 Telefones</div>
-      ${tels.map(t=>`<div style="font-size:13px;margin-bottom:3px"><span style="color:var(--muted);font-size:11px">${t.tipo}: </span>${t.numero}</div>`).join('')}
+      ${tels.map(t=>`<div style="font-size:13px;margin-bottom:3px"><span style="color:var(--muted);font-size:11px">${t.tipo}${t.tipo==='Familiar'&&t.nome_familiar?' ('+t.nome_familiar+')':''}: </span>${t.numero}</div>`).join('')}
     </div>` : ''}
 
     ${_podVerCampo('email') && mails.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
