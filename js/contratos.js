@@ -1843,10 +1843,15 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     if(linkCliente || linkLocadora){
       const _modalId = 'aut'+Date.now(); // sem hífens — identificador JS válido
       // Guarda função de envio em variável global (sem nome dinâmico)
-      // Extrair telefone — pode estar em telefone (string) ou telefones (JSONB)
+      // Extrair telefone — padrão do sistema: telefones (JSONB array ou objeto) ou telefone (string)
       let _cTel = c?.telefone||'';
       if(!_cTel && c?.telefones){
-        try{ const _ta=JSON.parse(c.telefones); if(_ta?.length) _cTel=_ta[0].numero||''; }catch(_){}
+        try{
+          // Supabase retorna JSONB já como objeto — não precisa de JSON.parse
+          const _ta = Array.isArray(c.telefones) ? c.telefones
+                    : (typeof c.telefones==='string' ? JSON.parse(c.telefones) : null);
+          if(_ta?.length) _cTel = _ta[0].numero||'';
+        }catch(_){}
       }
       window._autentiqueWppFn = async (btnEl) => {
         if(!_cTel){ notify('Cliente sem telefone cadastrado','error'); return; }
