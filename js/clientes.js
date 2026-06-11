@@ -740,19 +740,43 @@ async function _excluirCartao(id, clienteId){
 
 // ══ EXCLUIR CLIENTE ══
 async function excluirCliente(id, nome){
-  if(!confirm(`Excluir o cliente "${nome}"?
-
-Essa ação não pode ser desfeita.
-Locações e contratos vinculados serão mantidos.`)) return;
+  if(!confirm(`Excluir o cliente "${nome}"?\n\nEssa ação não pode ser desfeita.`)) return;
   try{
+    // Verificar vínculos antes de excluir
+    const [resLoc, resRes, resCond] = await Promise.all([
+      sb.from('locacoes').select('id',   {count:'exact',head:true}).eq('cliente_id', id),
+      sb.from('reservas').select('id',   {count:'exact',head:true}).eq('cliente_id', id),
+      sb.from('condutores').select('id', {count:'exact',head:true}).eq('cliente_id', id),
+    ]);
+    const totalLoc  = resLoc.count  || 0;
+    const totalRes  = resRes.count  || 0;
+    const totalCond = resCond.count || 0;
+
+    // Bloquear se tiver locações (histórico importante)
+    if(totalLoc > 0){
+      notify(`Não é possível excluir "${nome}": possui ${totalLoc} locação(ões) vinculada(s). Encerre as locações antes.`, 'error');
+      return;
+    }
+
+    // Se só tem reservas/condutores, perguntar se quer excluir junto
+    if(totalRes > 0 || totalCond > 0){
+      const msg = [];
+      if(totalRes  > 0) msg.push(`${totalRes} reserva(s)`);
+      if(totalCond > 0) msg.push(`${totalCond} condutor(es) adicional(is)`);
+      if(!confirm(`O cliente "${nome}" possui ${msg.join(' e ')} vinculado(s).\n\nDeseja excluir tudo junto?`)) return;
+      if(totalRes  > 0) await sb.from('reservas').delete().eq('cliente_id', id);
+      if(totalCond > 0) await sb.from('condutores').delete().eq('cliente_id', id);
+    }
+
     const {error} = await sb.from('clientes').delete().eq('id', id);
     if(error) throw error;
-    notify('Cliente excluído.', 'success');
+    notify('Cliente excluído com sucesso.', 'success');
+    closeModal('perfil-cliente');
     await loadClientes();
     renderClientes();
     renderDashboard();
   }catch(e){
-    notify('Erro ao excluir: ' + e.message, 'error');
+    notify('Erro ao excluir: ' + (e.message||e), 'error');
   }
 }
 
