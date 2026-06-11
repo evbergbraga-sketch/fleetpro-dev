@@ -1841,7 +1841,7 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
 
     // 6. Modal com links e botão WhatsApp
     if(linkCliente || linkLocadora){
-      const _modalId = 'modal-autentique-'+Date.now();
+      const _modalId = 'aut'+Date.now(); // sem hífens — identificador JS válido
       const _enviarWpp = async (btnEl) => {
         if(!c?.telefone){ notify('Cliente sem telefone cadastrado','error'); return; }
         btnEl.disabled=true; btnEl.textContent='⏳ Enviando...';
@@ -1899,7 +1899,7 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
           <div style="display:flex;flex-direction:column;gap:8px">
             <button id="btn-wpp-autentique-${_modalId}"
               style="width:100%;padding:11px;border-radius:10px;background:#25d366;color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700"
-              onclick="(()=>{const b=this||document.getElementById('btn-wpp-autentique-${_modalId}');_enviarWppAutentique_${_modalId}(b);})()">
+              onclick="window['_enviarWppAutentique_${_modalId}'](this)">
               💬 Enviar no WhatsApp
             </button>
             <button onclick="document.getElementById('${_modalId}').remove()"
