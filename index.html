@@ -1289,6 +1289,40 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <div class="form-group"><label>E-mail empresa</label><input type="text" id="eu-email-emp" placeholder="contato@empresa.com" style="width:100%"></div>
         </div>
       </div>
+      <!-- PERMISSÕES PERSONALIZADAS — visível apenas quando perfil != admin -->
+      <div id="eu-campos-perm" style="display:none;margin-top:4px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:12px 0 10px;border-top:1px solid var(--border2);padding-top:14px">🔒 Permissões de Acesso</div>
+
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Páginas que pode acessar:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="dashboard"> Dashboard</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="carros"> 🚗 Carros</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="motos"> 🏍️ Motos</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="historico"> 🔧 Histórico</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="clientes"> 👥 Clientes</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="reservas"> 📅 Reservas</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="locacoes"> ⏱️ Locações</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="contratos"> 📄 Contratos</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="calendario"> 📆 Calendário</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="chat"> 💬 Chat WhatsApp</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="financeiro"> 💰 Financeiro</label>
+        </div>
+
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">👤 Campos visíveis no perfil do cliente:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="nome"> Nome</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="telefone"> 📞 Telefone</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="cpf"> CPF</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="email"> E-mail</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="cnh"> CNH</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="endereco"> Endereço</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="cartao"> 💳 Cartão</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="origem"> Origem</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="redes_sociais"> 🌐 Redes Sociais</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="observacoes"> Observações</label>
+        </div>
+      </div>
+
       <div id="eu-err" style="display:none;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:6px;padding:8px 12px;font-size:12px;color:#F87171;margin:8px 0"></div>
       <div id="eu-ok"  style="display:none;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);border-radius:6px;padding:8px 12px;font-size:12px;color:#4ade80;margin:8px 0"></div>
     </div>

@@ -440,6 +440,13 @@ async function verPerfilClienteById(id){
   await _renderPerfilCliente(c);
 }
 
+// Helper: verifica se o usuário atual pode ver um campo do cliente
+function _podVerCampo(campo){
+  const perm = currentPerfil?.permissoes;
+  if(!perm || !perm.clientes_campos) return true; // sem restrição
+  return perm.clientes_campos.includes(campo);
+}
+
 async function _renderPerfilCliente(c){
   document.getElementById('perfil-cliente-body').innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:14px">
@@ -524,10 +531,10 @@ async function _renderPerfilCliente(c){
   <!-- PAINEL DADOS -->
   <div id="painel-dados" style="padding:16px 20px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">CPF</div><div style="font-size:13px;font-weight:500">${c.cpf||'—'}</div></div>
+      ${_podVerCampo('cpf')?`<div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">CPF</div><div style="font-size:13px;font-weight:500">${c.cpf||'—'}</div></div>`:''}
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Nascimento</div><div style="font-size:13px">${c.data_nascimento?fmtData(c.data_nascimento):'—'}</div></div>
-      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Origem</div><div style="font-size:13px">${c.origem||'—'}</div></div>
-      ${c.cartao_dados ? `
+      ${_podVerCampo('origem')?`<div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Origem</div><div style="font-size:13px">${c.origem||'—'}</div></div>`:''}
+      ${c.cartao_dados && _podVerCampo('cartao') ? `
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px;grid-column:1/-1">
         <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">💳 Cartão Registrado</div>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -537,16 +544,16 @@ async function _renderPerfilCliente(c){
           <span style="font-size:12px;color:var(--muted2)">Titular: ${c.cartao_dados.titular||'—'}</span>
         </div>
       </div>` : ''}
-      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px;grid-column:1/-1"><div style="font-size:10px;color:var(--muted2);margin-bottom:6px">🌐 Redes Sociais</div><div style="display:flex;gap:8px;flex-wrap:wrap">${(()=>{const rs=c.redes_sociais||[];if(!rs.length)return'<span style="font-size:13px;color:var(--muted)">—</span>';const icons={'Instagram':'📸','Facebook':'👥','Twitter':'🐦','TikTok':'🎵','YouTube':'▶️','LinkedIn':'💼','WhatsApp':'💬','Outro':'🔗'};return rs.map(r=>`<a href="${r.url||'#'}" target="_blank" style="display:flex;align-items:center;gap:5px;background:var(--bg3,var(--bg));padding:4px 10px;border-radius:20px;font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--border)">${icons[r.rede]||'🔗'} ${r.rede} ${r.usuario?'<span style=\'color:var(--muted)\'>'+r.usuario+'</span>':''}</a>`).join('')})()}</div></div>
+      ${_podVerCampo('redes_sociais') ? `      <div style="background:var(--bg2);padding:10px 12px;border-radius:8px;grid-column:1/-1"><div style="font-size:10px;color:var(--muted2);margin-bottom:6px">🌐 Redes Sociais</div><div style="display:flex;gap:8px;flex-wrap:wrap">${(()=>{const rs=c.redes_sociais||[];if(!rs.length)return'<span style="font-size:13px;color:var(--muted)">—</span>';const icons={'Instagram':'📸','Facebook':'👥','Twitter':'🐦','TikTok':'🎵','YouTube':'▶️','LinkedIn':'💼','WhatsApp':'💬','Outro':'🔗'};return rs.map(r=>`<a href="${r.url||'#'}" target="_blank" style="display:flex;align-items:center;gap:5px;background:var(--bg3,var(--bg));padding:4px 10px;border-radius:20px;font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--border)">${icons[r.rede]||'🔗'} ${r.rede} ${r.usuario?'<span style=\'color:var(--muted)\'>'+r.usuario+'</span>':''}</a>`).join('')})()}</div></div>` : ''}
       <div style="background:var(--bg2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted2);margin-bottom:3px">Status análise</div><div>${_statusBadge(c.status_analise||'em_analise')}</div></div>
     </div>
 
-    ${tels.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
+    ${_podVerCampo('telefone') && tels.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
       <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">📱 Telefones</div>
       ${tels.map(t=>`<div style="font-size:13px;margin-bottom:3px"><span style="color:var(--muted);font-size:11px">${t.tipo}: </span>${t.numero}</div>`).join('')}
     </div>` : ''}
 
-    ${mails.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
+    ${_podVerCampo('email') && mails.length ? `<div style="background:var(--bg2);padding:10px 12px;border-radius:8px;margin-bottom:10px">
       <div style="font-size:10px;color:var(--muted2);margin-bottom:6px">✉️ Emails</div>
       ${mails.map(e=>`<div style="font-size:13px;margin-bottom:3px"><span style="color:var(--muted);font-size:11px">${e.tipo}: </span>${e.email}</div>`).join('')}
     </div>` : ''}

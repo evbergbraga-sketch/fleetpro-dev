@@ -22,6 +22,10 @@ function goPage(id, navEl){
   const cfg=PAGE_CFG[id];
   if(!cfg) return;
   if(!cfg.roles.includes(currentPerfil?.perfil)) id='denied';
+  // Checar permissão customizada (só para atendente com permissoes definidas)
+  if(id !== 'denied' && currentPerfil?.perfil === 'atendente' && currentPerfil?.permissoes?.paginas){
+    if(!currentPerfil.permissoes.paginas.includes(id)) id='denied';
+  }
 
   if(id !== 'investidores' && window._invLeave) window._invLeave();
 
@@ -139,13 +143,30 @@ async function editarUsuario(id){
   if(invEl) invEl.style.display = isInv ? '' : 'none';
   const errEl=document.getElementById('eu-err'); if(errEl) errEl.style.display='none';
   const okEl =document.getElementById('eu-ok');  if(okEl)  okEl.style.display='none';
+
+  // Carregar permissões nos checkboxes
+  const perm = p.permissoes || null;
+  const elPerm = document.getElementById('eu-campos-perm');
+  if(elPerm) elPerm.style.display = p.perfil==='atendente' ? '' : 'none';
+
+  // Páginas — se null = todas marcadas (sem restrição)
+  document.querySelectorAll('.eu-perm-pag').forEach(cb => {
+    cb.checked = !perm || !perm.paginas || perm.paginas.includes(cb.value);
+  });
+  // Campos do cliente — se null = todos marcados
+  document.querySelectorAll('.eu-perm-cli').forEach(cb => {
+    cb.checked = !perm || !perm.clientes_campos || perm.clientes_campos.includes(cb.value);
+  });
+
   document.getElementById('m-editar-usuario').classList.add('show');
 }
 
 function _toggleEuInvestidor(){
   const p = document.getElementById('eu-perfil')?.value;
-  const el = document.getElementById('eu-campos-inv');
-  if(el) el.style.display = p==='investidor' ? '' : 'none';
+  const elInv  = document.getElementById('eu-campos-inv');
+  const elPerm = document.getElementById('eu-campos-perm');
+  if(elInv)  elInv.style.display  = p==='investidor' ? '' : 'none';
+  if(elPerm) elPerm.style.display = p==='atendente'  ? '' : 'none';
 }
 
 async function salvarEdicaoUsuario(){
@@ -159,6 +180,17 @@ async function salvarEdicaoUsuario(){
   if(errEl) errEl.style.display='none';
   if(okEl)  okEl.style.display='none';
   if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
+  // Coletar permissões (só para atendente)
+  let permissoes = null;
+  if(perfil === 'atendente'){
+    const paginas = [...document.querySelectorAll('.eu-perm-pag:checked')].map(cb=>cb.value);
+    const clientes_campos = [...document.querySelectorAll('.eu-perm-cli:checked')].map(cb=>cb.value);
+    // null = sem restrição (tudo marcado); JSONB = restrição ativa
+    const todasPag = document.querySelectorAll('.eu-perm-pag').length === paginas.length;
+    const todosCli = document.querySelectorAll('.eu-perm-cli').length === clientes_campos.length;
+    permissoes = (todasPag && todosCli) ? null : { paginas, clientes_campos };
+  }
+
   const obj = {
     nome, perfil,
     empresa:       document.getElementById('eu-empresa').value.trim()||null,
@@ -167,6 +199,7 @@ async function salvarEdicaoUsuario(){
     responsavel:   document.getElementById('eu-resp').value.trim()||null,
     telefone:      document.getElementById('eu-tel').value.trim()||null,
     email_empresa: document.getElementById('eu-email-emp').value.trim()||null,
+    permissoes,
   };
   try{
     const {error} = await sb.from('perfis').update(obj).eq('id',id);

@@ -110,7 +110,12 @@ async function carregarPerfil(user){
 function iniciarApp(){
   const p=currentPerfil;
   const nav=document.getElementById('sidebar-nav');
-  const menus=ROLE_MENUS[p.perfil]||ROLE_MENUS.atendente;
+  const _todosMenus = ROLE_MENUS[p.perfil]||ROLE_MENUS.atendente;
+  // Filtrar pelo permissoes.paginas (só para atendente com restrições)
+  const _paginasPermitidas = (p.perfil==='atendente' && p.permissoes?.paginas) ? p.permissoes.paginas : null;
+  const menus = _paginasPermitidas
+    ? _todosMenus.filter(m => m.section || _paginasPermitidas.includes(m.id))
+    : _todosMenus;
   nav.innerHTML=menus.map(m=>{
     if(m.section) return `<div class="nav-section">${m.section}</div>`;
     return `<div class="nav-item" id="nav-${m.id}" data-inv-page="${m.invPage||''}" onclick="${m.invPage?`goInvPage('${m.invPage}');goPage('${m.id}',this)`:`goPage('${m.id}',this)`}"><span class="icon">${m.icon}</span>${m.label}</div>`;
