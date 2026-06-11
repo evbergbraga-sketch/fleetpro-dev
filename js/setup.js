@@ -172,10 +172,10 @@ function _injectHamburguer(){
 
   // Mostra o botão só em mobile via resize
   function checkMobile(){
-    const isMobile = window.innerWidth <= 768;
-    btn.style.display = isMobile ? 'flex' : 'none';
-    // No mobile, sidebar começa fechada
-    if(isMobile){
+    const isMobileOrTablet = window.innerWidth <= 1024;
+    btn.style.display = isMobileOrTablet ? 'flex' : 'none';
+    // No mobile/tablet, sidebar começa fechada
+    if(isMobileOrTablet){
       document.querySelector('.sidebar')?.classList.remove('open');
       document.getElementById('sidebar-overlay').style.display = 'none';
     }
