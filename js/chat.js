@@ -1109,8 +1109,8 @@ async function sendMsg(){
     financeiro: 'Financeiro',
     investidor: 'Investidor',
   }[currentPerfil?.perfil] || 'Atendente';
-  const _assinatura = _nomeAtend ? `\n\n*${_roleLabel} ${_nomeAtend}*` : '';
-  const textoFinal = texto + _assinatura;
+  const _assinatura = _nomeAtend ? `*${_roleLabel} ${_nomeAtend}*\n` : '';
+  const textoFinal = _assinatura + texto;
 
   adicionarMsgLocal(activeChatId, textoFinal, 'text', null);
   inp.value = '';
