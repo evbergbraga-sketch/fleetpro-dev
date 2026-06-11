@@ -761,11 +761,21 @@ async function registrarContrato(retornarId=false){
       return { locId: locSalva.id, numContrato, d };
     }
 
-    // Gera PDF e envia para assinatura digital
+    // Gera PDF UMA VEZ → download + Autentique (sem gerar duas vezes)
     const _locIdParaAssinatura = locSalva?.id || null;
     setTimeout(async ()=>{
-      await gerarPdfContrato(numContrato, d);
-      if(_locIdParaAssinatura) await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura);
+      // Gera PDF com returnBase64=true para ter o blob disponível
+      const _pdfDataUrl = await gerarPdfContrato(numContrato, d, null, true);
+      // Trigger download manualmente
+      if(_pdfDataUrl){
+        const _a = document.createElement('a');
+        _a.href = _pdfDataUrl;
+        _a.download = `Contrato_Royal_${numContrato}_${(d.nomeCli||'').replace(/\s+/g,'_')}.pdf`;
+        _a.click();
+        notify(`PDF do Contrato #${numContrato} gerado!`,'success');
+      }
+      // Envia para Autentique com o PDF já gerado (sem regerar)
+      if(_locIdParaAssinatura) await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura, _pdfDataUrl);
     }, 500);
     await carregarTudo();
 
@@ -1750,7 +1760,7 @@ async function calSelectDay(d){
 
 
 // ══ AUTENTIQUE — ASSINATURA DIGITAL ══
-async function enviarParaAssinatura(numContrato, d, locacaoId){
+async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=null){
   const cfg  = JSON.parse(localStorage.getItem('fleetpro_evo_cfg')||'{}');
   const bridge = (cfg.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
 
@@ -1758,10 +1768,12 @@ async function enviarParaAssinatura(numContrato, d, locacaoId){
   if(btnAs){ btnAs.disabled=true; btnAs.textContent='⏳ Enviando para assinatura...'; }
 
   try{
-    // 1. Gera o PDF como blob (sem baixar)
-    if(!window.jspdf){ notify('jsPDF não carregado','error'); return; }
-    const {jsPDF} = window.jspdf;
-    const docPdf = await _gerarPdfBlob(numContrato, d);
+    // 1. Usa PDF já gerado OU gera agora (evita gerar duas vezes)
+    let docPdf = pdfDataUrlParam;
+    if(!docPdf){
+      if(!window.jspdf){ notify('jsPDF não carregado','error'); return; }
+      docPdf = await _gerarPdfBlob(numContrato, d);
+    }
     const pdfBase64 = docPdf.split(',')[1]; // remove "data:application/pdf;base64,"
 
     // 2. Monta signatários
@@ -1797,51 +1809,109 @@ async function enviarParaAssinatura(numContrato, d, locacaoId){
     const linkCliente = result.links?.[emailCliente] || result.links?.[d.nomeCli] || null;
     const linkLocadora = result.links?.['sac@locadoraroyal.com.br'] || null;
 
-    notify('Documento enviado ao Autentique! ✅', 'success');
+    notify('✅ Documento enviado ao Autentique!', 'success');
 
-    // 5. Enviar link por WhatsApp se cliente tem telefone
-    if(linkCliente && c?.telefone){
-      const msgAssinatura =
-        `📝 *CONTRATO #${numContrato} — LOCADORA ROYAL*\n\n` +
-        `Olá *${d.nomeCli}*! Seu contrato está pronto para assinatura digital.\n\n` +
-        `🔗 *Link para assinar:*\n${linkCliente}\n\n` +
-        `⚠️ O link é pessoal e intransferível. Ao clicar, você poderá revisar e assinar o contrato eletronicamente.\n\n` +
-        `_Qualquer dúvida, fale conosco. Equipe Royal 🚗🏍️_`;
+    // 5. Montar mensagem WhatsApp formatada
+    const _fmtDH = (dt) => {
+      if(!dt) return '—';
+      try{ return new Date(dt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+      catch(_){ return dt.slice(0,16).replace('T',' '); }
+    };
+    const _semanas = (d.ini && d.fim)
+      ? Math.round((new Date(d.fim)-new Date(d.ini))/(7*24*3600*1000))
+      : '—';
+    const _totalFmt = (d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    const _semFmt   = (d.dia||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    const _icVei    = d.planoNome?.toLowerCase().includes('moto')||d.modelo?.toLowerCase().includes('moto')||d.modelo?.toLowerCase().includes('fazer')||d.modelo?.toLowerCase().includes('honda')||d.modelo?.toLowerCase().includes('yamaha')||d.modelo?.toLowerCase().includes('150')||d.modelo?.toLowerCase().includes('160') ? '🏍️' : '🚗';
 
-      try{
-        await evoSendText(c.telefone, msgAssinatura);
-        await salvarMsgDB(d.clienteId, c.telefone, msgAssinatura, 'text', 'saida', null);
-        notify('Link de assinatura enviado no WhatsApp ✓','success');
-      }catch(e){ console.warn('WPP assinatura:', e.message); }
-    }
+    const msgWpp =
+      `📄 *CONTRATO #${numContrato} — LOCADORA ROYAL*\n\n` +
+      `👤 Cliente: *${d.nomeCli}*\n` +
+      `📋 CPF: *${c?.cpf||'—'}*\n` +
+      `${_icVei} Veículo: *${d.modelo||''} — ${d.placa||''}*\n` +
+      `📅 Retirada: *${_fmtDH(d.ini)}*\n` +
+      `📅 Devolução: *${_fmtDH(d.fim)}*\n` +
+      `📍 Local: *${d.localRet||'Loja'}*\n` +
+      `⏱️ Período: *${_semanas} semanas*\n` +
+      `💰 Valor semanal: *R$ ${_semFmt}*\n` +
+      `💳 Total: *R$ ${_totalFmt}*\n\n` +
+      `✅ Contrato registrado com sucesso!\n\n` +
+      `✍️ *Assine agora pelo link:*\n${linkCliente||'(sem link)'}\n\n` +
+      `_Equipe Locadora Royal 🚗_`;
 
-    // 6. Mostrar links na tela
+    // 6. Modal com links e botão WhatsApp
     if(linkCliente || linkLocadora){
+      const _modalId = 'modal-autentique-'+Date.now();
+      const _enviarWpp = async (btnEl) => {
+        if(!c?.telefone){ notify('Cliente sem telefone cadastrado','error'); return; }
+        btnEl.disabled=true; btnEl.textContent='⏳ Enviando...';
+        try{
+          await evoSendText(c.telefone, msgWpp);
+          await salvarMsgDB(d.clienteId, c.telefone, msgWpp, 'text', 'saida', null);
+          btnEl.textContent='✅ Enviado!';
+          btnEl.style.background='var(--green)';
+          notify('Mensagem enviada no WhatsApp ✓','success');
+        }catch(e){
+          btnEl.disabled=false; btnEl.textContent='💬 Enviar no WhatsApp';
+          notify('Erro no WhatsApp: '+e.message,'error');
+        }
+      };
+
       const modal = document.createElement('div');
-      modal.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+      modal.id = _modalId;
+      modal.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
       modal.innerHTML=`
-        <div style="background:var(--bg);border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4)">
-          <div style="font-size:18px;font-weight:700;margin-bottom:16px">✅ Contrato enviado para assinatura</div>
-          <div style="font-size:12px;color:var(--muted2);margin-bottom:16px">Contrato #${numContrato} — ${d.nomeCli}</div>
+        <div style="background:var(--bg);border-radius:18px;padding:28px;max-width:460px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-size:17px;font-weight:700;color:var(--text)">✅ Contrato enviado para assinatura</div>
+            <button onclick="document.getElementById('${_modalId}').remove()" style="background:rgba(255,255,255,.08);border:none;color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:15px">✕</button>
+          </div>
+          <div style="font-size:12px;color:var(--muted2);margin-bottom:20px">Contrato #${numContrato} — ${d.nomeCli}</div>
+
           ${linkCliente?`
           <div style="margin-bottom:12px">
-            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">🔗 Link do Cliente:</div>
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">🔗 Link do Cliente</div>
             <div style="display:flex;gap:8px;align-items:center">
-              <input value="${linkCliente}" readonly style="flex:1;font-size:11px;padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)">
-              <button onclick="navigator.clipboard.writeText('${linkCliente}');notify('Copiado!','success')" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:12px">Copiar</button>
+              <input id="inp-lk-cli-${_modalId}" value="${linkCliente}" readonly
+                style="flex:1;font-size:11px;padding:7px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)">
+              <button onclick="navigator.clipboard.writeText('${linkCliente}');notify('Copiado!','success')"
+                style="padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:12px;white-space:nowrap">Copiar</button>
             </div>
           </div>`:``}
+
           ${linkLocadora?`
-          <div style="margin-bottom:16px">
-            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">🔗 Link da Locadora:</div>
+          <div style="margin-bottom:20px">
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">🔗 Link da Locadora</div>
             <div style="display:flex;gap:8px;align-items:center">
-              <input value="${linkLocadora}" readonly style="flex:1;font-size:11px;padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)">
-              <button onclick="navigator.clipboard.writeText('${linkLocadora}');notify('Copiado!','success')" style="padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:12px">Copiar</button>
+              <input value="${linkLocadora}" readonly
+                style="flex:1;font-size:11px;padding:7px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)">
+              <button onclick="navigator.clipboard.writeText('${linkLocadora}');notify('Copiado!','success')"
+                style="padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:12px;white-space:nowrap">Copiar</button>
             </div>
           </div>`:``}
-          <button onclick="this.closest('div[style*=fixed]').remove()" style="width:100%;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--border2);cursor:pointer;color:var(--text);font-size:13px">Fechar</button>
+
+          <!-- Preview da mensagem WhatsApp -->
+          <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--muted2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">💬 Prévia da mensagem WhatsApp</div>
+            <pre style="font-size:11.5px;color:var(--text2);white-space:pre-wrap;font-family:var(--font-body);line-height:1.6;margin:0">${msgWpp.replace(/\*/g,'').replace(/_/g,'')}</pre>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button id="btn-wpp-autentique-${_modalId}"
+              style="width:100%;padding:11px;border-radius:10px;background:#25d366;color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700"
+              onclick="(()=>{const b=this||document.getElementById('btn-wpp-autentique-${_modalId}');_enviarWppAutentique_${_modalId}(b);})()">
+              💬 Enviar no WhatsApp
+            </button>
+            <button onclick="document.getElementById('${_modalId}').remove()"
+              style="width:100%;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--border2);cursor:pointer;color:var(--muted);font-size:13px">
+              Fechar
+            </button>
+          </div>
         </div>`;
       document.body.appendChild(modal);
+
+      // Expor função de envio no escopo global do modal
+      window[`_enviarWppAutentique_${_modalId}`] = _enviarWpp;
     }
 
   }catch(e){
