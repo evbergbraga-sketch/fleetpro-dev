@@ -592,8 +592,20 @@ function previewContrato(){
     else taxaDisplayForm.textContent = '';
   }
 
-  const valorPago = window._reservaValorPago||0;
+  const valorPagoReserva = window._reservaValorPago||0;
+  const valorPagoAto     = parseFloat(document.getElementById('c-valor-pago-ato')?.value)||0;
+  const dividirPgto      = document.getElementById('c-dividir-pagamento')?.checked||false;
+  const valorPgto1       = dividirPgto ? (parseFloat(document.getElementById('c-valor-pgto1')?.value)||0) : valorPagoAto;
+  const formaPgto1       = dividirPgto ? (document.getElementById('c-forma-pgto1')?.value||pgto) : pgto;
+  const valorPgto2       = dividirPgto ? (parseFloat(document.getElementById('c-valor-pgto2')?.value)||0) : 0;
+  const formaPgto2       = dividirPgto ? (document.getElementById('c-forma-pgto2')?.value||'') : '';
+
+  const valorPago = valorPagoReserva + valorPagoAto;
   const totalLiq  = Math.max(0, totalBruto - valorPago);
+  const valorRestante = Math.max(0, totalBruto - valorPago);
+
+  const restanteEl = document.getElementById('c-valor-restante-display');
+  if(restanteEl) restanteEl.value = `R$ ${valorRestante.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
 
   const nomeCli     = cOpt?.dataset.nome||'___';
   const cpfCli      = cOpt?.dataset.cpf||'___';
@@ -648,7 +660,7 @@ function previewContrato(){
     else ctTaxaEl.textContent = '';
   }
   _set('ct-total-bruto', `R$ ${totalBruto.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
-  _set('ct-total', `R$ ${totalLiq.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
+  _set('ct-total', `R$ ${totalBruto.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
   _set('ct-km', km);
   _set('ct-obs', obs||'Veículo em perfeito estado. Cliente responsável por multas.');
   _set('ct-caucao', `R$ ${caucao.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
@@ -658,11 +670,22 @@ function previewContrato(){
 
   const avisoEl = document.getElementById('ct-aviso-reserva');
   if(avisoEl){
+    const partes = [];
+    if(valorPagoReserva>0) partes.push(`Reserva: R$ ${valorPagoReserva.toFixed(2).replace('.',',')}`);
+    if(valorPagoAto>0){
+      if(dividirPgto && valorPgto2>0){
+        partes.push(`No ato: R$ ${valorPgto1.toFixed(2).replace('.',',')} (${formaPgto1}) + R$ ${valorPgto2.toFixed(2).replace('.',',')} (${formaPgto2})`);
+      } else {
+        partes.push(`No ato: R$ ${valorPagoAto.toFixed(2).replace('.',',')} (${formaPgto1})`);
+      }
+    }
     avisoEl.style.display = valorPago>0 ? 'block' : 'none';
-    if(valorPago>0) avisoEl.innerHTML = `⚠️ Valor já pago na reserva: <strong>R$ ${valorPago.toFixed(2).replace('.',',')}</strong> · Total ajustado: <strong>R$ ${totalLiq.toFixed(2).replace('.',',')}</strong>`;
+    if(valorPago>0) avisoEl.innerHTML = `💵 ${partes.join(' · ')} · <strong>Restante: R$ ${valorRestante.toFixed(2).replace('.',',')}</strong>`;
   }
 
-  return {totalBruto, totalLiq, valorPago, pgtoCaucao, descricao, planoNome, nomeCli, cpfCli, telCli, pgtoLabel, parcelas, cartao4dig, cartaoVal, cartaoBand, cartaoTitular, cartaoSalvar,
+  return {totalBruto, totalLiq, valorPago, valorPagoReserva, valorPagoAto, valorRestante,
+    dividirPgto, valorPgto1, formaPgto1, valorPgto2, formaPgto2,
+    pgtoCaucao, descricao, planoNome, nomeCli, cpfCli, telCli, pgtoLabel, parcelas, cartao4dig, cartaoVal, cartaoBand, cartaoTitular, cartaoSalvar,
     emailCli, cnhCli, cnhValCli, cnhCatCli, endCli, nascCli,
     placa, modelo, atendente, diasLabel, dia: diaComDesconto, diaOriginal, temDesconto, descontoValor, descontoTipo, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
@@ -748,13 +771,17 @@ async function registrarContrato(retornarId=false){
       diaria_original: d.temDesconto ? d.diaOriginal : null,
       desconto_valor: d.temDesconto ? d.descontoValor : null,
       desconto_tipo: d.temDesconto ? d.descontoTipo : null,
-      total:d.totalLiq,
+      total: d.totalBruto,
+      valor_pago_ato: d.valorPagoAto||null,
+      valor_restante: d.valorRestante,
+      forma_pgto_2: (d.dividirPgto && d.valorPgto2>0) ? d.formaPgto2 : null,
+      valor_pgto_2: (d.dividirPgto && d.valorPgto2>0) ? d.valorPgto2 : null,
       observacoes:obs,
       tipo_contrato: _tipoContrato,
       num_contrato: numContrato,
       local_retirada: document.getElementById('c-local-ret')?.value||'Loja',
       caucao: d.caucao,
-      forma_pgto: pgto,
+      forma_pgto: (d.dividirPgto && d.valorPgto1>0) ? d.formaPgto1 : pgto,
       forma_pgto_caucao: d.pgtoCaucao||pgto,
       cartao_id: cartaoId,
       servicos_adicionais: _servicosLista.length>0 ? _servicosLista : null,
@@ -845,8 +872,16 @@ function _msgWppContrato(num, c, v, d){
   txt += `⏱ *Período:* ${d.diasLabel}\n`;
   txt += `💰 *Valor ${isMoto?'semanal':'diária'}:* R$ ${d.dia.toFixed(2).replace('.',',')}\n`;
   if(d.totalServicos>0) txt += `🔧 *Serviços adicionais:* R$ ${d.totalServicos.toFixed(2).replace('.',',')}\n`;
-  if(d.valorPago>0) txt += `✂️ *Abatimento reserva:* - R$ ${d.valorPago.toFixed(2).replace('.',',')}\n`;
-  txt += `💳 *Total:* R$ ${d.totalLiq.toFixed(2).replace('.',',')}\n`;
+  if(d.valorPagoReserva>0) txt += `✂️ *Abatimento reserva:* - R$ ${d.valorPagoReserva.toFixed(2).replace('.',',')}\n`;
+  if(d.valorPagoAto>0){
+    if(d.dividirPgto && d.valorPgto2>0){
+      txt += `💵 *Pago no ato:* R$ ${d.valorPgto1.toFixed(2).replace('.',',')} (${d.formaPgto1}) + R$ ${d.valorPgto2.toFixed(2).replace('.',',')} (${d.formaPgto2})\n`;
+    } else {
+      txt += `💵 *Pago no ato:* R$ ${d.valorPagoAto.toFixed(2).replace('.',',')} (${d.formaPgto1})\n`;
+    }
+  }
+  txt += `📌 *Valor restante:* R$ ${d.valorRestante.toFixed(2).replace('.',',')}\n`;
+  txt += `💳 *Total:* R$ ${d.totalBruto.toFixed(2).replace('.',',')}\n`;
   txt += `\n✅ Contrato registrado. O PDF completo será enviado em seguida.\n_Equipe Locadora Royal 🚗🏍️_`;
   return txt;
 }
@@ -1116,21 +1151,32 @@ try{
   // ══════════════════════════════════════
   safeY(16);
   const temTaxa = !d.taxaAdminIsenta && d.taxaAdminPct > 0;
-  const pgtoBoxH = temTaxa || d.taxaAdminIsenta ? 20 : 14;
+  const temPgtoAto = d.valorPagoAto>0;
+  const pgtoBoxH = (temTaxa || d.taxaAdminIsenta ? 20 : 14) + (temPgtoAto?4:0);
   rect(M, y, CW, pgtoBoxH, '#f0f8f0', '#a8d8a8');
   doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
   doc.text('FORMA DE PAGAMENTO', M+cellPad, y+5);
   doc.setFont('helvetica','bold'); doc.setTextColor('#111');
   doc.setFontSize(8);
-  doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: R$ ${(d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+9);
+  doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: R$ ${(d.totalBruto||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+9);
   doc.setFontSize(7.5); doc.setFont('helvetica','normal');
   doc.text(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`, M+cellPad, y+12);
+  let pgtoLinhaExtra = 12;
+  if(temPgtoAto){
+    pgtoLinhaExtra = 16;
+    const pagoTxt = (d.dividirPgto && d.valorPgto2>0)
+      ? `R$ ${d.valorPgto1.toFixed(2).replace('.',',')} (${d.formaPgto1}) + R$ ${d.valorPgto2.toFixed(2).replace('.',',')} (${d.formaPgto2})`
+      : `R$ ${d.valorPagoAto.toFixed(2).replace('.',',')} (${d.formaPgto1})`;
+    doc.setFont('helvetica','bold');
+    doc.text(`Pago no ato: ${pagoTxt}  —  Restante: R$ ${d.valorRestante.toFixed(2).replace('.',',')}`, M+cellPad, y+pgtoLinhaExtra);
+    doc.setFont('helvetica','normal');
+  }
   if(temTaxa){
     doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor('#b45309');
-    doc.text(`Taxa Administrativa: ${d.taxaAdminPct}%  —  R$ ${(d.taxaAdminVal||0).toFixed(2).replace('.',',')} (inclusa no valor total)`, M+cellPad, y+16);
+    doc.text(`Taxa Administrativa: ${d.taxaAdminPct}%  —  R$ ${(d.taxaAdminVal||0).toFixed(2).replace('.',',')} (inclusa no valor total)`, M+cellPad, y+pgtoLinhaExtra+4);
   } else if(d.taxaAdminIsenta){
     doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor('#16a34a');
-    doc.text('Taxa Administrativa: Isentada', M+cellPad, y+16);
+    doc.text('Taxa Administrativa: Isentada', M+cellPad, y+pgtoLinhaExtra+4);
   }
   y += pgtoBoxH + 3;
 
@@ -1863,7 +1909,7 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     const _semanas = (d.ini && d.fim)
       ? Math.round((new Date(d.fim)-new Date(d.ini))/(7*24*3600*1000))
       : '—';
-    const _totalFmt = (d.totalLiq||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    const _totalFmt = (d.totalBruto||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
     const _semFmt   = (d.dia||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
     const _icVei    = d.planoNome?.toLowerCase().includes('moto')||d.modelo?.toLowerCase().includes('moto')||d.modelo?.toLowerCase().includes('fazer')||d.modelo?.toLowerCase().includes('honda')||d.modelo?.toLowerCase().includes('yamaha')||d.modelo?.toLowerCase().includes('150')||d.modelo?.toLowerCase().includes('160') ? '🏍️' : '🚗';
 
@@ -2048,6 +2094,22 @@ function _onChangePgtoCaucao(){
   const wrap = document.getElementById('c-campos-cartao-caucao');
   if(wrap) wrap.style.display = isCard ? '' : 'none';
   previewContrato();
+}
+
+// ══ PAGAMENTO NO ATO — DIVIDIR EM 2 FORMAS ══
+function _toggleDividirPagamento(){
+  const checked = document.getElementById('c-dividir-pagamento')?.checked;
+  const wrap = document.getElementById('c-pgto-split-wrap');
+  if(wrap) wrap.style.display = checked ? '' : 'none';
+  if(checked) _calcPgto2Restante();
+  previewContrato();
+}
+
+function _calcPgto2Restante(){
+  const valorAto = parseFloat(document.getElementById('c-valor-pago-ato')?.value)||0;
+  const valor1   = parseFloat(document.getElementById('c-valor-pgto1')?.value)||0;
+  const valor2El = document.getElementById('c-valor-pgto2');
+  if(valor2El) valor2El.value = Math.max(0, valorAto - valor1).toFixed(2);
 }
 
 // ══ INICIAR ASSINATURA — registra contrato e envia para Autentique ══
