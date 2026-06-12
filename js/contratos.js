@@ -719,6 +719,7 @@ async function registrarContrato(retornarId=false){
     const condutorCnhVal = document.getElementById('c-condutor-cnh-val')?.value||null;
     const condutorCnhSeg = document.getElementById('c-condutor-cnh-seg')?.value||'';
     const planoMoto      = document.querySelector('input[name="c-plano-moto"]:checked')?.value||null;
+    const primeiraSemanaIncluida = document.getElementById('c-primeira-semana-incluida')?.checked !== false;
 
     const {data:locSalva, error} = await sb.from('locacoes').insert({
       veiculo_id:vid, cliente_id:cid,
@@ -742,6 +743,7 @@ async function registrarContrato(retornarId=false){
       condutor_cnh_cat: condutorCnhCat||null,
       condutor_cnh_val: condutorCnhVal,
       plano_moto: planoMoto,
+      primeira_semana_incluida: primeiraSemanaIncluida,
       criado_por: currentUser?.id
     }).select().single();
     if(error) throw error;

@@ -521,6 +521,10 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                     <div style="font-size:10px;color:var(--muted)">por semana</div>
                   </label>
                 </div>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;cursor:pointer">
+                  <input type="checkbox" id="c-primeira-semana-incluida" checked style="width:auto">
+                  Primeira semana paga no ato (junto com a caução)
+                </label>
               </div>
               <div class="form-group">
                 <label id="label-valor-principal">Valor semanal (R$)</label>
@@ -1145,7 +1149,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <select id="fin-filtro-cat" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
                 <option value="">Todas as categorias</option>
                 <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
-                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Outros</option>
+                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option><option>Outros</option>
               </select>
               <select id="fin-filtro-veiculo" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
                 <option value="">Todos os veículos</option>
@@ -1219,7 +1223,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <label>Categoria</label>
               <select id="mlc-cat" style="width:100%">
                 <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
-                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Outros</option>
+                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option><option>Outros</option>
               </select>
             </div>
             <div class="form-group full">

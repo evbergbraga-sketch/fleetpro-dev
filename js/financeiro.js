@@ -11,7 +11,7 @@ const FIN_CORES = {
 };
 const FIN_CAT_ICONES = {
   'Aluguel':'🚗','Manutenção':'🔧','Seguro':'🛡️','IPVA':'📋',
-  'Combustível':'⛽','Multa':'⚠️','Outros':'📎',
+  'Combustível':'⛽','Multa':'⚠️','Caução':'🔒','Outros':'📎',
 };
 
 // ══ INICIALIZAÇÃO ══
@@ -405,12 +405,76 @@ async function finRegistrarLancamentoLocacao(locacao){
   try{
     const v = allVeiculos.find(x=>x.id===locacao.veiculo_id);
     const c = allClientes.find(x=>x.id===locacao.cliente_id);
+    const descBase = `Contrato #${locacao.num_contrato||''} — ${c?.nome||'Cliente'} — ${v?.placa||''}`;
+    const dataBase = locacao.data_inicio?.slice(0,10)||new Date().toISOString().slice(0,10);
+
+    // ── PLANO DE ASSINATURA MOTO (12m ou Conquista 36m) ──
+    if(locacao.plano_moto){
+      const valorSemanal = parseFloat(locacao.plano_moto)||0;
+      const totalSemanas = valorSemanal === 399.90 ? 156 : 52; // Conquista 36m = 156, 12m = 52
+      const primeiraIncluida = locacao.primeira_semana_incluida !== false;
+
+      // 1) Lançamento da CAUÇÃO (se houver)
+      if(locacao.caucao && parseFloat(locacao.caucao) > 0){
+        await sb.from('lancamentos').insert({
+          tipo:        'receita',
+          categoria:   'Caução',
+          descricao:   `Caução — ${descBase}`,
+          valor:       parseFloat(locacao.caucao),
+          data:        dataBase,
+          veiculo_id:  locacao.veiculo_id||null,
+          locacao_id:  locacao.id||null,
+          origem:      'automatico',
+          criado_por:  currentUser?.id,
+        });
+      }
+
+      // 2) Gera as cobranças semanais (cronograma completo)
+      const cobrancas = [];
+      for(let i=1; i<=totalSemanas; i++){
+        const venc = new Date(dataBase+'T00:00:00');
+        venc.setDate(venc.getDate() + (i-1)*7);
+        cobrancas.push({
+          locacao_id: locacao.id,
+          numero_semana: i,
+          data_vencimento: venc.toISOString().slice(0,10),
+          valor: valorSemanal,
+          status: (i===1 && primeiraIncluida) ? 'pago' : 'pendente',
+          data_pagamento: (i===1 && primeiraIncluida) ? new Date().toISOString() : null,
+        });
+      }
+      const {data:cobrancasInseridas, error: errCobr} = await sb.from('cobrancas_semanais').insert(cobrancas).select();
+      if(errCobr) console.warn('[fin] cobrancas_semanais:', errCobr.message);
+
+      // 3) Se a 1ª semana está incluída, lança no financeiro e vincula
+      if(primeiraIncluida){
+        const {data:lancSemana1} = await sb.from('lancamentos').insert({
+          tipo:        'receita',
+          categoria:   'Aluguel',
+          descricao:   `${descBase} — Semana 1/${totalSemanas}`,
+          valor:       valorSemanal,
+          data:        dataBase,
+          veiculo_id:  locacao.veiculo_id||null,
+          locacao_id:  locacao.id||null,
+          origem:      'automatico',
+          criado_por:  currentUser?.id,
+        }).select().single();
+
+        const semana1 = (cobrancasInseridas||[]).find(c=>c.numero_semana===1);
+        if(semana1 && lancSemana1){
+          await sb.from('cobrancas_semanais').update({lancamento_id: lancSemana1.id}).eq('id', semana1.id);
+        }
+      }
+      return;
+    }
+
+    // ── LOCAÇÃO PADRÃO (carro / diária) — comportamento original ──
     await sb.from('lancamentos').insert({
       tipo:        'receita',
       categoria:   'Aluguel',
-      descricao:   `Contrato #${locacao.num_contrato||''} — ${c?.nome||'Cliente'} — ${v?.placa||''}`,
+      descricao:   descBase,
       valor:       locacao.total||0,
-      data:        locacao.data_inicio?.slice(0,10)||new Date().toISOString().slice(0,10),
+      data:        dataBase,
       veiculo_id:  locacao.veiculo_id||null,
       locacao_id:  locacao.id||null,
       origem:      'automatico',
