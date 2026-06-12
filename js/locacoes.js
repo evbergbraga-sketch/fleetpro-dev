@@ -194,6 +194,7 @@ async function _confirmarPagamentoSemana(cobrancaId){
 
 async function abrirModalLocacao(locId){
   window._locDetalheAtualId = locId;
+  window._locDetalheRestanteContrato = 0;
   const modal = document.getElementById('m-locacao-detalhe');
   const body  = document.getElementById('locacao-detalhe-body');
   if(!modal||!body) return;
@@ -206,6 +207,7 @@ async function abrirModalLocacao(locId){
     .select('*,veiculos(*),clientes(*)')
     .eq('id',locId).single();
   if(!loc){ body.innerHTML='<p style="color:var(--red)">Locação não encontrada.</p>'; return; }
+  window._locDetalheRestanteContrato = loc.valor_restante||0;
 
   // Busca checklists existentes (tabela pode não existir ainda)
   let checks = [];
@@ -362,7 +364,7 @@ function showLocTab(tab){
   // Mostrar bloco de custos somente na aba entrada
   const bCustos = document.getElementById('bloco-custos-devolucao');
   if(bCustos){ bCustos.style.display = tab==='entrada' ? '' : 'none'; }
-  if(tab==='entrada'){ _custosDevolucao=[]; _renderCustosDevolucao(); }
+  if(tab==='entrada'){ _custosDevolucao=[]; _renderCustosDevolucao(); _atualizarTotalPagamentoRestante(); }
   document.querySelectorAll('.loc-tab').forEach(t=>{
     const isSaida = t.id==='tab-saida';
     const active = (tab==='saida')===isSaida;
@@ -526,6 +528,68 @@ function _renderFormChecklist(tipo, locId, loc){
       </div>
     </div>
 
+    ${tipo==='entrada' && !loc.plano_moto ? `
+    <div id="bloco-pagamento-restante" style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💰 Pagamento do Saldo Restante</div>
+      <div style="background:var(--bg2);border-radius:10px;padding:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
+          <span>Valor restante do contrato:</span>
+          <strong id="pgr-restante-contrato">R$ ${(loc.valor_restante||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
+          <span>+ Custos da devolução:</span>
+          <strong id="pgr-custos">R$ 0,00</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:var(--accent);padding-top:8px;border-top:1px solid var(--border2);margin-bottom:10px">
+          <span>Total a receber:</span>
+          <strong id="pgr-total" data-valor="${loc.valor_restante||0}">R$ ${(loc.valor_restante||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong>
+        </div>
+
+        <div id="pgr-form" style="${(loc.valor_restante||0)>0?'':'display:none'}">
+          <div class="form-grid" style="gap:10px;margin-bottom:8px">
+            <div class="form-group">
+              <label>Valor recebido agora (R$)</label>
+              <input type="number" id="pgr-valor1" step="0.01" min="0" value="${(loc.valor_restante||0).toFixed(2)}" style="width:100%" oninput="_calcPgrRestante()">
+            </div>
+            <div class="form-group">
+              <label>Forma de pagamento</label>
+              <select id="pgr-forma1" style="width:100%">
+                <option value="PIX">PIX</option>
+                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                <option value="Cartão de Débito">Cartão de Débito</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Transferência">Transferência</option>
+                <option value="Boleto">Boleto</option>
+              </select>
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;margin-bottom:8px">
+            <input type="checkbox" id="pgr-dividir" style="width:auto" onchange="_togglePgrSplit()">
+            Dividir em 2 formas de pagamento
+          </label>
+          <div id="pgr-split-wrap" class="form-grid" style="gap:10px;display:none">
+            <div class="form-group">
+              <label>Valor 2ª forma (R$)</label>
+              <input type="number" id="pgr-valor2" step="0.01" min="0" readonly style="width:100%;background:var(--bg2)">
+            </div>
+            <div class="form-group">
+              <label>Forma 2</label>
+              <select id="pgr-forma2" style="width:100%">
+                <option value="PIX">PIX</option>
+                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                <option value="Cartão de Débito">Cartão de Débito</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Transferência">Transferência</option>
+                <option value="Boleto">Boleto</option>
+              </select>
+            </div>
+          </div>
+          <div id="pgr-aviso-saldo" style="font-size:11px;color:var(--red);margin-top:6px;display:none"></div>
+        </div>
+        <div id="pgr-quitado-msg" style="${(loc.valor_restante||0)>0?'display:none':''};font-size:12px;color:var(--green);font-weight:600;text-align:center">✓ Contrato sem saldo pendente</div>
+      </div>
+    </div>` : ''}
+
     <button class="btn btn-primary" style="width:100%" onclick="salvarChecklist('${tipo}','${locId}')">
       💾 Salvar vistoria de ${label}
     </button>
@@ -660,6 +724,31 @@ async function salvarChecklist(tipo, locId){
   const obs    = document.getElementById(`chk-obs-${tipo}`)?.value||'';
   const fotos  = window[`_fotos_${tipo}`]||[];
 
+  // ── Validação do pagamento do restante (apenas entrada, contratos não-moto) ──
+  let pgrInfo = null;
+  if(tipo==='entrada'){
+    const {data:locCheck} = await sb.from('locacoes').select('plano_moto').eq('id',locId).single();
+    const isMotoPlan = !!locCheck?.plano_moto;
+    const restanteContrato = isMotoPlan ? 0 : (window._locDetalheRestanteContrato||0);
+    const custosTotal = _custosDevolucao.reduce((a,c)=>a+(c.valor||0), 0);
+    const totalAReceber = Math.max(0, restanteContrato + custosTotal);
+
+    if(totalAReceber > 0){
+      const valor1 = parseFloat(document.getElementById('pgr-valor1')?.value)||0;
+      const forma1 = document.getElementById('pgr-forma1')?.value||'PIX';
+      const dividir = document.getElementById('pgr-dividir')?.checked;
+      const valor2 = dividir ? (parseFloat(document.getElementById('pgr-valor2')?.value)||0) : 0;
+      const forma2 = dividir ? (document.getElementById('pgr-forma2')?.value||'PIX') : null;
+      const totalInformado = valor1 + valor2;
+
+      if(totalInformado < totalAReceber - 0.01){
+        notify(`Pagamento incompleto! Faltam R$ ${(totalAReceber-totalInformado).toFixed(2).replace('.',',')} para liberar a devolução.`,'error');
+        return;
+      }
+      pgrInfo = {valor1, forma1, valor2, forma2, totalAReceber, restanteContrato, custosTotal};
+    }
+  }
+
   const btn = document.querySelector(`#form-checklist-${tipo} .btn-primary`);
   if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
 
@@ -706,6 +795,7 @@ async function salvarChecklist(tipo, locId){
     // Se for entrada, registrar custos no financeiro
     if(tipo==='entrada' && _custosDevolucao.length){
       const loc = (await sb.from('locacoes').select('*, veiculos(*), clientes(*)').eq('id', locId).single()).data;
+      const qtdCustos = _custosDevolucao.length;
       for(const custo of _custosDevolucao){
         if(!custo.valor || custo.valor<=0) continue;
         // Reparo = despesa de manutenção; demais = receita cobrada do cliente
@@ -727,7 +817,53 @@ async function salvarChecklist(tipo, locId){
         });
       }
       _custosDevolucao = []; // limpa após salvar
-      notify(`${_custosDevolucao.length} custo(s) registrados no financeiro!`,'success');
+      notify(`${qtdCustos} custo(s) registrados no financeiro!`,'success');
+    }
+
+    // Se for entrada: registra pagamento do restante, fecha contrato e libera veículo
+    if(tipo==='entrada'){
+      const loc = (await sb.from('locacoes').select('*, veiculos(*), clientes(*)').eq('id', locId).single()).data;
+
+      if(pgrInfo && pgrInfo.totalAReceber>0){
+        const descBase = `Contrato #${loc?.num_contrato||locId.slice(0,8)} — ${loc?.clientes?.nome||''} — ${loc?.veiculos?.placa||''} — Saldo final`;
+        if(pgrInfo.valor1>0){
+          await sb.from('lancamentos').insert({
+            tipo:'receita', categoria:'Aluguel', descricao: descBase,
+            valor: pgrInfo.valor1, data: new Date().toISOString().slice(0,10),
+            veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
+            forma_pgto: pgrInfo.forma1, origem:'checklist_entrada', criado_por: currentUser?.id,
+          });
+        }
+        if(pgrInfo.valor2>0){
+          await sb.from('lancamentos').insert({
+            tipo:'receita', categoria:'Aluguel', descricao: descBase+' (2ª forma)',
+            valor: pgrInfo.valor2, data: new Date().toISOString().slice(0,10),
+            veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
+            forma_pgto: pgrInfo.forma2, origem:'checklist_entrada', criado_por: currentUser?.id,
+          });
+        }
+      }
+
+      // Fecha o contrato e libera o veículo
+      await sb.from('locacoes').update({
+        status: 'encerrada',
+        valor_restante: 0,
+        km_final: km,
+      }).eq('id', locId);
+
+      if(loc?.veiculo_id){
+        await sb.from('veiculos').update({status:'disponivel'}).eq('id', loc.veiculo_id);
+      }
+
+      notify('Devolução concluída! Veículo liberado e contrato encerrado.','success');
+
+      // Sincroniza dados locais (calendário, listas, etc)
+      if(typeof loadLocacoes==='function') await loadLocacoes();
+      if(typeof loadLocacoesCompletas==='function') await loadLocacoesCompletas();
+      if(typeof loadVeiculos==='function') await loadVeiculos();
+      if(typeof loadHistoricoLocacoes==='function') loadHistoricoLocacoes();
+      if(typeof renderLocacoes==='function') renderLocacoes();
+      if(typeof renderDashboard==='function') renderDashboard();
     }
 
     // Reabre o modal atualizado
@@ -811,6 +947,60 @@ function _recalcularTotalCustos(){
   const wrap = document.getElementById('custos-total-entrada');
   if(el) el.textContent = total.toFixed(2).replace('.',',');
   if(wrap) wrap.style.display = _custosDevolucao.length ? '' : 'none';
+  _atualizarTotalPagamentoRestante();
+}
+
+// ══ PAGAMENTO DO RESTANTE (devolução) ══
+function _atualizarTotalPagamentoRestante(){
+  const restanteEl = document.getElementById('pgr-restante-contrato');
+  const custosEl = document.getElementById('pgr-custos');
+  const totalEl = document.getElementById('pgr-total');
+  const formEl = document.getElementById('pgr-form');
+  const quitadoEl = document.getElementById('pgr-quitado-msg');
+  if(!totalEl) return; // não está na aba entrada
+
+  const restanteContrato = window._locDetalheRestanteContrato||0;
+  const custos = _custosDevolucao.reduce((a,c)=>a+(c.valor||0), 0);
+  const total = Math.max(0, restanteContrato + custos);
+
+  if(custosEl) custosEl.textContent = `R$ ${custos.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  if(totalEl){ totalEl.textContent = `R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}`; totalEl.dataset.valor = total; }
+
+  if(formEl) formEl.style.display = total>0 ? '' : 'none';
+  if(quitadoEl) quitadoEl.style.display = total>0 ? 'none' : '';
+
+  const valor1El = document.getElementById('pgr-valor1');
+  if(valor1El && !valor1El.dataset.userEdited) valor1El.value = total.toFixed(2);
+  _calcPgrRestante();
+}
+
+function _calcPgrRestante(){
+  const total = parseFloat(document.getElementById('pgr-total')?.dataset?.valor)||0;
+  const valor1El = document.getElementById('pgr-valor1');
+  valor1El.dataset.userEdited = '1';
+  const valor1 = parseFloat(valor1El?.value)||0;
+  const dividir = document.getElementById('pgr-dividir')?.checked;
+  const valor2El = document.getElementById('pgr-valor2');
+  const avisoEl = document.getElementById('pgr-aviso-saldo');
+
+  if(dividir && valor2El) valor2El.value = Math.max(0, total - valor1).toFixed(2);
+
+  const totalInformado = dividir ? valor1 + (parseFloat(valor2El?.value)||0) : valor1;
+  if(avisoEl){
+    if(totalInformado < total - 0.01){
+      avisoEl.textContent = `⚠️ Valor informado (R$ ${totalInformado.toFixed(2).replace('.',',')}) é menor que o total a receber (R$ ${total.toFixed(2).replace('.',',')})`;
+      avisoEl.style.display = '';
+    } else {
+      avisoEl.style.display = 'none';
+    }
+  }
+}
+
+function _togglePgrSplit(){
+  const checked = document.getElementById('pgr-dividir')?.checked;
+  const wrap = document.getElementById('pgr-split-wrap');
+  if(wrap) wrap.style.display = checked ? '' : 'none';
+  _calcPgrRestante();
 }
 
 // ══ HISTÓRICO DE LOCAÇÕES ENCERRADAS ══
