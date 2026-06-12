@@ -301,6 +301,11 @@ async function abrirModalLocacao(locId){
         style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
         🏁 Entrada ${checkEntrada?'✓':''}
       </button>
+      ${loc.status==='ativa' ? `
+      <button id="tab-estender" class="loc-tab" onclick="showLocTab('estender')"
+        style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
+        📅 Estender
+      </button>` : ''}
     </div>
 
     <!-- PAINEL SAÍDA -->
@@ -313,6 +318,12 @@ async function abrirModalLocacao(locId){
       ${checkEntrada ? _renderChecklistExistente(checkEntrada) : (checkSaida ? _renderFormChecklist('entrada', locId, loc) : '<div style="text-align:center;padding:30px;color:var(--muted2)">⚠️ Faça o checklist de saída primeiro.</div>')}
     </div>
 
+    <!-- PAINEL ESTENDER -->
+    ${loc.status==='ativa' ? `
+    <div id="painel-estender" style="display:none">
+      ${_renderFormEstender(locId, loc)}
+    </div>` : ''}
+
     <!-- BOTÃO DEVOLUÇÃO -->
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border2)">
       <button class="btn btn-primary" style="width:100%" onclick="confirmarDevolucao('${loc.id}','${loc.veiculo_id}','${loc.veiculos?.marca||''} ${loc.veiculos?.modelo||''}');closeModal('locacao-detalhe')">
@@ -323,6 +334,11 @@ async function abrirModalLocacao(locId){
 
   // Carrega itens do checklist filtrado por tipo de veículo
   await _carregarItensChecklist(loc.veiculos?.tipo || 'moto');
+
+  // Inicializa cálculo da extensão (nova devolução, totais)
+  if(loc.status==='ativa' && typeof _calcExtensao==='function'){
+    setTimeout(()=>_calcExtensao(), 50);
+  }
 
   // Se checklist de entrada existe, carrega custos registrados no financeiro
   if(checkEntrada){
@@ -361,13 +377,15 @@ async function abrirModalLocacao(locId){
 function showLocTab(tab){
   document.getElementById('painel-saida').style.display  = tab==='saida'  ? '' : 'none';
   document.getElementById('painel-entrada').style.display = tab==='entrada' ? '' : 'none';
+  const painelEstender = document.getElementById('painel-estender');
+  if(painelEstender) painelEstender.style.display = tab==='estender' ? '' : 'none';
   // Mostrar bloco de custos somente na aba entrada
   const bCustos = document.getElementById('bloco-custos-devolucao');
   if(bCustos){ bCustos.style.display = tab==='entrada' ? '' : 'none'; }
   if(tab==='entrada'){ _custosDevolucao=[]; _renderCustosDevolucao(); _atualizarTotalPagamentoRestante(); }
   document.querySelectorAll('.loc-tab').forEach(t=>{
-    const isSaida = t.id==='tab-saida';
-    const active = (tab==='saida')===isSaida;
+    const map = {'tab-saida':'saida','tab-entrada':'entrada','tab-estender':'estender'};
+    const active = map[t.id]===tab;
     t.style.color = active?'var(--accent)':'var(--muted)';
     t.style.borderBottomColor = active?'var(--accent)':'transparent';
     t.style.fontWeight = active?'700':'600';
@@ -441,6 +459,219 @@ function _renderChecklistExistente(check){
 }
 
 // ══ RENDER FORMULÁRIO DE CHECKLIST ══
+// ══ ESTENDER LOCAÇÃO ══
+let _servicosExtensao = []; // [{descricao, valor}]
+
+function _renderFormEstender(locId, loc){
+  const isMoto = !!loc.plano_moto;
+  const unidade = isMoto ? 'semana' : 'diária';
+  const unidadePlural = isMoto ? 'semanas' : 'diárias';
+  const valorUnitario = Number(loc.diaria||0);
+  const diasPorUnidade = isMoto ? 7 : 1;
+  _servicosExtensao = [];
+  window._locDetalheFimAtual = loc.data_fim_hora || (loc.data_fim+'T00:00:00');
+
+  return `
+  <div id="form-estender">
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span>Devolução atual:</span>
+        <strong>${loc.data_fim_hora ? _fmtDtLocacao(loc.data_fim_hora) : fmtData(loc.data_fim)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px">
+        <span>Valor da ${unidade}:</span>
+        <strong>R$ ${valorUnitario.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong>
+      </div>
+    </div>
+
+    <div class="form-grid" style="gap:10px;margin-bottom:16px">
+      <div class="form-group">
+        <label>Quantidade de ${unidadePlural} extras</label>
+        <input type="number" id="est-qtd" min="1" step="1" value="1" style="width:100%" oninput="_calcExtensao()">
+      </div>
+      <div class="form-group">
+        <label>Nova devolução</label>
+        <input type="text" id="est-nova-devolucao" readonly disabled style="width:100%;font-weight:700;color:var(--accent)">
+      </div>
+    </div>
+
+    <!-- SERVIÇOS EXTRAS -->
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">🔧 Serviços extras (opcional)</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input type="text" id="est-servico-desc" placeholder="Descrição do serviço" style="flex:2">
+      <input type="number" id="est-servico-val" placeholder="0,00" step="0.01" min="0" style="flex:1">
+      <button type="button" class="btn btn-ghost" onclick="_adicionarServicoExtensao()" style="white-space:nowrap">+ Adicionar</button>
+    </div>
+    <div id="est-servicos-lista" style="margin-bottom:16px"></div>
+
+    <!-- RESUMO -->
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span id="est-resumo-diarias-label">1 ${unidade} × R$ ${valorUnitario.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+        <strong id="est-resumo-diarias">R$ ${valorUnitario.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px" id="est-resumo-servicos-row" style="display:none">
+        <span>+ Serviços extras:</span>
+        <strong id="est-resumo-servicos">R$ 0,00</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:var(--accent);padding-top:8px;border-top:1px solid var(--border2)">
+        <span>Total da extensão:</span>
+        <strong id="est-resumo-total" data-valor="${valorUnitario}" data-valor-unit="${valorUnitario}" data-unidade="${unidade}">R$ ${valorUnitario.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong>
+      </div>
+    </div>
+
+    <div class="form-grid" style="gap:10px;margin-bottom:16px">
+      <div class="form-group">
+        <label>Forma de pagamento</label>
+        <select id="est-forma-pgto" style="width:100%">
+          <option value="PIX">PIX</option>
+          <option value="Cartão de Crédito">Cartão de Crédito</option>
+          <option value="Cartão de Débito">Cartão de Débito</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Transferência">Transferência</option>
+          <option value="Boleto">Boleto</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;margin-top:18px">
+          <input type="checkbox" id="est-ja-pago" style="width:auto">
+          Cliente já pagou a extensão
+        </label>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%" onclick="_confirmarExtensao('${locId}', ${valorUnitario}, ${diasPorUnidade})">
+      ✅ Confirmar extensão
+    </button>
+  </div>`;
+}
+
+function _adicionarServicoExtensao(){
+  const desc = document.getElementById('est-servico-desc')?.value.trim();
+  const val  = document.getElementById('est-servico-val')?.value;
+  if(!desc){ notify('Informe a descrição do serviço','error'); return; }
+  _servicosExtensao.push({descricao:desc, valor:parseFloat(val)||0});
+  document.getElementById('est-servico-desc').value = '';
+  document.getElementById('est-servico-val').value = '';
+  _renderServicosExtensao();
+}
+
+function _removerServicoExtensao(i){
+  _servicosExtensao.splice(i,1);
+  _renderServicosExtensao();
+}
+
+function _renderServicosExtensao(){
+  const wrap = document.getElementById('est-servicos-lista');
+  if(!wrap) return;
+  wrap.innerHTML = _servicosExtensao.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="flex:2;font-size:13px">${s.descricao}</div>
+      <div style="font-weight:600;color:var(--accent)">R$ ${parseFloat(s.valor||0).toFixed(2).replace('.',',')}</div>
+      <button onclick="_removerServicoExtensao(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button>
+    </div>`).join('');
+  _calcExtensao();
+}
+
+function _calcExtensao(){
+  const totalEl = document.getElementById('est-resumo-total');
+  const diariasEl = document.getElementById('est-resumo-diarias');
+  const diariasLabelEl = document.getElementById('est-resumo-diarias-label');
+  const servicosRowEl = document.getElementById('est-resumo-servicos-row');
+  const servicosEl = document.getElementById('est-resumo-servicos');
+  const novaDevEl = document.getElementById('est-nova-devolucao');
+  if(!totalEl) return;
+
+  const qtd = parseInt(document.getElementById('est-qtd')?.value)||1;
+  const valorUnitario = parseFloat(totalEl.dataset.valorUnit)||0;
+  const totalServicos = _servicosExtensao.reduce((a,s)=>a+(parseFloat(s.valor)||0),0);
+  const totalDiarias = qtd * valorUnitario;
+  const total = totalDiarias + totalServicos;
+
+  const unidade = totalEl.dataset.unidade||'diária';
+  if(diariasLabelEl) diariasLabelEl.textContent = `${qtd} ${unidade}${qtd!==1?(unidade==='semana'?'s':'s'):''} × R$ ${valorUnitario.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  if(diariasEl) diariasEl.textContent = `R$ ${totalDiarias.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  if(servicosRowEl) servicosRowEl.style.display = totalServicos>0 ? '' : 'none';
+  if(servicosEl) servicosEl.textContent = `R$ ${totalServicos.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  totalEl.textContent = `R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  totalEl.dataset.valor = total;
+  totalEl.dataset.valorUnit = valorUnitario;
+
+  // Nova data de devolução
+  if(novaDevEl){
+    const fimAtual = window._locDetalheFimAtual ? new Date(window._locDetalheFimAtual) : null;
+    if(fimAtual){
+      const diasPorUnidade = unidade==='semana' ? 7 : 1;
+      const nova = new Date(fimAtual);
+      nova.setDate(nova.getDate() + qtd*diasPorUnidade);
+      window._locDetalheNovaData = nova;
+      novaDevEl.value = _fmtDtLocacao(nova.toISOString());
+    }
+  }
+}
+
+async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
+  const qtd = parseInt(document.getElementById('est-qtd')?.value)||1;
+  if(qtd<=0){ notify('Informe uma quantidade válida','error'); return; }
+
+  const totalEl = document.getElementById('est-resumo-total');
+  const total = parseFloat(totalEl?.dataset?.valor)||0;
+  const jaPago = document.getElementById('est-ja-pago')?.checked||false;
+  const forma = document.getElementById('est-forma-pgto')?.value||'PIX';
+
+  const btn = document.querySelector('#form-estender .btn-primary');
+  if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
+
+  try{
+    const {data:loc} = await sb.from('locacoes').select('*,veiculos(placa),clientes(nome)').eq('id',locId).single();
+    if(!loc) throw new Error('Locação não encontrada');
+
+    const fimAtual = new Date(loc.data_fim_hora||loc.data_fim+'T00:00:00');
+    const novaData = new Date(fimAtual);
+    novaData.setDate(novaData.getDate() + qtd*diasPorUnidade);
+    const novaDataISO = novaData.toISOString();
+
+    // Atualiza locação: nova data de devolução + acumula serviços extras
+    const novosServicos = [...(loc.servicos_adicionais||[]), ..._servicosExtensao.map(s=>({...s, extensao:true}))];
+    const novoTotal = Number(loc.total||0) + total;
+    const novoRestante = jaPago ? Number(loc.valor_restante||0) : Number(loc.valor_restante||0) + total;
+
+    await sb.from('locacoes').update({
+      data_fim: novaDataISO.slice(0,10),
+      data_fim_hora: novaDataISO,
+      total: novoTotal,
+      valor_restante: novoRestante,
+      servicos_adicionais: novosServicos.length>0 ? novosServicos : null,
+    }).eq('id', locId);
+
+    // Lançamento financeiro (se já pago)
+    if(jaPago && total>0){
+      await sb.from('lancamentos').insert({
+        tipo:'receita', categoria:'Aluguel',
+        descricao:`Contrato #${loc.num_contrato||locId.slice(0,8)} — ${loc.clientes?.nome||''} — ${loc.veiculos?.placa||''} — Extensão (+${qtd} ${diasPorUnidade===7?'semana(s)':'diária(s)'})`,
+        valor: total, data: new Date().toISOString().slice(0,10),
+        veiculo_id: loc.veiculo_id||null, locacao_id: locId,
+        forma_pgto: forma, origem:'extensao', criado_por: currentUser?.id,
+      });
+    }
+
+    notify(`Locação estendida até ${_fmtDtLocacao(novaDataISO)}!`,'success');
+
+    // Sincroniza tudo: veículo, calendário, listas
+    if(typeof loadLocacoes==='function') await loadLocacoes();
+    if(typeof loadLocacoesCompletas==='function') await loadLocacoesCompletas();
+    if(typeof loadVeiculos==='function') await loadVeiculos();
+    if(typeof renderLocacoes==='function') renderLocacoes();
+    if(typeof renderDashboard==='function') renderDashboard();
+
+    closeModal('locacao-detalhe');
+    setTimeout(()=>abrirModalLocacao(locId), 200);
+  }catch(e){
+    notify('Erro ao estender: '+e.message,'error');
+    if(btn){ btn.disabled=false; btn.textContent='✅ Confirmar extensão'; }
+  }
+}
+
 function _renderFormChecklist(tipo, locId, loc){
   const label = tipo==='saida'?'Saída':'Entrada';
   return `
