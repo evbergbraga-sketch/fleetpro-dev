@@ -429,6 +429,7 @@ async function criarAssinaturaAsaas(locacao){
         },
         data_inicio: locacao.data_inicio?.slice(0,10),
         data_fim: locacao.data_fim?.slice(0,10),
+        primeira_semana_incluida: locacao.primeira_semana_incluida !== false,
       })
     });
 
