@@ -428,6 +428,7 @@ async function criarAssinaturaAsaas(locacao){
           descricao: `${planoNome} — Locação Moto`,
         },
         data_inicio: locacao.data_inicio?.slice(0,10),
+        data_fim: locacao.data_fim?.slice(0,10),
       })
     });
 
