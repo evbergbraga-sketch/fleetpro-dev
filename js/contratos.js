@@ -1940,6 +1940,21 @@ async function _gerarPdfBlob(numContrato, d){
 }
 
 // ── PLANOS DE MOTO — CONTRATO ──
+function _recalcFimPlanoMoto(){
+  const planoVal = document.querySelector('input[name="c-plano-moto"]:checked')?.value;
+  if(!planoVal) return;
+  const cIni = document.getElementById('c-ini');
+  const cFim = document.getElementById('c-fim');
+  if(!cIni?.value || !cFim) return;
+  const totalSemanas = planoVal==='399.90' ? 156 : 52;
+  const primeiraIncluida = document.getElementById('c-primeira-semana-incluida')?.checked !== false;
+  const extraDias = primeiraIncluida ? 0 : 7; // promo "1ª semana grátis" empurra +7 dias
+  const ini = new Date(cIni.value);
+  ini.setDate(ini.getDate() + totalSemanas*7 + extraDias);
+  const pad = n=>String(n).padStart(2,'0');
+  cFim.value = `${ini.getFullYear()}-${pad(ini.getMonth()+1)}-${pad(ini.getDate())}T${pad(ini.getHours())}:${pad(ini.getMinutes())}`;
+}
+
 function _selecionarPlanoContrato(radio){
   const val = radio.value;
   ['c-plano-12-label','c-plano-36-label'].forEach(id=>{
@@ -1950,7 +1965,9 @@ function _selecionarPlanoContrato(radio){
     el.style.background  = v===val ? 'rgba(37,99,235,.08)' : '';
   });
   const cDia = document.getElementById('c-dia');
-  if(cDia){ cDia.value = val; previewContrato(); }
+  if(cDia){ cDia.value = val; }
+  _recalcFimPlanoMoto();
+  previewContrato();
 }
 
 function _verificarMotoContrato(){
