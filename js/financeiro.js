@@ -410,6 +410,15 @@ async function criarAssinaturaAsaas(locacao){
     const valorSemanal = parseFloat(locacao.plano_moto)||0;
     const totalSemanas = valorSemanal === 399.90 ? 156 : 52;
     const planoNome = valorSemanal === 399.90 ? 'Plano Conquista 36m' : 'Plano 12 meses';
+    const primeiraIncluida = locacao.primeira_semana_incluida !== false;
+
+    // Promoção "1ª semana grátis": todo o cronograma desliza +7 dias
+    let dataFimAjustada = locacao.data_fim?.slice(0,10);
+    if(!primeiraIncluida && dataFimAjustada){
+      const df = new Date(dataFimAjustada+'T00:00:00');
+      df.setDate(df.getDate()+7);
+      dataFimAjustada = df.toISOString().slice(0,10);
+    }
 
     const resp = await fetch(bridge + '/api/asaas/criar-assinatura', {
       method: 'POST',
@@ -428,8 +437,8 @@ async function criarAssinaturaAsaas(locacao){
           descricao: `${planoNome} — Locação Moto`,
         },
         data_inicio: locacao.data_inicio?.slice(0,10),
-        data_fim: locacao.data_fim?.slice(0,10),
-        primeira_semana_incluida: locacao.primeira_semana_incluida !== false,
+        data_fim: dataFimAjustada,
+        primeira_semana_incluida: primeiraIncluida,
       })
     });
 
@@ -478,9 +487,10 @@ async function finRegistrarLancamentoLocacao(locacao){
 
       // 2) Gera as cobranças semanais (cronograma completo)
       const cobrancas = [];
+      const offsetDias = primeiraIncluida ? 0 : 7; // promoção "1ª semana grátis" empurra todo o cronograma
       for(let i=1; i<=totalSemanas; i++){
         const venc = new Date(dataBase+'T00:00:00');
-        venc.setDate(venc.getDate() + (i-1)*7);
+        venc.setDate(venc.getDate() + offsetDias + (i-1)*7);
         cobrancas.push({
           locacao_id: locacao.id,
           numero_semana: i,
