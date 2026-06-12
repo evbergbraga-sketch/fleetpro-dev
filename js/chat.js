@@ -1102,14 +1102,14 @@ async function sendMsg(){
   if(!telefone){ notify('Cliente sem telefone cadastrado','error'); return; }
 
   // ── ASSINATURA DO ATENDENTE ──
-  const _nomeAtend = currentPerfil?.nome || '';
-  const _roleLabel = {
-    admin:      'Administrador',
-    atendente:  'Atendente',
+  const _nomeAtend = (currentPerfil?.nome || '').toUpperCase();
+  const _setor = currentPerfil?.setor?.trim() || ({
+    admin:      'Administrativo',
+    atendente:  'Atendimento',
     financeiro: 'Financeiro',
     investidor: 'Investidor',
-  }[currentPerfil?.perfil] || 'Atendente';
-  const _assinatura = _nomeAtend ? `*${_roleLabel} ${_nomeAtend}*\n` : '';
+  }[currentPerfil?.perfil] || 'Atendimento');
+  const _assinatura = _nomeAtend ? `*${_nomeAtend}* - ${_setor}:\n` : '';
   const textoFinal = _assinatura + texto;
 
   adicionarMsgLocal(activeChatId, textoFinal, 'text', null);

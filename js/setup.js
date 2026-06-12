@@ -404,9 +404,34 @@ function abrirModalMeuPerfil(){
   const em = document.getElementById('mp-email');  if(em) em.textContent=u.email||'—';
   const ro = document.getElementById('mp-role');   if(ro){ ro.textContent=ROLE_LABELS[p.perfil]||p.perfil; ro.className='role-chip '+p.perfil; }
 
+  const setorInput = document.getElementById('mp-setor');
+  if(setorInput) setorInput.value = p.setor||'';
+  _atualizarPreviewSetor();
+
   // Limpa campos e feedbacks
   ['nova-senha','conf-senha'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   ['senha-err','senha-ok'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
 
   document.getElementById('m-meu-perfil').classList.add('show');
+}
+
+function _atualizarPreviewSetor(){
+  const nomeEl = document.getElementById('mp-setor-preview');
+  const setorEl = document.getElementById('mp-setor-preview2');
+  const input = document.getElementById('mp-setor');
+  if(nomeEl) nomeEl.textContent = (currentPerfil?.nome||'SEU NOME').toUpperCase();
+  if(setorEl) setorEl.textContent = input?.value?.trim() || 'Setor';
+}
+
+async function salvarSetorPerfil(){
+  const setor = document.getElementById('mp-setor')?.value?.trim()||'';
+  try{
+    const {error} = await sb.from('perfis').update({setor}).eq('id', currentUser.id);
+    if(error) throw error;
+    currentPerfil.setor = setor;
+    _atualizarPreviewSetor();
+    notify('Setor atualizado!','success');
+  }catch(e){
+    notify('Erro ao salvar setor: '+e.message,'error');
+  }
 }
