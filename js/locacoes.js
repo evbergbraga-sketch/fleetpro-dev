@@ -822,7 +822,7 @@ async function loadHistoricoLocacoes(){
       .from('locacoes')
       .select(`
         id, num_contrato, data_inicio, data_fim, data_inicio_hora, data_fim_hora,
-        km_inicial, km_final, diaria, total, status, forma_pgto, tipo_contrato,
+        km_inicial, km_final, diaria, total, status, forma_pgto, tipo_contrato, plano_moto, caucao,
         veiculos(id, marca, modelo, placa, tipo),
         clientes(id, nome, telefone)
       `)
@@ -830,6 +830,26 @@ async function loadHistoricoLocacoes(){
       .order('data_fim',{ascending:false})
       .limit(200);
     _historicoLocacoes = data||[];
+
+    // Para planos de moto, busca soma de valores pagos nas cobranças semanais
+    const idsMoto = _historicoLocacoes.filter(l=>l.plano_moto).map(l=>l.id);
+    if(idsMoto.length){
+      const {data:cobr} = await sb.from('cobrancas_semanais')
+        .select('locacao_id, valor, valor_pago, status')
+        .in('locacao_id', idsMoto)
+        .eq('status','pago');
+      const somaPorLocacao = {};
+      (cobr||[]).forEach(c=>{
+        const v = c.valor_pago!=null ? Number(c.valor_pago) : Number(c.valor);
+        somaPorLocacao[c.locacao_id] = (somaPorLocacao[c.locacao_id]||0) + v;
+      });
+      _historicoLocacoes.forEach(l=>{
+        if(l.plano_moto){
+          l._totalRecebido = (Number(l.caucao)||0) + (somaPorLocacao[l.id]||0);
+        }
+      });
+    }
+
     renderHistoricoLocacoes();
   }catch(e){ console.warn('[histórico]', e.message); }
 }
@@ -881,7 +901,7 @@ function renderHistoricoLocacoes(){
       <td style="font-size:12px">${fmtD(l.data_inicio)}</td>
       <td style="font-size:12px">${fmtD(l.data_fim)}</td>
       <td style="font-size:12px;text-align:center">${kmRod(l)}</td>
-      <td style="font-size:13px;font-weight:700;color:var(--accent)">${fmtR(l.total)}</td>
+      <td style="font-size:13px;font-weight:700;color:var(--accent)">${fmtR(l.plano_moto ? (l._totalRecebido||0) : l.total)}</td>
       <td style="font-size:12px;color:var(--muted2)">${l.num_contrato ? `#${l.num_contrato}` : '—'}</td>
       <td>
         <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px"
