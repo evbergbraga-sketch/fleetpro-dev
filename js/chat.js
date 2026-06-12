@@ -1213,7 +1213,8 @@ async function _enviarMidiaWpp(c){
     let storageUrl = null;
     try{
       const ext = fileRef.name.split('.').pop();
-      const path = `chat/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const nomeSeguro = fileRef.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `chat/${Date.now()}_${nomeSeguro}`;
       const { data: upData, error: upErr } = await sb.storage.from('wpp-media').upload(path, fileRef);
       if(!upErr && upData){
         storageUrl = `https://jjeogfafgbexgxqhubha.supabase.co/storage/v1/object/wpp-media/${path}`;
