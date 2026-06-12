@@ -77,6 +77,57 @@ async function loadLocacoesCompletas(){
 }
 
 // ══ MODAL DETALHES DA LOCAÇÃO ══
+// ══ COBRANÇAS SEMANAIS (planos moto) ══
+function _renderCobrancasSemanais(cobrancas, loc){
+  if(!cobrancas || cobrancas.length===0) return '';
+
+  const hoje = new Date().toISOString().slice(0,10);
+  const pagos     = cobrancas.filter(c=>c.status==='pago').length;
+  const atrasados = cobrancas.filter(c=>c.status==='atrasado' || (c.status==='pendente' && c.data_vencimento < hoje)).length;
+  const total     = cobrancas.length;
+
+  const statusInfo = {
+    pago:     {label:'Pago',     color:'var(--green)', bg:'var(--green-bg)', border:'var(--green-border)', icon:'✓'},
+    pendente: {label:'Pendente', color:'var(--muted)',  bg:'var(--bg2)',      border:'var(--border2)',      icon:'⏳'},
+    atrasado: {label:'Atrasado', color:'var(--red)',   bg:'var(--red-bg)',   border:'var(--red-border)',   icon:'⚠'},
+  };
+
+  const linhas = cobrancas.map(c=>{
+    // Status efetivo: se pendente e venceu, mostra como atrasado visualmente
+    const statusEf = (c.status==='pendente' && c.data_vencimento < hoje) ? 'atrasado' : c.status;
+    const info = statusInfo[statusEf]||statusInfo.pendente;
+    const valorExibido = c.valor_pago!=null ? c.valor_pago : c.valor;
+    return `
+      <div style="display:grid;grid-template-columns:70px 1fr 90px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:600;color:var(--text2)">Sem. ${c.numero_semana}</div>
+        <div style="font-size:12px;color:var(--muted)">${fmtData(c.data_vencimento)}</div>
+        <div style="font-size:12px;font-weight:600;text-align:right">R$ ${Number(valorExibido).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <div style="display:flex;justify-content:flex-end">
+          <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;color:${info.color};background:${info.bg};border:1px solid ${info.border}">${info.icon} ${info.label}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2)">Cobranças Semanais</div>
+        <div style="display:flex;gap:8px;font-size:11px">
+          <span style="color:var(--green);font-weight:600">${pagos} pagas</span>
+          <span style="color:var(--muted)">·</span>
+          <span style="color:var(--muted)">${total-pagos-atrasados} pendentes</span>
+          ${atrasados>0?`<span style="color:var(--muted)">·</span><span style="color:var(--red);font-weight:600">${atrasados} atrasadas</span>`:''}
+        </div>
+      </div>
+      <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border2);border-radius:8px">
+        <div style="display:grid;grid-template-columns:70px 1fr 90px 100px;gap:8px;padding:6px 10px;background:var(--bg3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:600;position:sticky;top:0">
+          <div>Semana</div><div>Vencimento</div><div style="text-align:right">Valor</div><div style="text-align:right">Status</div>
+        </div>
+        ${linhas}
+      </div>
+    </div>`;
+}
+
 async function abrirModalLocacao(locId){
   const modal = document.getElementById('m-locacao-detalhe');
   const body  = document.getElementById('locacao-detalhe-body');
@@ -103,6 +154,18 @@ async function abrirModalLocacao(locId){
 
   const checkSaida   = checks.find(c=>c.tipo==='saida');
   const checkEntrada = checks.find(c=>c.tipo==='entrada');
+
+  // Busca cobranças semanais (apenas planos moto)
+  let cobrancas = [];
+  if(loc.plano_moto){
+    try{
+      const {data:cobrData} = await sb.from('cobrancas_semanais')
+        .select('*')
+        .eq('locacao_id', locId)
+        .order('numero_semana',{ascending:true});
+      cobrancas = cobrData||[];
+    }catch(e){ cobrancas = []; }
+  }
 
   const diff = Math.ceil((new Date(loc.data_fim)-new Date())/86400000);
   const statusColor = diff<0?'#dc2626':diff===0?'#d97706':'#16a34a';
@@ -158,6 +221,8 @@ async function abrirModalLocacao(locId){
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:6px">📝 Observações</div>
       <div style="font-size:13px;color:var(--text)">${loc.observacoes}</div>
     </div>`:''}
+
+    ${_renderCobrancasSemanais(cobrancas, loc)}
 
     <!-- ABAS CHECKLISTS -->
     <div style="border-bottom:2px solid var(--border2);margin-bottom:16px;display:flex;gap:0">
