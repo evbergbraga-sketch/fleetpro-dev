@@ -618,7 +618,7 @@ async function _renderPerfilCliente(c){
           <div>📅 ${fmtData(l.data_inicio)} → ${fmtData(l.data_fim)}</div>
           <div style="font-weight:600;color:var(--text)">Total: R$ ${(l.total||0).toFixed(2)}</div>
         </div>
-        ${l.status==='ativa'?`<div style="margin-top:10px"><button class="btn btn-primary" style="font-size:11px;padding:5px 14px;width:100%" onclick="confirmarDevolucao('${l.id}','${l.veiculo_id}','${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}');closeModal('perfil-cliente')">✅ Confirmar devolução</button></div>`:''}
+        ${l.status==='ativa'?`<div style="margin-top:10px"><button class="btn btn-primary" style="font-size:11px;padding:5px 14px;width:100%" onclick="closeModal('perfil-cliente');abrirModalLocacaoEntrada('${l.id}')">✅ Fazer devolução</button></div>`:''}
       </div>`;
     }).join('') : '<div style="text-align:center;padding:20px;color:var(--muted2);font-size:13px">Nenhum contrato registrado.</div>'}
   </div>
@@ -788,27 +788,6 @@ async function excluirCliente(id, nome){
 }
 
 // ══ DEVOLUÇÃO ══
-async function confirmarDevolucao(locId, veiculoId, nomeVeiculo){
-  const kmFinal = prompt(`Confirmar devolução de ${nomeVeiculo}\n\nInforme o KM final (ou deixe vazio):`, '');
-  if(kmFinal === null) return;
-  try{
-    const updateObj = {status:'encerrada'};
-    if(kmFinal && !isNaN(parseInt(kmFinal))) updateObj.km_final = parseInt(kmFinal);
-    const {error:e1} = await sb.from('locacoes').update(updateObj).eq('id',locId);
-    if(e1) throw e1;
-    const kmUpdate = {status:'disponivel'};
-    if(kmFinal && !isNaN(parseInt(kmFinal))) kmUpdate.km_atual = parseInt(kmFinal);
-    const {error:e2} = await sb.from('veiculos').update(kmUpdate).eq('id',veiculoId);
-    if(e2) throw e2;
-    notify('Devolução confirmada! Veículo disponível. ✅','success');
-    await Promise.all([loadVeiculos(), loadLocacoes(), loadLocacoesCompletas()]);
-    renderDashboard(); renderVeiculos(); renderLocacoes();
-    if(typeof loadHistoricoLocacoes==='function') loadHistoricoLocacoes();
-  }catch(e){
-    notify('Erro ao confirmar devolução: '+e.message,'error');
-  }
-}
-
 // ══ MASK CEP ══
 function maskCEP(el){
   let v = el.value.replace(/\D/g,'').slice(0,8);

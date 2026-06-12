@@ -323,13 +323,6 @@ async function abrirModalLocacao(locId){
     <div id="painel-estender" style="display:none">
       ${_renderFormEstender(locId, loc)}
     </div>` : ''}
-
-    <!-- BOTÃO DEVOLUÇÃO -->
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border2)">
-      <button class="btn btn-primary" style="width:100%" onclick="confirmarDevolucao('${loc.id}','${loc.veiculo_id}','${loc.veiculos?.marca||''} ${loc.veiculos?.modelo||''}');closeModal('locacao-detalhe')">
-        ✅ Confirmar devolução do veículo
-      </button>
-    </div>
   `;
 
   // Carrega itens do checklist filtrado por tipo de veículo
