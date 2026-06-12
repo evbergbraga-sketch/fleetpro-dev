@@ -77,7 +77,63 @@ async function loadLocacoesCompletas(){
 }
 
 // ══ MODAL DETALHES DA LOCAÇÃO ══
-// ══ COBRANÇAS SEMANAIS (planos moto) ══
+// ══ HISTÓRICO DE PAGAMENTOS E ADITIVOS ══
+function _renderHistoricoPagamentos(lancamentos, loc){
+  if(!lancamentos || lancamentos.length===0) return '';
+
+  const fmtDataHora = d => {
+    if(!d) return '—';
+    try{ return new Date(d).toLocaleDateString('pt-BR'); }catch(_){ return d.slice(0,10).split('-').reverse().join('/'); }
+  };
+
+  const origemLabel = {
+    automatico: 'Contrato',
+    manual: 'Manual',
+    checklist_entrada: 'Devolução',
+    extensao: 'Extensão',
+    asaas: 'Asaas',
+  };
+  const origemIcon = {
+    automatico: '📄',
+    manual: '✋',
+    checklist_entrada: '🏁',
+    extensao: '📅',
+    asaas: '🔄',
+  };
+
+  const linhas = lancamentos.map(l=>`
+    <div style="display:grid;grid-template-columns:90px 1fr 110px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--muted)">${fmtDataHora(l.data||l.created_at)}</div>
+      <div style="font-size:12px">
+        <span style="margin-right:4px">${origemIcon[l.origem]||'💰'}</span>${l.descricao?.split(' — ').slice(-1)[0]||l.categoria||'—'}
+        <span style="font-size:10px;color:var(--muted2);margin-left:4px">(${origemLabel[l.origem]||l.origem||'—'})</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted)">${l.forma_pgto||'—'}</div>
+      <div style="font-size:12px;font-weight:600;text-align:right;color:${l.tipo==='despesa'?'var(--red)':'var(--green)'}">
+        ${l.tipo==='despesa'?'−':'+'} R$ ${Number(l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}
+      </div>
+    </div>`).join('');
+
+  // Detecta aditivos (extensões) registradas
+  const aditivos = lancamentos.filter(l=>l.origem==='extensao');
+  const aditivosResumo = aditivos.length>0
+    ? `<div style="font-size:11px;color:var(--accent);font-weight:600;margin-bottom:6px">📅 ${aditivos.length} aditivo${aditivos.length>1?'s':''} de extensão registrado${aditivos.length>1?'s':''}</div>`
+    : '';
+
+  return `
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:20px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:8px">💳 Histórico de Pagamentos${loc.plano_moto?'' : ' e Aditivos'}</div>
+      ${aditivosResumo}
+      <div style="border:1px solid var(--border2);border-radius:8px;max-height:220px;overflow-y:auto">
+        <div style="display:grid;grid-template-columns:90px 1fr 110px 100px;gap:8px;padding:6px 10px;background:var(--bg3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:600;position:sticky;top:0">
+          <div>Data</div><div>Descrição</div><div>Forma</div><div style="text-align:right">Valor</div>
+        </div>
+        ${linhas}
+      </div>
+    </div>`;
+}
+
+
 function _renderCobrancasSemanais(cobrancas, loc){
   if(!cobrancas || cobrancas.length===0) return '';
 
@@ -234,6 +290,16 @@ async function abrirModalLocacao(locId){
     }catch(e){ cobrancas = []; }
   }
 
+  // Busca histórico de lançamentos financeiros desta locação (pagamentos, extensões, devolução)
+  let lancamentosLoc = [];
+  try{
+    const {data:lancData} = await sb.from('lancamentos')
+      .select('*')
+      .eq('locacao_id', locId)
+      .order('created_at',{ascending:true});
+    lancamentosLoc = lancData||[];
+  }catch(e){ lancamentosLoc = []; }
+
   const diff = Math.ceil((new Date(loc.data_fim)-new Date())/86400000);
   const statusColor = diff<0?'#dc2626':diff===0?'#d97706':'#16a34a';
   const statusLabel = diff<0?`Atrasado ${Math.abs(diff)}d`:diff===0?'Vence hoje':`${diff} dias restantes`;
@@ -290,6 +356,8 @@ async function abrirModalLocacao(locId){
     </div>`:''}
 
     ${_renderCobrancasSemanais(cobrancas, loc)}
+
+    ${_renderHistoricoPagamentos(lancamentosLoc, loc)}
 
     <!-- ABAS CHECKLISTS -->
     <div style="border-bottom:2px solid var(--border2);margin-bottom:16px;display:flex;gap:0">
