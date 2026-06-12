@@ -97,8 +97,10 @@ function _renderCobrancasSemanais(cobrancas, loc){
     const statusEf = (c.status==='pendente' && c.data_vencimento < hoje) ? 'atrasado' : c.status;
     const info = statusInfo[statusEf]||statusInfo.pendente;
     const valorExibido = c.valor_pago!=null ? c.valor_pago : c.valor;
+    const clicavel = c.status!=='pago';
     return `
-      <div style="display:grid;grid-template-columns:70px 1fr 90px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
+      <div id="cobr-row-${c.id}" style="display:grid;grid-template-columns:70px 1fr 90px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)${clicavel?';cursor:pointer':''}"
+        ${clicavel?`onclick="_abrirFormPagarSemana('${c.id}', ${c.valor})"`:''} title="${clicavel?'Clique para marcar como pago':''}">
         <div style="font-size:12px;font-weight:600;color:var(--text2)">Sem. ${c.numero_semana}</div>
         <div style="font-size:12px;color:var(--muted)">${fmtData(c.data_vencimento)}</div>
         <div style="font-size:12px;font-weight:600;text-align:right">R$ ${Number(valorExibido).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
@@ -112,13 +114,14 @@ function _renderCobrancasSemanais(cobrancas, loc){
     <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2)">Cobranças Semanais</div>
-        <div style="display:flex;gap:8px;font-size:11px">
+        <div style="display:flex;gap:8px;font-size:11px;align-items:center">
           <span style="color:var(--green);font-weight:600">${pagos} pagas</span>
           <span style="color:var(--muted)">·</span>
           <span style="color:var(--muted)">${total-pagos-atrasados} pendentes</span>
           ${atrasados>0?`<span style="color:var(--muted)">·</span><span style="color:var(--red);font-weight:600">${atrasados} atrasadas</span>`:''}
         </div>
       </div>
+      <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">💡 Clique em uma semana pendente/atrasada para marcar como paga manualmente (ex: pagamento em dinheiro na loja)</div>
       <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border2);border-radius:8px">
         <div style="display:grid;grid-template-columns:70px 1fr 90px 100px;gap:8px;padding:6px 10px;background:var(--bg3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:600;position:sticky;top:0">
           <div>Semana</div><div>Vencimento</div><div style="text-align:right">Valor</div><div style="text-align:right">Status</div>
@@ -128,7 +131,69 @@ function _renderCobrancasSemanais(cobrancas, loc){
     </div>`;
 }
 
+// ── Marcar cobrança semanal como paga manualmente ──
+function _abrirFormPagarSemana(cobrancaId, valorPrevisto){
+  const row = document.getElementById(`cobr-row-${cobrancaId}`);
+  if(!row) return;
+  row.setAttribute('onclick','');
+  row.style.cursor = 'default';
+  row.style.gridTemplateColumns = '1fr';
+  row.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 0">
+      <span style="font-size:12px;color:var(--muted)">Valor pago (R$)</span>
+      <input type="number" id="cobr-valor-${cobrancaId}" value="${Number(valorPrevisto).toFixed(2)}" step="0.01" style="width:100px;font-size:12px;padding:4px 8px">
+      <span style="font-size:12px;color:var(--muted)">Forma</span>
+      <select id="cobr-forma-${cobrancaId}" style="font-size:12px;padding:4px 8px">
+        <option>Dinheiro</option><option>PIX</option><option>Cartão de Débito</option><option>Cartão de Crédito</option><option>Boleto</option>
+      </select>
+      <button onclick="_confirmarPagamentoSemana('${cobrancaId}')" style="font-size:12px;padding:5px 12px;background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">✓ Confirmar</button>
+      <button onclick="abrirModalLocacao(window._locDetalheAtualId)" style="font-size:12px;padding:5px 12px;background:var(--bg3);color:var(--text);border:none;border-radius:6px;cursor:pointer">Cancelar</button>
+    </div>`;
+}
+
+async function _confirmarPagamentoSemana(cobrancaId){
+  const valor = parseFloat(document.getElementById(`cobr-valor-${cobrancaId}`)?.value)||0;
+  const forma = document.getElementById(`cobr-forma-${cobrancaId}`)?.value||'Dinheiro';
+  if(valor<=0){ notify('Informe um valor válido','error'); return; }
+
+  try{
+    // Busca a cobrança para ter dados da locação/veículo/cliente
+    const {data:cobr} = await sb.from('cobrancas_semanais').select('*').eq('id',cobrancaId).single();
+    if(!cobr) throw new Error('Cobrança não encontrada');
+
+    const {data:loc} = await sb.from('locacoes').select('*,veiculos(placa),clientes(nome)').eq('id',cobr.locacao_id).single();
+
+    // Cria lançamento financeiro
+    const {data:lanc} = await sb.from('lancamentos').insert({
+      tipo: 'receita',
+      categoria: 'Aluguel',
+      descricao: `Contrato #${loc?.num_contrato||''} — ${loc?.clientes?.nome||'Cliente'} — ${loc?.veiculos?.placa||''} — Semana ${cobr.numero_semana}`,
+      valor: valor,
+      data: new Date().toISOString().slice(0,10),
+      veiculo_id: loc?.veiculo_id||null,
+      locacao_id: cobr.locacao_id,
+      forma_pgto: forma,
+      origem: 'manual',
+      criado_por: currentUser?.id,
+    }).select().single();
+
+    // Marca cobrança como paga
+    await sb.from('cobrancas_semanais').update({
+      status: 'pago',
+      valor_pago: valor,
+      data_pagamento: new Date().toISOString(),
+      lancamento_id: lanc?.id||null,
+    }).eq('id', cobrancaId);
+
+    notify(`Semana ${cobr.numero_semana} marcada como paga!`,'success');
+    abrirModalLocacao(window._locDetalheAtualId);
+  }catch(e){
+    notify('Erro ao confirmar pagamento: '+e.message,'error');
+  }
+}
+
 async function abrirModalLocacao(locId){
+  window._locDetalheAtualId = locId;
   const modal = document.getElementById('m-locacao-detalhe');
   const body  = document.getElementById('locacao-detalhe-body');
   if(!modal||!body) return;
