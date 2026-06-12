@@ -520,7 +520,9 @@ function renderMsgItem(m){
  } else if(tipo==='document'||tipo==='documentMessage'){
       if(mediaUrl){
         const did = 'di'+Date.now()+Math.random().toString(36).slice(2);
-        const nomeArq = _esc(m.texto||'Documento');
+        const _urlPartes = (mediaUrl||'').split('/').pop().split('?')[0];
+        const _nomeReal = _urlPartes.includes('_') ? _urlPartes.split('_').slice(1).join('_') : _urlPartes;
+        const nomeArq = _esc(m.texto && !m.texto.startsWith('http') ? m.texto : (_nomeReal || 'Documento'));
         const ext = (mediaUrl.split('.').pop()||'').toLowerCase().slice(0,4).toUpperCase();
         const extCor = ext==='PDF'?'#e53935':ext==='DOC'||ext==='DOCX'?'#1565c0':'#555';
         corpo = `
