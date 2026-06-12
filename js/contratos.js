@@ -511,6 +511,13 @@ function previewContrato(){
   const ini   = document.getElementById('c-ini')?.value||'';
   const fim   = document.getElementById('c-fim')?.value||'';
   const dia   = parseFloat(document.getElementById('c-dia')?.value)||0;
+  const descontoValor = parseFloat(document.getElementById('c-desconto-valor')?.value)||0;
+  const descontoTipo  = document.getElementById('c-desconto-tipo')?.value||'reais';
+  const diaOriginal = dia;
+  const diaComDesconto = descontoTipo==='pct'
+    ? Math.max(0, dia - (dia * descontoValor/100))
+    : Math.max(0, dia - descontoValor);
+  const temDesconto = descontoValor > 0 && diaComDesconto < diaOriginal;
   const km    = document.getElementById('c-km')?.value||'—';
   const obs   = document.getElementById('c-obs')?.value||'';
   const caucao= parseFloat(document.getElementById('c-caucao')?.value)||0;
@@ -562,9 +569,9 @@ function previewContrato(){
   let totalBruto = 0;
 
   if(isMoto){
-    totalBruto = dia * periodoVal;
+    totalBruto = diaComDesconto * periodoVal;
   } else {
-    totalBruto = dia * days;
+    totalBruto = diaComDesconto * days;
     const lavagem = parseFloat(document.getElementById('c-lavagem')?.value)||0;
     const protVal = document.getElementById('c-protecao')?.value==='Completa'
       ? parseFloat(document.getElementById('c-protecao-valor')?.value)||0 : 0;
@@ -623,7 +630,16 @@ function previewContrato(){
   _set('ct-ini', ini ? _fmtDatetime(ini) : '__/__/____ __:__');
   _set('ct-fim', fim ? _fmtDatetime(fim) : '__/__/____ __:__');
   _set('ct-periodo', diasLabel);
-  _set('ct-dia-val', `R$ ${dia.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
+  _set('ct-dia-val', temDesconto
+    ? `<span style="text-decoration:line-through;color:#999;font-size:9px">R$ ${diaOriginal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span><br>R$ ${diaComDesconto.toLocaleString('pt-BR',{minimumFractionDigits:2})}`
+    : `R$ ${diaComDesconto.toLocaleString('pt-BR',{minimumFractionDigits:2})}`, true);
+
+  const descPrevEl = document.getElementById('c-desconto-preview');
+  if(descPrevEl){
+    descPrevEl.textContent = temDesconto
+      ? `Valor com desconto: R$ ${diaComDesconto.toLocaleString('pt-BR',{minimumFractionDigits:2})} (original R$ ${diaOriginal.toLocaleString('pt-BR',{minimumFractionDigits:2})})`
+      : '';
+  }
   _set('ct-servicos-total', totalServicos>0 ? `+ R$ ${totalServicos.toLocaleString('pt-BR',{minimumFractionDigits:2})} (serviços)` : '');
   const ctTaxaEl = document.getElementById('ct-taxa-admin-display');
   if(ctTaxaEl){
@@ -648,7 +664,7 @@ function previewContrato(){
 
   return {totalBruto, totalLiq, valorPago, pgtoCaucao, descricao, planoNome, nomeCli, cpfCli, telCli, pgtoLabel, parcelas, cartao4dig, cartaoVal, cartaoBand, cartaoTitular, cartaoSalvar,
     emailCli, cnhCli, cnhValCli, cnhCatCli, endCli, nascCli,
-    placa, modelo, atendente, diasLabel, dia, km, obs, condutor: todosCond[0].nome,
+    placa, modelo, atendente, diasLabel, dia: diaComDesconto, diaOriginal, temDesconto, descontoValor, descontoTipo, km, obs, condutor: todosCond[0].nome,
     condutorCpf: todosCond[0].cpf, todosCondutores: todosCond,
     pgto, caucao, numCtrato, periodoVal, ini, fim, localRet,
     totalServicos, servicos: _servicosLista, days,
@@ -664,9 +680,9 @@ function _fmtDatetime(str){
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 }
 
-function _set(id, val){
+function _set(id, val, isHtml){
   const el = document.getElementById(id);
-  if(el) el.textContent = val;
+  if(el){ if(isHtml) el.innerHTML = val; else el.textContent = val; }
 }
 
 // ══ REGISTRAR CONTRATO ══
@@ -729,6 +745,9 @@ async function registrarContrato(retornarId=false){
       data_fim_hora: fim,
       km_inicial:km,
       diaria:d.dia,
+      diaria_original: d.temDesconto ? d.diaOriginal : null,
+      desconto_valor: d.temDesconto ? d.descontoValor : null,
+      desconto_tipo: d.temDesconto ? d.descontoTipo : null,
       total:d.totalLiq,
       observacoes:obs,
       tipo_contrato: _tipoContrato,
@@ -1037,7 +1056,7 @@ try{
   const planoLabel = d.planoNome ? d.planoNome.split('—')[0].trim() : '';
   const veiLabel = `${d.placa} - ${d.modelo}${planoLabel?' | '+planoLabel:''}`;
 
-  rect(M, y, CW, 8, '#f0f8f0', '#ccddcc');
+  rect(M, y, CW, d.temDesconto?11:8, '#f0f8f0', '#ccddcc');
   cx = M;
   const kmLivre  = document.getElementById('c-km-livre')?.checked ? 'Sim' : 'Não';
   const protecao = document.getElementById('c-protecao')?.value||'Básica';
@@ -1054,7 +1073,20 @@ try{
     doc.text(trunc[0]||'', cx+1.5, y+5);
     cx+=vCols[i];
   });
-  y += 10;
+  // Se houver desconto, mostra valor original tachado abaixo do valor com desconto
+  if(d.temDesconto){
+    const valorColIdx = 2; // índice da coluna "Valor Diária/Valor Unit"
+    let colX = M;
+    for(let i=0;i<valorColIdx;i++) colX += vCols[i];
+    doc.setFontSize(6); doc.setTextColor('#999');
+    const origTxt = `de R$ ${d.diaOriginal.toFixed(2).replace('.',',')}`;
+    doc.text(origTxt, colX+1.5, y+8);
+    const wTxt = doc.getTextWidth(origTxt);
+    doc.setLineWidth(0.2); doc.setDrawColor('#999');
+    doc.line(colX+1.5, y+7, colX+1.5+wTxt, y+7);
+    doc.setTextColor('#111');
+  }
+  y += d.temDesconto?13:10;
 
   // ══════════════════════════════════════
   // SERVIÇOS ADICIONAIS (se houver)
