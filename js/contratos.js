@@ -541,7 +541,7 @@ function previewContrato(){
   if(ini && fim){
     const diffMs = new Date(fim) - new Date(ini);
     if(isMoto){
-      periodoVal = Math.max(1, Math.ceil(diffMs / (7*24*3600*1000)));
+      periodoVal = Math.max(1, Math.round(diffMs / (7*24*3600*1000)));
       diasLabel = `${periodoVal} semana${periodoVal!==1?'s':''}`;
     } else {
       days = Math.max(1, Math.ceil(diffMs / (24*3600*1000)));
