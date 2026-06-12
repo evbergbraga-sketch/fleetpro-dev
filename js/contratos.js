@@ -752,6 +752,11 @@ async function registrarContrato(retornarId=false){
     // Lançamento financeiro automático
     if(typeof finRegistrarLancamentoLocacao==='function') finRegistrarLancamentoLocacao(locSalva).catch(()=>{});
 
+    // Criar assinatura recorrente no Asaas (via n8n) — apenas planos moto
+    if(planoMoto && typeof criarAssinaturaAsaas==='function'){
+      criarAssinaturaAsaas(locSalva).catch(e=>console.warn('[asaas] falha:', e.message));
+    }
+
     if(window._reservaOrigemId){
       await sb.from('reservas').update({status:'convertida'}).eq('id',window._reservaOrigemId);
       window._reservaOrigemId=null; window._reservaValorPago=0;

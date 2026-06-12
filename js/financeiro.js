@@ -399,6 +399,51 @@ async function finExcluirLancamento(id){
   await finCarregarLancamentos();
 }
 
+// ══ ASAAS — ASSINATURA RECORRENTE (via n8n) ══
+async function criarAssinaturaAsaas(locacao){
+  if(!sb||!locacao?.plano_moto) return;
+  try{
+    const c = allClientes.find(x=>x.id===locacao.cliente_id);
+    if(!c) return;
+
+    const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+    const valorSemanal = parseFloat(locacao.plano_moto)||0;
+    const totalSemanas = valorSemanal === 399.90 ? 156 : 52;
+    const planoNome = valorSemanal === 399.90 ? 'Plano Conquista 36m' : 'Plano 12 meses';
+
+    const resp = await fetch(bridge + '/api/asaas/criar-assinatura', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        locacao_id: locacao.id,
+        cliente: {
+          nome:     c.nome,
+          cpf:      c.cpf,
+          email:    _primeiroEmail(c),
+          telefone: _primeiroTelefone(c),
+        },
+        plano: {
+          valor: valorSemanal,
+          ciclo: 'WEEKLY',
+          descricao: `${planoNome} — Locação Moto`,
+        },
+        data_inicio: locacao.data_inicio?.slice(0,10),
+      })
+    });
+
+    if(!resp.ok) throw new Error('Bridge respondeu '+resp.status);
+    const result = await resp.json();
+
+    if(result.asaas_customer_id || result.asaas_subscription_id){
+      await sb.from('locacoes').update({
+        asaas_customer_id:     result.asaas_customer_id||null,
+        asaas_subscription_id: result.asaas_subscription_id||null,
+      }).eq('id', locacao.id);
+      console.log('[asaas] assinatura criada:', result.asaas_subscription_id);
+    }
+  }catch(e){ console.warn('[asaas] criarAssinaturaAsaas:', e.message); }
+}
+
 // ══ LANÇAMENTO AUTOMÁTICO (chamado ao registrar locação) ══
 async function finRegistrarLancamentoLocacao(locacao){
   if(!sb||!locacao) return;
