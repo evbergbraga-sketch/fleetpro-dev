@@ -540,9 +540,14 @@ function _renderFormEstender(locId, loc){
       </div>
     </div>
 
-    <button class="btn btn-primary" style="width:100%" onclick="_confirmarExtensao('${locId}', ${valorUnitario}, ${diasPorUnidade})">
-      ✅ Confirmar extensão
-    </button>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" style="flex:1" onclick="_gerarAditivoFromForm('${locId}', ${valorUnitario}, ${diasPorUnidade})">
+        📄 Gerar PDF do Aditivo
+      </button>
+      <button class="btn btn-primary" style="flex:2" onclick="_confirmarExtensao('${locId}', ${valorUnitario}, ${diasPorUnidade})">
+        ✅ Confirmar extensão
+      </button>
+    </div>
   </div>`;
 }
 
@@ -608,6 +613,147 @@ function _calcExtensao(){
       novaDevEl.value = _fmtDtLocacao(nova.toISOString());
     }
   }
+}
+
+// ══ PDF — ADITIVO DE EXTENSÃO ══
+async function _gerarPdfAditivoExtensao(loc, info){
+  if(!window.jspdf){ notify('jsPDF não carregado. Recarregue a página.','error'); return null; }
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const PW=210, M=12, CW=PW-M*2;
+  let y = M;
+
+  const rect = (x, yy, w, h, fill, stroke) => {
+    if(fill){ doc.setFillColor(fill); }
+    if(stroke){ doc.setDrawColor(stroke); } else { doc.setDrawColor('#cccccc'); }
+    doc.rect(x, yy, w, h, fill?(stroke?'FD':'F'):'D');
+  };
+  const line = (x1,y1,x2,y2,color='#cccccc',w=0.3) => {
+    doc.setDrawColor(color); doc.setLineWidth(w);
+    doc.line(x1,y1,x2,y2);
+  };
+
+  // ── CABEÇALHO ──
+  try{
+    const resp = await fetch('/icons/logo-Royal.png');
+    const blob = await resp.blob();
+    const base64 = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+    doc.addImage(base64, 'PNG', M, y, 35, 20);
+  }catch(_){}
+
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+  doc.text('ROYAL RENT A CAR LTDA', M+42, y+7);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+  doc.text('CNPJ: 18.686.521/0002-90', M+42, y+12);
+  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+42, y+15);
+
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+  doc.text(`ADITIVO AO CONTRATO #${loc.num_contrato||''}`, PW-M, y+5, {align:'right'});
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor('#555');
+  doc.text('Extensão de Prazo de Locação', PW-M, y+10, {align:'right'});
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, PW-M, y+14, {align:'right'});
+  y += 18;
+
+  line(M, y, PW-M, y, '#006400', 0.5);
+  y += 6;
+
+  // ── DADOS DO CONTRATO ──
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor('#111');
+  doc.text('PARTES E OBJETO', M, y); y += 5;
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+  doc.text(`LOCADORA: Royal Rent A Car Ltda, CNPJ 18.686.521/0002-90.`, M, y); y += 5;
+  doc.text(`LOCATÁRIO: ${loc.clientes?.nome||'—'}, CPF ${loc.clientes?.cpf||'—'}.`, M, y); y += 5;
+  doc.text(`VEÍCULO: ${loc.veiculos?.marca||''} ${loc.veiculos?.modelo||''} — Placa ${loc.veiculos?.placa||'—'}.`, M, y); y += 8;
+
+  // ── DETALHES DA EXTENSÃO ──
+  rect(M, y, CW, 7, '#006400', '#006400');
+  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#ffffff');
+  doc.text('DETALHES DA EXTENSÃO', M+2.5, y+5);
+  y += 7;
+
+  rect(M, y, CW, 28, '#f0f8f0', '#ccddcc');
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor('#111');
+  doc.text(`Devolução anterior: ${info.devolucaoAnterior}`, M+2.5, y+5);
+  doc.text(`Nova devolução: ${info.novaDevolucao}`, M+2.5, y+10);
+  doc.text(`Período adicional: ${info.qtd} ${info.unidadeLabel}`, M+2.5, y+15);
+  doc.setFont('helvetica','bold');
+  doc.text(`Valor da extensão (${info.qtd} x R$ ${info.valorUnitario.toFixed(2).replace('.',',')}): R$ ${info.totalDiarias.toFixed(2).replace('.',',')}`, M+2.5, y+20);
+  if(info.totalServicos>0){
+    doc.text(`Serviços extras: R$ ${info.totalServicos.toFixed(2).replace('.',',')}`, M+2.5, y+25);
+  }
+  doc.setFontSize(10); doc.setTextColor('#006400');
+  doc.text(`TOTAL: R$ ${info.totalGeral.toFixed(2).replace('.',',')}`, PW-M-2.5, y+25, {align:'right'});
+  y += 33;
+
+  // ── SERVIÇOS EXTRAS (lista) ──
+  if(info.servicos?.length){
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor('#111');
+    doc.text('Serviços extras incluídos:', M, y); y += 5;
+    doc.setFont('helvetica','normal');
+    info.servicos.forEach(s=>{
+      doc.text(`• ${s.descricao} — R$ ${Number(s.valor||0).toFixed(2).replace('.',',')}`, M+3, y);
+      y += 4.5;
+    });
+    y += 3;
+  }
+
+  // ── FORMA DE PAGAMENTO ──
+  rect(M, y, CW, 10, '#f0f8f0', '#a8d8a8');
+  doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor('#111');
+  doc.text(`Pagamento: ${info.jaPago ? `${info.forma} (pago no ato)` : 'Pendente — será cobrado na devolução'}`, M+2.5, y+6);
+  y += 16;
+
+  // ── CLÁUSULA ──
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+  const clausula = `As partes acordam, de comum acordo, a extensão do prazo de locação do veículo acima identificado, mantendo-se inalteradas todas as demais cláusulas e condições do contrato original #${loc.num_contrato||''}, exceto quanto à nova data de devolução e ao valor adicional especificado neste aditivo.`;
+  const linhas = doc.splitTextToSize(clausula, CW);
+  doc.text(linhas, M, y);
+  y += linhas.length*4.5 + 10;
+
+  // ── ASSINATURAS ──
+  if(y > 250){ doc.addPage(); y = M+10; }
+  line(M, y, M+80, y, '#333');
+  line(PW-M-80, y, PW-M, y, '#333');
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+  doc.text('Locatário', M+30, y+5, {align:'center'});
+  doc.text('Locadora', PW-M-30, y+5, {align:'center'});
+
+  doc.save(`Aditivo_Contrato_${loc.num_contrato||''}_${(loc.clientes?.nome||'').replace(/\s+/g,'_')}.pdf`);
+  notify('PDF do Aditivo gerado!','success');
+  return doc;
+}
+
+async function _gerarAditivoFromForm(locId, valorUnitario, diasPorUnidade){
+  const qtd = parseInt(document.getElementById('est-qtd')?.value)||1;
+  if(qtd<=0){ notify('Informe uma quantidade válida','error'); return; }
+
+  const totalEl = document.getElementById('est-resumo-total');
+  const totalGeral = parseFloat(totalEl?.dataset?.valor)||0;
+  const totalServicos = _servicosExtensao.reduce((a,s)=>a+(parseFloat(s.valor)||0),0);
+  const totalDiarias = totalGeral - totalServicos;
+  const jaPago = document.getElementById('est-ja-pago')?.checked||false;
+  const forma = document.getElementById('est-forma-pgto')?.value||'PIX';
+  const unidade = totalEl?.dataset?.unidade||'diária';
+  const unidadeLabel = unidade==='semana' ? (qtd===1?'semana':'semanas') : (qtd===1?'diária':'diárias');
+
+  const {data:loc} = await sb.from('locacoes').select('*,veiculos(*),clientes(*)').eq('id',locId).single();
+  if(!loc){ notify('Locação não encontrada','error'); return; }
+
+  const fimAtual = new Date(loc.data_fim_hora||loc.data_fim+'T00:00:00');
+  const novaData = new Date(fimAtual);
+  novaData.setDate(novaData.getDate() + qtd*diasPorUnidade);
+
+  await _gerarPdfAditivoExtensao(loc, {
+    qtd, unidadeLabel, valorUnitario, totalDiarias, totalServicos, totalGeral,
+    servicos: _servicosExtensao,
+    devolucaoAnterior: _fmtDtLocacao(fimAtual.toISOString()),
+    novaDevolucao: _fmtDtLocacao(novaData.toISOString()),
+    jaPago, forma,
+  });
 }
 
 async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
