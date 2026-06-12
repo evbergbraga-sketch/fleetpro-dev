@@ -521,9 +521,9 @@ function renderMsgItem(m){
       if(mediaUrl){
         const did = 'di'+Date.now()+Math.random().toString(36).slice(2);
         const _urlPartes = (mediaUrl||'').split('/').pop().split('?')[0];
-// Remove timestamp do início: "1781298166674_CNH-e.pdf" → "CNH-e.pdf"
-        const _nomeReal = _urlPartes.replace(/^\d{10,}_/, '');
-// Usa m.texto se não for URL nem timestamp puro
+  // Remove timestamp do início: "1781298166674_CNH-e.pdf" → "CNH-e.pdf"
+        const _nomeReal = _urlPartes.replace(/^\d+_\d+_/, '');
+        // Usa m.texto se não for URL nem timestamp puro
         const _textoValido = m.texto && !m.texto.startsWith('http') && !/^\d{10,}/.test(m.texto);
         const nomeArq = _esc(_textoValido ? m.texto : (_nomeReal || 'Documento'));
         const ext = (mediaUrl.split('.').pop()||'').toLowerCase().slice(0,4).toUpperCase();
