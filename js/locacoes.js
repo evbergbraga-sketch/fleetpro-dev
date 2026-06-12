@@ -78,6 +78,22 @@ async function loadLocacoesCompletas(){
 
 // ══ MODAL DETALHES DA LOCAÇÃO ══
 // ══ HISTÓRICO DE PAGAMENTOS E ADITIVOS ══
+function _extrairFormaDescricao(desc){
+  if(!desc) return null;
+  const formas = ['PIX','Cartão de Crédito','Cartão de Débito','Dinheiro','Transferência','Boleto'];
+  for(const f of formas){ if(desc.includes(f)) return f; }
+  return null;
+}
+
+function _descSemForma(desc){
+  if(!desc) return desc;
+  const partes = desc.split(' — ');
+  const last = partes[partes.length-1];
+  const formas = ['PIX','Cartão de Crédito','Cartão de Débito','Dinheiro','Transferência','Boleto'];
+  const semForma = formas.includes(last) ? partes.slice(0,-1) : partes;
+  return semForma.slice(-1)[0];
+}
+
 function _renderHistoricoPagamentos(lancamentos, loc){
   if(!lancamentos || lancamentos.length===0) return '';
 
@@ -105,10 +121,10 @@ function _renderHistoricoPagamentos(lancamentos, loc){
     <div style="display:grid;grid-template-columns:90px 1fr 110px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
       <div style="font-size:11px;color:var(--muted)">${fmtDataHora(l.data||l.created_at)}</div>
       <div style="font-size:12px">
-        <span style="margin-right:4px">${origemIcon[l.origem]||'💰'}</span>${l.descricao?.split(' — ').slice(-1)[0]||l.categoria||'—'}
+        <span style="margin-right:4px">${origemIcon[l.origem]||'💰'}</span>${_descSemForma(l.descricao)||l.categoria||'—'}
         <span style="font-size:10px;color:var(--muted2);margin-left:4px">(${origemLabel[l.origem]||l.origem||'—'})</span>
       </div>
-      <div style="font-size:11px;color:var(--muted)">${l.forma_pgto||'—'}</div>
+      <div style="font-size:11px;color:var(--muted)">${l.forma_pgto || _extrairFormaDescricao(l.descricao) || '—'}</div>
       <div style="font-size:12px;font-weight:600;text-align:right;color:${l.tipo==='despesa'?'var(--red)':'var(--green)'}">
         ${l.tipo==='despesa'?'−':'+'} R$ ${Number(l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}
       </div>
@@ -228,7 +244,6 @@ async function _confirmarPagamentoSemana(cobrancaId){
       data: new Date().toISOString().slice(0,10),
       veiculo_id: loc?.veiculo_id||null,
       locacao_id: cobr.locacao_id,
-      forma_pgto: forma,
       origem: 'manual',
       criado_por: currentUser?.id,
     }).select().single();
@@ -855,10 +870,10 @@ async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
     if(jaPago && total>0){
       await sb.from('lancamentos').insert({
         tipo:'receita', categoria:'Aluguel',
-        descricao:`Contrato #${loc.num_contrato||locId.slice(0,8)} — ${loc.clientes?.nome||''} — ${loc.veiculos?.placa||''} — Extensão (+${qtd} ${diasPorUnidade===7?'semana(s)':'diária(s)'})`,
+        descricao:`Contrato #${loc.num_contrato||locId.slice(0,8)} — ${loc.clientes?.nome||''} — ${loc.veiculos?.placa||''} — Extensão (+${qtd} ${diasPorUnidade===7?'semana(s)':'diária(s)'}) — ${forma}`,
         valor: total, data: new Date().toISOString().slice(0,10),
         veiculo_id: loc.veiculo_id||null, locacao_id: locId,
-        forma_pgto: forma, origem:'extensao', criado_por: currentUser?.id,
+        origem:'extensao', criado_por: currentUser?.id,
       });
     }
 
@@ -1265,18 +1280,18 @@ async function salvarChecklist(tipo, locId){
         const descBase = `Contrato #${loc?.num_contrato||locId.slice(0,8)} — ${loc?.clientes?.nome||''} — ${loc?.veiculos?.placa||''} — Saldo final`;
         if(pgrInfo.valor1>0){
           await sb.from('lancamentos').insert({
-            tipo:'receita', categoria:'Aluguel', descricao: descBase,
+            tipo:'receita', categoria:'Aluguel', descricao: descBase+` — ${pgrInfo.forma1}`,
             valor: pgrInfo.valor1, data: new Date().toISOString().slice(0,10),
             veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
-            forma_pgto: pgrInfo.forma1, origem:'checklist_entrada', criado_por: currentUser?.id,
+            origem:'checklist_entrada', criado_por: currentUser?.id,
           });
         }
         if(pgrInfo.valor2>0){
           await sb.from('lancamentos').insert({
-            tipo:'receita', categoria:'Aluguel', descricao: descBase+' (2ª forma)',
+            tipo:'receita', categoria:'Aluguel', descricao: descBase+` (2ª forma) — ${pgrInfo.forma2}`,
             valor: pgrInfo.valor2, data: new Date().toISOString().slice(0,10),
             veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
-            forma_pgto: pgrInfo.forma2, origem:'checklist_entrada', criado_por: currentUser?.id,
+            origem:'checklist_entrada', criado_por: currentUser?.id,
           });
         }
       }
