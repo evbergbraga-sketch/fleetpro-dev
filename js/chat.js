@@ -638,12 +638,18 @@ function _atualizarCacheChat(cid, msgs){
   }
 }
 
+//  CÓDIGO CORRIGIDO — usa id quando disponível, evita remover mídias
 function _buildMsgsHtml(msgs){
-  // Deduplicação final antes de renderizar — remove balões duplicados
-  // mesmo que o banco tenha registros duplicados
   const seen = new Map();
   msgs = msgs.filter(m=>{
-    const k = m.created_at?.slice(0,16)+'|'+(m.texto||m.text||'').slice(0,50).trim();
+    // Se tem id (vem do banco), usa o id como chave única — nunca remove
+    if(m.id) {
+      if(seen.has('id:'+m.id)) return false;
+      seen.set('id:'+m.id, true);
+      return true;
+    }
+    // Sem id (SSE em tempo real): deduplica por minuto+texto+media_url
+    const k = m.created_at?.slice(0,16)+'|'+(m.texto||m.text||'').slice(0,50).trim()+'|'+(m.media_url||'');
     if(seen.has(k)) return false;
     seen.set(k, true);
     return true;
