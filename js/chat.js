@@ -517,18 +517,37 @@ function renderMsgItem(m){
     } else {
       corpo = '<div style="font-size:12px;color:var(--muted)">🎥 Vídeo '+_esc(m.texto||'')+'</div>';
     }
-  } else if(tipo==='document'||tipo==='documentMessage'){
-    if(mediaUrl){
-      const did = 'di'+Date.now()+Math.random().toString(36).slice(2);
-      corpo = '<div>📎 <a id="'+did+'" href="#" target="_blank" style="color:var(--accent)">'+_esc(m.texto||'Abrir documento')+'</a></div>';
-      setTimeout(async()=>{ const el=document.getElementById(did); if(el){ const u=await _getSignedUrl(mediaUrl); el.href=u; }},50);
-    } else {
-      corpo = '<div style="font-size:12px;color:var(--muted)">📎 Documento '+_esc(m.texto||'')+'</div>';
-    }
-  } else {
+ } else if(tipo==='document'||tipo==='documentMessage'){
+      if(mediaUrl){
+        const did = 'di'+Date.now()+Math.random().toString(36).slice(2);
+        const _urlPartes = (mediaUrl||'').split('/').pop().split('?')[0];
+  // Remove timestamp do início: "1781298166674_CNH-e.pdf" → "CNH-e.pdf"
+        const _nomeReal = _urlPartes.replace(/^[\d_]+_([^_].+)$/, '$1');
+        // Usa m.texto se não for URL nem timestamp puro
+        const _textoValido = m.texto && !m.texto.startsWith('http') && !/^\d{10,}/.test(m.texto);
+        const nomeArq = _esc(_textoValido ? m.texto : (_nomeReal || 'Documento'));
+        const ext = (mediaUrl.split('.').pop()||'').toLowerCase().slice(0,4).toUpperCase();
+        const extCor = ext==='PDF'?'#e53935':ext==='DOC'||ext==='DOCX'?'#1565c0':'#555';
+        corpo = `
+          <a id="${did}" href="#" target="_blank" style="text-decoration:none">
+            <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;min-width:200px;max-width:260px;cursor:pointer">
+              <div style="width:38px;height:46px;background:${extCor};border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#fff;letter-spacing:.5px">${ext||'ARQ'}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:500;color:#e9edef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeArq}</div>
+                <div style="font-size:11px;color:#8696a0;margin-top:2px">Toque para abrir</div>
+              </div>
+              <div style="font-size:18px;color:#8696a0">⬇️</div>
+            </div>
+          </a>`;
+        setTimeout(async()=>{ const el=document.getElementById(did); if(el){ const u=await _getSignedUrl(mediaUrl); el.href=u; }},50);
+      } else {
+        corpo = '<div style="font-size:12px;color:var(--muted)">📎 Documento '+_esc(m.texto||'')+'</div>';
+      }
+  } else {  // ← este else fecha todos os tipos de mídia
     const txt = (m.texto||m.text||'').replace(/</g,'&lt;').replace(/\n/g,'<br>');
     corpo = '<div style="white-space:pre-wrap">'+txt+'</div>';
   }
+  
   const saraBadge = isSara ? '<div style="font-size:9px;color:#f0c040;font-weight:700;margin-bottom:3px;letter-spacing:.5px">🤖 SARA</div>' : '';
   const bgSara = isSara ? 'background:rgba(240,192,64,.10);border:1px solid rgba(240,192,64,.2);' : '';
   const checkMark = out ? '<span class="msg-check" style="color:rgba(233,237,239,0.55)">✓✓</span>' : '';
@@ -638,12 +657,18 @@ function _atualizarCacheChat(cid, msgs){
   }
 }
 
+//  CÓDIGO CORRIGIDO — usa id quando disponível, evita remover mídias
 function _buildMsgsHtml(msgs){
-  // Deduplicação final antes de renderizar — remove balões duplicados
-  // mesmo que o banco tenha registros duplicados
   const seen = new Map();
   msgs = msgs.filter(m=>{
-    const k = m.created_at?.slice(0,16)+'|'+(m.texto||m.text||'').slice(0,50).trim();
+    // Se tem id (vem do banco), usa o id como chave única — nunca remove
+    if(m.id) {
+      if(seen.has('id:'+m.id)) return false;
+      seen.set('id:'+m.id, true);
+      return true;
+    }
+    // Sem id (SSE em tempo real): deduplica por minuto+texto+media_url
+    const k = m.created_at?.slice(0,16)+'|'+(m.texto||m.text||'').slice(0,50).trim()+'|'+(m.media_url||'');
     if(seen.has(k)) return false;
     seen.set(k, true);
     return true;
@@ -1191,7 +1216,8 @@ async function _enviarMidiaWpp(c){
     let storageUrl = null;
     try{
       const ext = fileRef.name.split('.').pop();
-      const path = `chat/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const nomeSeguro = fileRef.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `chat/${Date.now()}_${nomeSeguro}`;
       const { data: upData, error: upErr } = await sb.storage.from('wpp-media').upload(path, fileRef);
       if(!upErr && upData){
         storageUrl = `https://jjeogfafgbexgxqhubha.supabase.co/storage/v1/object/wpp-media/${path}`;
