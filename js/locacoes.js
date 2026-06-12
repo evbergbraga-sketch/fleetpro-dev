@@ -337,7 +337,7 @@ async function abrirModalLocacao(locId){
       if(custosDiv){
         const total = lancCustos.reduce((a,l)=>a+Number(l.valor||0), 0);
         custosDiv.innerHTML = `
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💸 Custos Registrados na Devolução</div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💰 Pagamentos da Devolução</div>
           <div style="background:var(--bg2);border-radius:10px;padding:12px">
             ${lancCustos.map(l=>`
             <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
@@ -346,7 +346,7 @@ async function abrirModalLocacao(locId){
                 <div style="font-size:11px;font-weight:700;color:var(--text)">${l.descricao?.split(' — ')[0]||l.categoria}</div>
                 ${l.descricao?.split(' — ').slice(3).join(' — ')?`<div style="font-size:10px;color:var(--muted2)">${l.descricao.split(' — ').slice(3).join(' — ')}</div>`:''}
               </div>
-              <span style="font-size:13px;font-weight:700;color:var(--red,#dc2626)">− R$ ${Number(l.valor||0).toFixed(2).replace('.',',')}</span>
+              <span style="font-size:13px;font-weight:700;color:var(--green)">+ R$ ${Number(l.valor||0).toFixed(2).replace('.',',')}</span>
             </div>`).join('')}
             <div style="text-align:right;font-size:13px;font-weight:700;color:var(--accent);padding-top:8px">
               Total: R$ ${total.toFixed(2).replace('.',',')}
@@ -501,7 +501,7 @@ function _renderFormChecklist(tipo, locId, loc){
     </div>
 
     <div id="bloco-custos-devolucao" style="margin-bottom:16px;display:none">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💸 Custos da Devolução</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💰 Pagamentos da Devolução</div>
       <div style="background:var(--bg2);border-radius:10px;padding:12px">
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
           <button type="button" onclick="_addCustoDevolucao('Tag / Pedágio')"
@@ -537,7 +537,7 @@ function _renderFormChecklist(tipo, locId, loc){
           <strong id="pgr-restante-contrato">R$ ${(loc.valor_restante||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
-          <span>+ Custos da devolução:</span>
+          <span>+ Pagamentos da devolução:</span>
           <strong id="pgr-custos">R$ 0,00</strong>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:var(--accent);padding-top:8px;border-top:1px solid var(--border2);margin-bottom:10px">
@@ -798,12 +798,11 @@ async function salvarChecklist(tipo, locId){
       const qtdCustos = _custosDevolucao.length;
       for(const custo of _custosDevolucao){
         if(!custo.valor || custo.valor<=0) continue;
-        // Reparo = despesa de manutenção; demais = receita cobrada do cliente
-      const tipoLan  = custo.categoria==='Reparo' ? 'despesa' : 'receita';
-      const catLan   = custo.categoria==='Reparo'  ? 'Manutenção'
-                     : custo.categoria==='Tag / Pedágio' ? 'Tag / Pedágio'
+        // Todos os pagamentos da devolução são recebíveis (receita) do cliente
+      const tipoLan  = 'receita';
+      const catLan   = custo.categoria==='Tag / Pedágio' ? 'Tag / Pedágio'
                      : custo.categoria==='Lavagem' ? 'Lavagem'
-                     : 'Multa';
+                     : 'Multa'; // Reparo e Multa cobrados do cliente entram como Multa
       await sb.from('lancamentos').insert({
           tipo:        tipoLan,
           categoria:   catLan,
@@ -817,7 +816,7 @@ async function salvarChecklist(tipo, locId){
         });
       }
       _custosDevolucao = []; // limpa após salvar
-      notify(`${qtdCustos} custo(s) registrados no financeiro!`,'success');
+      notify(`${qtdCustos} pagamento(s) de devolução registrados no financeiro!`,'success');
     }
 
     // Se for entrada: registra pagamento do restante, fecha contrato e libera veículo
