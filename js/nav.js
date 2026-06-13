@@ -399,14 +399,14 @@ function _renderAgendaSemanal(locacoes, reservas, manutencoes){
     let borderColor = 'transparent';
 
     if(temAtraso){
-      bg = 'rgba(220,38,38,0.2)'; cor = '#F87171'; borderColor = 'rgba(220,38,38,0.3)';
+      bg = 'rgba(220,38,38,0.15)'; cor = '#B91C1C'; borderColor = 'rgba(220,38,38,0.3)';
     } else if(total > 0){
       const intensity = Math.min(0.15 + total * 0.12, 0.55);
-      bg = `rgba(79,70,229,${intensity})`; cor = '#C7D2FE'; borderColor = 'rgba(79,70,229,0.3)';
+      bg = `rgba(79,70,229,${intensity})`; cor = '#3730A3'; borderColor = 'rgba(79,70,229,0.3)';
     } else if(temRes){
-      bg = 'rgba(217,119,6,0.18)'; cor = '#FCD34D'; borderColor = 'rgba(217,119,6,0.3)';
+      bg = 'rgba(217,119,6,0.15)'; cor = '#92400E'; borderColor = 'rgba(217,119,6,0.3)';
     } else if(temMan){
-      bg = 'rgba(239,68,68,0.12)'; cor = '#F87171'; borderColor = 'rgba(239,68,68,0.2)';
+      bg = 'rgba(239,68,68,0.12)'; cor = '#B91C1C'; borderColor = 'rgba(239,68,68,0.2)';
     }
 
     const borda = isHoje ? '2px solid #4F46E5' : `1px solid ${borderColor}`;
@@ -428,7 +428,7 @@ function _renderAgendaSemanal(locacoes, reservas, manutencoes){
       style="height:50px;background:${bg};border-radius:8px;border:${borda};display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${temAlgo||isHoje?'pointer':'default'};transition:all .15s;gap:2px;position:relative;opacity:${opacidade};"
       onmouseover="this.style.filter='brightness(1.2)'"
       onmouseout="this.style.filter=''">
-      <div style="font-size:12px;color:${isHoje?'#818CF8':cor};font-weight:${peso}">${d.getDate()}</div>
+      <div style="font-size:12px;color:${isHoje?'#4338CA':cor};font-weight:${peso}">${d.getDate()}</div>
       <div style="display:flex;gap:3px">${dots}</div>
     </div>`;
   }).join('');
