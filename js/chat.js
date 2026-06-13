@@ -231,7 +231,15 @@ function conectarSSE(bridgeUrl, secret){
   };
 }
 
-// ── CHAVE DE DEDUPLICAÇÃO DE MENSAGENS ──
+// ── SET DE MENSAGENS ENVIADAS RECENTEMENTE (evita eco do SSE) ──
+const _msgEnviadasRecentes = new Set();
+
+function _registrarMsgEnviada(texto){
+  const key = texto.trim().slice(0,100);
+  _msgEnviadasRecentes.add(key);
+  setTimeout(()=>_msgEnviadasRecentes.delete(key), 15000); // limpa após 15s
+}
+
 // Trunca created_at ao minuto (evita diff de milissegundos entre SSE e banco)
 function _msgKey(m){
   const ts = (m.created_at||'').slice(0,16); // YYYY-MM-DDTHH:MM
@@ -280,21 +288,11 @@ function receberMsgSSE(msg){
       if(novaData && novaData !== ultimaData){
         area.insertAdjacentHTML('beforeend', _dateSeparatorHtml(_fmtDateSeparator(msgObj.created_at)));
       }
-      // Evita duplicar balão que já está na área.
-      // Para msgs de saída (enviadas pelo atendente), verifica por texto+classe nos últimos 10s
-      // pois o created_at local e do servidor divergem ligeiramente.
-      const jaTemBalao = (() => {
-        if(msgObj.direcao === 'saida' || msgObj.out){
-          const agora = Date.now();
-          const novoTxt = (msgObj.texto||'').trim();
-          return Array.from(area.querySelectorAll('.msg-out')).some(el => {
-            const elTs = new Date(el.dataset.createdAt||0).getTime();
-            const elTxt = el.textContent?.replace(/[\u2713\s]/g,'').trim();
-            return Math.abs(agora - elTs) < 10000 && elTxt.includes(novoTxt.slice(0,20));
-          });
-        }
-        return !!area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
-      })();
+      // Deduplicação: se foi enviada por nós via FleetPro (eco do SSE), ignora.
+      // Se chegou via SSE com created_at idêntico, também ignora.
+      const textoSSE = (msgObj.texto||'').trim().slice(0,100);
+      const ehEco = (msgObj.direcao==='saida' || msgObj.out) && _msgEnviadasRecentes.has(textoSSE);
+      const jaTemBalao = ehEco || !!area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
       if(!jaTemBalao){
         area.insertAdjacentHTML('beforeend', renderMsgItem(msgObj));
       }
@@ -1152,6 +1150,7 @@ async function sendMsg(){
   const textoFinal = _assinatura + texto;
 
   adicionarMsgLocal(activeChatId, textoFinal, 'text', null);
+  _registrarMsgEnviada(textoFinal);
   inp.value = '';
   try{
     await evoSendText(telefone, textoFinal);
