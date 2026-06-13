@@ -367,21 +367,21 @@ function _renderAgendaSemanal(locacoes, reservas, manutencoes){
     const isHoje = d.toDateString() === hoje.toDateString();
 
     const locsNoDia = locacoes.filter(l=>{
-      const ini = new Date(l.data_inicio); ini.setHours(0,0,0,0);
-      const fim = new Date(l.data_fim);    fim.setHours(23,59,59,999);
+      const ini = new Date(l.data_inicio+'T00:00:00'); ini.setHours(0,0,0,0);
+      const fim = new Date(l.data_fim+'T00:00:00');    fim.setHours(23,59,59,999);
       return d >= ini && d <= fim;
     });
     const atrasosNoDia = locsNoDia.filter(l=>Math.ceil((new Date(l.data_fim)-new Date())/86400000) < 0);
     const resNoDia = reservas.filter(r=>{
       if(r.status !== 'ativa') return false;
-      const ini = new Date(r.data_inicio); ini.setHours(0,0,0,0);
-      const fim = new Date(r.data_fim);    fim.setHours(23,59,59,999);
+      const ini = new Date(r.data_inicio+'T00:00:00'); ini.setHours(0,0,0,0);
+      const fim = new Date(r.data_fim+'T00:00:00');    fim.setHours(23,59,59,999);
       return d >= ini && d <= fim;
     });
     const manNoDia = (manutencoes||[]).filter(m=>{
       if(m.status==='concluida') return false;
-      const ini = m.data_inicio ? new Date(m.data_inicio) : null;
-      const fim = m.data_fim    ? new Date(m.data_fim)    : null;
+      const ini = m.data_inicio ? new Date(m.data_inicio+'T00:00:00') : null;
+      const fim = m.data_fim    ? new Date(m.data_fim+'T00:00:00')    : null;
       if(!ini) return false;
       ini.setHours(0,0,0,0);
       if(fim) fim.setHours(23,59,59,999);
@@ -468,22 +468,22 @@ function _agendaAbrirDia(dStr, el){
   const dFim = new Date(dStr+'T23:59:59');
 
   const locsNoDia = _agendaLocsRef.filter(l=>{
-    const ini = new Date(l.data_inicio); ini.setHours(0,0,0,0);
-    const fim = new Date(l.data_fim);    fim.setHours(23,59,59,999);
+    const ini = new Date(l.data_inicio+'T00:00:00'); ini.setHours(0,0,0,0);
+    const fim = new Date(l.data_fim+'T00:00:00');    fim.setHours(23,59,59,999);
     return d >= ini && dFim <= fim || (d >= ini && d <= fim);
   });
 
   const resNoDia = _agendaResRef.filter(r=>{
     if(r.status !== 'ativa') return false;
-    const ini = new Date(r.data_inicio); ini.setHours(0,0,0,0);
-    const fim = new Date(r.data_fim);    fim.setHours(23,59,59,999);
+    const ini = new Date(r.data_inicio+'T00:00:00'); ini.setHours(0,0,0,0);
+    const fim = new Date(r.data_fim+'T00:00:00');    fim.setHours(23,59,59,999);
     return d >= ini && d <= fim;
   });
 
   const manNoDia = _agendaManRef.filter(m=>{
     if(m.status==='concluida') return false;
-    const ini = m.data_inicio ? new Date(m.data_inicio) : null;
-    const fim = m.data_fim    ? new Date(m.data_fim)    : null;
+    const ini = m.data_inicio ? new Date(m.data_inicio+'T00:00:00') : null;
+    const fim = m.data_fim    ? new Date(m.data_fim+'T00:00:00')    : null;
     if(!ini) return false;
     ini.setHours(0,0,0,0);
     if(fim) fim.setHours(23,59,59,999);

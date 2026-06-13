@@ -1815,14 +1815,14 @@ function renderCal(){
   const today=new Date();
   const busy={};
   allLocacoes.forEach(l=>{
-    for(let d=new Date(l.data_inicio);d<=new Date(l.data_fim);d.setDate(d.getDate()+1)){
+    for(let d=new Date(l.data_inicio+'T00:00:00');d<=new Date(l.data_fim+'T00:00:00');d.setDate(d.getDate()+1)){
       if(d.getFullYear()===calYear&&d.getMonth()===calMonth){
         const k=d.getDate(); if(!busy[k]) busy[k]=[]; busy[k].push(l.veiculos?.tipo||'carro');
       }
     }
   });
   allReservas.filter(r=>r.status==='ativa').forEach(r=>{
-    for(let d=new Date(r.data_inicio);d<=new Date(r.data_fim);d.setDate(d.getDate()+1)){
+    for(let d=new Date(r.data_inicio+'T00:00:00');d<=new Date(r.data_fim+'T00:00:00');d.setDate(d.getDate()+1)){
       if(d.getFullYear()===calYear&&d.getMonth()===calMonth){
         const k=d.getDate(); if(!busy[k]) busy[k]=[]; busy[k].push('reserva');
       }
@@ -1845,11 +1845,23 @@ async function calSelectDay(d){
   const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   const {data:locs}=await sb.from('locacoes').select('*,veiculos(*)').lte('data_inicio',ds).gte('data_fim',ds).eq('status','ativa');
   const locIds=(locs||[]).map(l=>l.veiculo_id);
+  const locPorVeiculo={}; (locs||[]).forEach(l=>{ locPorVeiculo[l.veiculo_id]=l; });
   const resIds=allReservas.filter(r=>r.status==='ativa'&&r.data_inicio?.slice(0,10)<=ds&&r.data_fim?.slice(0,10)>=ds).map(r=>r.veiculo_id);
   document.getElementById('cal-veic-list').innerHTML=allVeiculos.map(v=>{
     const b=v.status==='manutencao'?'badge-yellow':locIds.includes(v.id)?'badge-red':resIds.includes(v.id)?'badge-blue':'badge-green';
     const lb=v.status==='manutencao'?'Manutenção':locIds.includes(v.id)?'Alugado':resIds.includes(v.id)?'Reservado':'Disponível';
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${v.tipo==='carro'?'🚗':'🏍️'}</div><div><div style="font-size:13px;font-weight:500">${v.marca} ${v.modelo}</div><div style="font-size:11px;color:var(--muted)">${v.placa}</div></div></div><span class="badge ${b}">${lb}</span></div>`;
+
+    // Se alugado e a devolução é nesse mesmo dia, mostra o horário em que estará livre (+4h buffer)
+    let dispInfo='';
+    const loc = locPorVeiculo[v.id];
+    if(loc?.data_fim_hora && loc.data_fim===ds){
+      const fimDt = new Date(loc.data_fim_hora);
+      const dispDt = new Date(fimDt.getTime() + 4*60*60*1000);
+      const hhmm = dt => dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      dispInfo = `<div style="font-size:10px;color:var(--muted);margin-top:2px">devolução ${hhmm(fimDt)} · 🧹 livre ${hhmm(dispDt)}${dispDt.toDateString()!==fimDt.toDateString()?' (+1d)':''}</div>`;
+    }
+
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${v.tipo==='carro'?'🚗':'🏍️'}</div><div><div style="font-size:13px;font-weight:500">${v.marca} ${v.modelo}</div><div style="font-size:11px;color:var(--muted)">${v.placa}</div>${dispInfo}</div></div><span class="badge ${b}">${lb}</span></div>`;
   }).join('')||'<p style="color:var(--muted2)">Sem veículos.</p>';
 }
 
