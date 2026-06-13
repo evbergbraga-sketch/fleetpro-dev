@@ -502,13 +502,23 @@ function _agendaAbrirDia(dStr, el){
       const isAtraso = diff < 0;
       const cor = isAtraso ? '#F87171' : '#4ade80';
       const status = isAtraso ? `${Math.abs(diff)}d atrasado` : diff === 0 ? 'Devolução hoje' : `Devolve em ${diff}d`;
+
+      // Horário de devolução e disponibilidade real (devolução + 4h de buffer p/ limpeza/inspeção)
+      let horarioInfo = '';
+      if(l.data_fim_hora){
+        const fimDt = new Date(l.data_fim_hora);
+        const dispDt = new Date(fimDt.getTime() + 4*60*60*1000);
+        const hhmm = dt => dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        horarioInfo = `<br><span style="font-size:9px;color:var(--muted);font-weight:400">devolução ${hhmm(fimDt)} · 🧹 livre ${hhmm(dispDt)}${dispDt.toDateString()!==fimDt.toDateString()?' (+1d)':''}</span>`;
+      }
+
       html += `<div onclick="goPage('locacoes')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.12);border-radius:8px;margin-bottom:5px;cursor:pointer" onmouseover="this.style.background='rgba(79,70,229,0.15)'" onmouseout="this.style.background='rgba(79,70,229,0.08)'">
         <div style="display:flex;align-items:center;color:var(--accent)">${SVG_VEICULO(l.veiculos?.tipo)}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;color:var(--text)">${l.veiculos?.modelo||'—'} <span style="font-size:10px;color:var(--muted);font-weight:400">${l.veiculos?.placa||''}</span></div>
           <div style="font-size:11px;color:var(--muted)">${l.clientes?.nome||'—'}</div>
         </div>
-        <div style="font-size:10px;font-weight:600;color:${cor};text-align:right;flex-shrink:0">${status}<br><span style="font-size:9px;color:var(--muted);font-weight:400">até ${fmtData(l.data_fim)}</span></div>
+        <div style="font-size:10px;font-weight:600;color:${cor};text-align:right;flex-shrink:0">${status}<br><span style="font-size:9px;color:var(--muted);font-weight:400">até ${fmtData(l.data_fim)}</span>${horarioInfo}</div>
       </div>`;
     });
   }

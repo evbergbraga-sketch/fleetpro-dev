@@ -9,7 +9,7 @@ function renderLocacoes(){
   if(!tb) return;
   const ativas = allLocacoesCompletas.filter(l=>l.status==='ativa');
   if(!ativas.length){
-    tb.innerHTML='<tr class="empty-row"><td colspan="6">Nenhuma locação ativa no momento</td></tr>';
+    tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhuma locação ativa no momento</td></tr>';
     return;
   }
   tb.innerHTML = ativas.map(l=>{
@@ -20,6 +20,16 @@ function renderLocacoes(){
         ? '<span class="badge badge-yellow">Vence hoje</span>'
         : `<span class="badge badge-green">+${diff}d</span>`;
     const icone = SVG_VEICULO(l.veiculos?.tipo);
+
+    // Devolução com horário (se disponível) e horário de disponibilidade real (+4h de buffer)
+    const fimDt = l.data_fim_hora ? new Date(l.data_fim_hora) : null;
+    const devolucaoTxt = fimDt ? _fmtDtLocacao(l.data_fim_hora) : fmtData(l.data_fim);
+    let disponivelTxt = '—';
+    if(fimDt){
+      const disponivelDt = new Date(fimDt.getTime() + 4*60*60*1000); // +4h buffer
+      disponivelTxt = _fmtDtLocacao(disponivelDt.toISOString());
+    }
+
     return `<tr>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
@@ -35,7 +45,8 @@ function renderLocacoes(){
         <div style="font-size:11px;color:var(--muted)">${l.clientes?.telefone||''}</div>
       </td>
       <td>${fmtData(l.data_inicio)}</td>
-      <td>${fmtData(l.data_fim)}</td>
+      <td>${devolucaoTxt}</td>
+      <td><span style="font-size:12px;color:var(--muted)">🧹 ${disponivelTxt}</span></td>
       <td>${badge}</td>
       <td>
         <div style="display:flex;gap:6px">
