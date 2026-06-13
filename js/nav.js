@@ -395,7 +395,7 @@ function _renderAgendaSemanal(locacoes, reservas, manutencoes){
     const temAlgo   = total > 0 || temRes || temMan;
 
     let bg = 'rgba(79,70,229,0.06)';
-    let cor = 'var(--muted2)';
+    let cor = 'var(--muted)';
     let borderColor = 'transparent';
 
     if(temAtraso){
@@ -412,6 +412,8 @@ function _renderAgendaSemanal(locacoes, reservas, manutencoes){
     const borda = isHoje ? '2px solid #4F46E5' : `1px solid ${borderColor}`;
     const peso  = isHoje ? '700' : '400';
     const dStr  = d.toISOString().slice(0,10);
+    const ehPassado = d < hoje && !isHoje;
+    const opacidade = ehPassado && !temAlgo ? '0.55' : '1';
 
     // Indicadores de ponto no fundo do dia
     const dots = [
@@ -423,7 +425,7 @@ function _renderAgendaSemanal(locacoes, reservas, manutencoes){
     return `<div
       data-dia="${dStr}"
       onclick="_agendaAbrirDia('${dStr}', this)"
-      style="height:50px;background:${bg};border-radius:8px;border:${borda};display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${temAlgo||isHoje?'pointer':'default'};transition:all .15s;gap:2px;position:relative;"
+      style="height:50px;background:${bg};border-radius:8px;border:${borda};display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${temAlgo||isHoje?'pointer':'default'};transition:all .15s;gap:2px;position:relative;opacity:${opacidade};"
       onmouseover="this.style.filter='brightness(1.2)'"
       onmouseout="this.style.filter=''">
       <div style="font-size:12px;color:${isHoje?'#818CF8':cor};font-weight:${peso}">${d.getDate()}</div>
