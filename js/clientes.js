@@ -96,22 +96,52 @@ function _renderTelefones(prefix){
     wrap.innerHTML='<div style="font-size:12px;color:var(--muted2);padding:4px 0">Nenhum telefone. Clique em "+ Adicionar".</div>';
     return;
   }
-  wrap.innerHTML = arr.map((t,i)=>`
+  wrap.innerHTML = arr.map((t,i)=>{
+    const digitos = (t.numero||'').replace(/\D/g,'');
+    const avisoTel = digitos && digitos.length!==11
+      ? `⚠️ ${digitos.length} dígito${digitos.length===1?'':'s'} — esperado: DDD + 9 dígitos (11 no total). Ex: 24999991234`
+      : '';
+    return `
     <div style="margin-bottom:6px">
       <div style="display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:center">
         <select onchange="_cliTelefones['${prefix}'][${i}].tipo=this.value;_renderTelefones('${prefix}')" style="width:100%">
           ${['Particular','Familiar','Trabalho','WhatsApp','Outro'].map(o=>`<option${o===t.tipo?' selected':''}>${o}</option>`).join('')}
         </select>
         <input type="text" value="${t.numero}" placeholder="(21) 99999-0000" style="width:100%"
-          oninput="_cliTelefones['${prefix}'][${i}].numero=this.value">
+          oninput="_cliTelefones['${prefix}'][${i}].numero=this.value;_atualizarAvisoTelefone('${prefix}',${i},this.value)">
         <button onclick="_removeTelefone('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
       </div>
+      <div id="${prefix}-tel-aviso-${i}" style="font-size:11px;color:#f59e0b;margin-top:3px">${avisoTel}</div>
       ${t.tipo==='Familiar'?`
       <div style="margin-top:5px;padding-left:4px">
         <input type="text" value="${t.nome_familiar||''}" placeholder="Nome do familiar" style="width:100%;font-size:12px"
           oninput="_cliTelefones['${prefix}'][${i}].nome_familiar=this.value">
       </div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function _atualizarAvisoTelefone(prefix, i, valor){
+  const el = document.getElementById(`${prefix}-tel-aviso-${i}`);
+  if(!el) return;
+  const digitos = (valor||'').replace(/\D/g,'');
+  el.textContent = digitos && digitos.length!==11
+    ? `⚠️ ${digitos.length} dígito${digitos.length===1?'':'s'} — esperado: DDD + 9 dígitos (11 no total). Ex: 24999991234`
+    : '';
+}
+
+// Valida se todos os telefones cadastrados têm 11 dígitos (DDD + 9 dígitos).
+// Retorna true se ok, ou false (e mostra notificação) se algum telefone estiver fora do padrão.
+function _validarTelefonesCliente(prefix){
+  const arr = _cliTelefones[prefix]||[];
+  for(const t of arr){
+    const digitos = (t.numero||'').replace(/\D/g,'');
+    if(digitos && digitos.length!==11){
+      notify(`Telefone "${t.numero}" tem ${digitos.length} dígitos. O esperado é DDD + 9 dígitos (11 no total), ex: 24999991234. Corrija antes de salvar.`,'error');
+      return false;
+    }
+  }
+  return true;
 }
 
 // ══ EMAILS DINÂMICOS ══
@@ -363,6 +393,7 @@ async function salvarCliente(){
   const obs  = document.getElementById('mc-obs').value.trim();
   if(!nome||!cpf){ notify('Nome e CPF são obrigatórios','error'); return; }
   if(!checarCPF(cpf,'CPF do cliente')) return;
+  if(!_validarTelefonesCliente('mc')) return;
   const btn = document.querySelector('#m-cliente .btn-primary');
   if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
   try{
@@ -410,6 +441,7 @@ async function atualizarCliente(){
   const obs  = document.getElementById('ec-obs').value.trim();
   if(!nome||!cpf){ notify('Nome e CPF obrigatórios','error'); return; }
   if(!checarCPF(cpf,'CPF do cliente')) return;
+  if(!_validarTelefonesCliente('ec')) return;
   const btn = document.querySelector('#m-editar-cliente .btn-primary');
   if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
   try{
