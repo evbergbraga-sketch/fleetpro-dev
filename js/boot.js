@@ -54,20 +54,20 @@ window.addEventListener('DOMContentLoaded', async()=>{
           const {data} = await sb.from('perfis').select('*').eq('id', session.user.id).single();
           currentPerfil = data;
         }
-        // Restaura página se o Supabase reiniciou a sessão e voltou pro dashboard
-        const lastPage = sessionStorage.getItem('fp_last_page');
-        const lastChat = sessionStorage.getItem('fp_last_chat');
-        if(lastPage){
-          sessionStorage.removeItem('fp_last_page');
-          sessionStorage.removeItem('fp_last_chat');
-          setTimeout(()=>{
-            goPage(lastPage);
-            if(lastPage==='chat' && lastChat) setTimeout(()=>abrirChat(lastChat), 500);
-          }, 400);
-        }
         return;
       }
+      // App ainda não tinha terminado de iniciar (corrida com getSession) —
+      // captura a página atual ANTES de reiniciar, pois iniciarApp() força 'dashboard'.
+      const lastPage = sessionStorage.getItem('fp_last_page');
+      const lastChat = sessionStorage.getItem('fp_last_chat');
       await carregarPerfil(session.user);
+      _appIniciado = true;
+      if(lastPage && lastPage!=='dashboard' && currentPerfil?.perfil !== 'investidor'){
+        setTimeout(()=>{
+          goPage(lastPage);
+          if(lastPage==='chat' && lastChat) setTimeout(()=>abrirChat(lastChat), 500);
+        }, 400);
+      }
     }
     if(event==='SIGNED_OUT') goLayer('login');
   });

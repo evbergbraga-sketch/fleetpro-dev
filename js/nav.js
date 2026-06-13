@@ -30,6 +30,10 @@ function goPage(id, navEl){
 
   if(id !== 'investidores' && window._invLeave) window._invLeave();
 
+  // Mantém a página atual sempre salva, para restaurar corretamente
+  // se o Supabase recriar a sessão (visibilitychange) e reiniciar o app.
+  if(id !== 'denied') sessionStorage.setItem('fp_last_page', id);
+
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const pageEl=document.getElementById('page-'+id);

@@ -1048,6 +1048,7 @@ function abrirModalContato(){
 
 function abrirChat(cid){
   activeChatId = cid;
+  sessionStorage.setItem('fp_last_chat', cid);
   clearUnread(cid);
   _chatAbrirMobile(); // mobile: desliza para a conversa
   atualizarBadgeNotif();
