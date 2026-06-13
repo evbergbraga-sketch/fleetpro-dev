@@ -280,8 +280,21 @@ function receberMsgSSE(msg){
       if(novaData && novaData !== ultimaData){
         area.insertAdjacentHTML('beforeend', _dateSeparatorHtml(_fmtDateSeparator(msgObj.created_at)));
       }
-      // Evita duplicar balão que já está na área (ex: veio do banco antes do SSE)
-      const jaTemBalao = area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
+      // Evita duplicar balão que já está na área.
+      // Para msgs de saída (enviadas pelo atendente), verifica por texto+classe nos últimos 10s
+      // pois o created_at local e do servidor divergem ligeiramente.
+      const jaTemBalao = (() => {
+        if(msgObj.direcao === 'saida' || msgObj.out){
+          const agora = Date.now();
+          const novoTxt = (msgObj.texto||'').trim();
+          return Array.from(area.querySelectorAll('.msg-out')).some(el => {
+            const elTs = new Date(el.dataset.createdAt||0).getTime();
+            const elTxt = el.textContent?.replace(/[\u2713\s]/g,'').trim();
+            return Math.abs(agora - elTs) < 10000 && elTxt.includes(novoTxt.slice(0,20));
+          });
+        }
+        return !!area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
+      })();
       if(!jaTemBalao){
         area.insertAdjacentHTML('beforeend', renderMsgItem(msgObj));
       }
@@ -1128,14 +1141,14 @@ async function sendMsg(){
   if(!telefone){ notify('Cliente sem telefone cadastrado','error'); return; }
 
   // ── ASSINATURA DO ATENDENTE ──
-  const _nomeAtend = (currentPerfil?.nome || '').toUpperCase();
+  const _primeiroNome = (currentPerfil?.nome || '').trim().split(' ')[0].toUpperCase();
   const _setor = currentPerfil?.setor?.trim() || ({
     admin:      'Administrativo',
     atendente:  'Atendimento',
     financeiro: 'Financeiro',
     investidor: 'Investidor',
   }[currentPerfil?.perfil] || 'Atendimento');
-  const _assinatura = _nomeAtend ? `${_nomeAtend} - ${_setor}: ` : '';
+  const _assinatura = _primeiroNome ? `*${_primeiroNome} - ${_setor}:* ` : '';
   const textoFinal = _assinatura + texto;
 
   adicionarMsgLocal(activeChatId, textoFinal, 'text', null);
