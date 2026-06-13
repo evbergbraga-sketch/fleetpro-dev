@@ -106,6 +106,39 @@ async function carregarPerfil(user){
   iniciarApp();
 }
 
+// ══ TROCA OBRIGATÓRIA DE SENHA (PRIMEIRO ACESSO) ══
+function _verificarSenhaProvisoria(){
+  if(currentPerfil?.senha_provisoria){
+    document.getElementById('m-primeiro-acesso')?.classList.add('show');
+  }
+}
+
+async function _salvarSenhaPrimeiroAcesso(){
+  const nova = document.getElementById('pa-senha-nova')?.value;
+  const conf = document.getElementById('pa-senha-conf')?.value;
+  const errEl = document.getElementById('pa-senha-err');
+  if(errEl) errEl.style.display='none';
+
+  if(!nova||!conf){ if(errEl){errEl.textContent='Preencha os dois campos.';errEl.style.display='block';} return; }
+  if(nova.length<6){ if(errEl){errEl.textContent='A senha deve ter pelo menos 6 caracteres.';errEl.style.display='block';} return; }
+  if(nova!==conf){ if(errEl){errEl.textContent='As senhas não coincidem.';errEl.style.display='block';} return; }
+
+  const btn = document.getElementById('pa-btn-salvar');
+  if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
+  try{
+    const {error} = await sb.auth.updateUser({password: nova});
+    if(error) throw error;
+    await sb.from('perfis').update({senha_provisoria:false}).eq('id', currentUser.id);
+    currentPerfil.senha_provisoria = false;
+    document.getElementById('m-primeiro-acesso')?.classList.remove('show');
+    notify('Senha definida com sucesso!','success');
+  }catch(e){
+    if(errEl){errEl.textContent='Erro: '+e.message;errEl.style.display='block';}
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='🔐 Definir senha e continuar'; }
+  }
+}
+
 // ══ APP INIT ══
 function iniciarApp(){
   const p=currentPerfil;
@@ -144,6 +177,9 @@ function iniciarApp(){
 
   // ── Inject botão hamburguer no topbar (mobile) ──
   _injectHamburguer();
+
+  // ── Primeiro acesso: força troca de senha provisória ──
+  _verificarSenhaProvisoria();
 }
 
 // ══ HAMBURGUER MOBILE ══
@@ -345,17 +381,26 @@ async function criarUsuarioAdmin(){
   }
   const nome  = document.getElementById('r-nome')?.value.trim();
   const email = document.getElementById('r-email')?.value.trim();
-  const senha = document.getElementById('r-senha')?.value;
   const perfil= document.getElementById('r-perfil')?.value;
+  const setor = document.getElementById('r-setor')?.value || null;
+  const telefone   = document.getElementById('r-telefone')?.value.trim()||null;
+  const cpf        = document.getElementById('r-cpf')?.value.trim()||null;
+  const nascimento = document.getElementById('r-nascimento')?.value||null;
   const errEl = document.getElementById('register-err');
   const okEl  = document.getElementById('register-ok');
+  const senhaResultEl = document.getElementById('r-senha-result');
   if(errEl) errEl.style.display='none';
   if(okEl)  okEl.style.display='none';
+  if(senhaResultEl) senhaResultEl.style.display='none';
 
-  if(!nome||!email||!senha){
-    if(errEl){errEl.textContent='Preencha todos os campos.';errEl.style.display='block';}
+  if(!nome||!email){
+    if(errEl){errEl.textContent='Preencha nome e e-mail.';errEl.style.display='block';}
     return;
   }
+
+  // Gera senha provisória aleatória
+  const senha = _gerarSenhaProvisoria();
+
   const {data:signData, error}=await sb.auth.signUp({
     email, password:senha,
     options:{data:{nome,perfil}}
@@ -365,29 +410,51 @@ async function criarUsuarioAdmin(){
     return;
   }
 
-  // Se for investidor, salva dados extras no perfil
-  if(perfil==='investidor' && signData?.user){
-    const dadosInv = {
-      empresa:       document.getElementById('r-empresa')?.value.trim()||null,
-      razao_social:  document.getElementById('r-razao')?.value.trim()||null,
-      cnpj_cpf:      document.getElementById('r-cnpj')?.value.trim()||null,
-      responsavel:   document.getElementById('r-responsavel')?.value.trim()||null,
-      telefone:      document.getElementById('r-telefone-inv')?.value.trim()||null,
-      email_empresa: document.getElementById('r-email-emp')?.value.trim()||null,
+  // Salva dados extras no perfil (aguarda trigger criar a linha em perfis)
+  if(signData?.user){
+    const dadosPerfil = {
+      setor, telefone, cpf,
+      data_nascimento: nascimento,
+      senha_provisoria: true,
     };
-    // Aguarda o perfil ser criado pelo trigger do Supabase e então atualiza
+    if(perfil==='investidor'){
+      dadosPerfil.empresa       = document.getElementById('r-empresa')?.value.trim()||null;
+      dadosPerfil.razao_social  = document.getElementById('r-razao')?.value.trim()||null;
+      dadosPerfil.cnpj_cpf      = document.getElementById('r-cnpj')?.value.trim()||null;
+      dadosPerfil.responsavel   = document.getElementById('r-responsavel')?.value.trim()||null;
+      dadosPerfil.telefone      = document.getElementById('r-telefone-inv')?.value.trim()||telefone;
+      dadosPerfil.email_empresa = document.getElementById('r-email-emp')?.value.trim()||null;
+    }
     setTimeout(async()=>{
-      await sb.from('perfis').update(dadosInv).eq('id', signData.user.id);
+      await sb.from('perfis').update(dadosPerfil).eq('id', signData.user.id);
     }, 2000);
   }
 
-  if(okEl){okEl.textContent='✓ Usuário criado! Peça para ele confirmar o email.';okEl.style.display='block';}
+  if(okEl){okEl.textContent='✓ Usuário criado com sucesso!';okEl.style.display='block';}
+  if(senhaResultEl){
+    document.getElementById('r-senha-valor').textContent = senha;
+    senhaResultEl.style.display='block';
+  }
   notify('Usuário '+nome+' criado com sucesso!','success');
-  ['r-nome','r-email','r-senha','r-empresa','r-razao','r-cnpj','r-responsavel','r-telefone-inv','r-email-emp'].forEach(id=>{
+  ['r-nome','r-email','r-telefone','r-cpf','r-nascimento','r-empresa','r-razao','r-cnpj','r-responsavel','r-telefone-inv','r-email-emp'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('campos-novo-investidor').style.display='none';
   document.getElementById('r-perfil').value='atendente';
+  document.getElementById('r-setor').value='';
+}
+
+function _gerarSenhaProvisoria(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let senha = '';
+  for(let i=0;i<8;i++) senha += chars[Math.floor(Math.random()*chars.length)];
+  return senha;
+}
+
+function _copiarSenhaProvisoria(){
+  const txt = document.getElementById('r-senha-valor')?.textContent;
+  if(!txt) return;
+  navigator.clipboard.writeText(txt).then(()=>notify('Senha copiada!','success')).catch(()=>{});
 }
 
 // ══ ALTERAR SENHA ══

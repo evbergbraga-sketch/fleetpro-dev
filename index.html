@@ -1453,7 +1453,9 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="form-grid">
         <div class="form-group full"><label>Nome completo</label><input type="text" id="r-nome" placeholder="Nome do usuário" style="width:100%"></div>
         <div class="form-group full"><label>Email</label><input type="email" id="r-email" placeholder="email@exemplo.com" style="width:100%"></div>
-        <div class="form-group"><label>Senha</label><input type="password" id="r-senha" placeholder="Mínimo 6 caracteres" style="width:100%"></div>
+        <div class="form-group"><label>Telefone</label><input type="text" id="r-telefone" placeholder="(21) 99999-9999" style="width:100%"></div>
+        <div class="form-group"><label>CPF</label><input type="text" id="r-cpf" placeholder="000.000.000-00" style="width:100%"></div>
+        <div class="form-group"><label>Data de nascimento</label><input type="date" id="r-nascimento" style="width:100%"></div>
         <div class="form-group"><label>Perfil</label>
           <select id="r-perfil" style="width:100%" onchange="_toggleCamposInvestidor()">
             <option value="atendente">🧑‍💼 Atendente</option>
@@ -1461,6 +1463,18 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="investidor">📈 Investidor</option>
           </select>
         </div>
+        <div class="form-group full"><label>Setor (aparece na assinatura do chat)</label>
+          <select id="r-setor" style="width:100%">
+            <option value="">— Não definido —</option>
+            <option value="Atendimento">Atendimento</option>
+            <option value="Financeiro">Financeiro</option>
+            <option value="Administrativo">Administrativo</option>
+            <option value="Sinistro">Sinistro</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted2);margin-top:10px;background:var(--bg2);border-radius:8px;padding:10px 12px">
+        🔐 Uma <strong>senha provisória</strong> será gerada automaticamente. No primeiro acesso, o usuário será obrigado a definir uma nova senha.
       </div>
       <div id="campos-novo-investidor" style="display:none;margin-top:4px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:12px 0 10px;border-top:1px solid var(--border2);padding-top:14px">🏢 Dados da empresa</div>
@@ -1475,6 +1489,13 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       </div>
       <div class="login-err" id="register-err" style="margin:8px 0"></div>
       <div class="login-ok"  id="register-ok"  style="margin:8px 0"></div>
+      <div id="r-senha-result" style="display:none;background:var(--bg2);border:1px solid var(--accent);border-radius:8px;padding:14px;margin-top:8px">
+        <div style="font-size:12px;color:var(--muted2);margin-bottom:6px">Senha provisória gerada — copie e repasse ao usuário:</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <code id="r-senha-valor" style="flex:1;font-size:16px;font-weight:700;letter-spacing:1px;background:var(--bg3);padding:8px 12px;border-radius:6px"></code>
+          <button class="btn btn-ghost" onclick="_copiarSenhaProvisoria()" style="font-size:12px;padding:8px 12px">📋 Copiar</button>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('criar-usuario')">Cancelar</button>
@@ -2028,6 +2049,30 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('editar-veiculo')">Cancelar</button>
       <button class="btn btn-primary" onclick="atualizarVeiculo()">✓ Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TROCA OBRIGATÓRIA DE SENHA (primeiro acesso) -->
+<div class="modal-overlay" id="m-primeiro-acesso" style="z-index:9999">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">🔐 Defina sua senha</div>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Este é seu primeiro acesso. Por segurança, defina uma nova senha pessoal antes de continuar.
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Nova senha</label>
+        <input type="password" id="pa-senha-nova" placeholder="Mínimo 6 caracteres" style="width:100%">
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Confirmar nova senha</label>
+        <input type="password" id="pa-senha-conf" placeholder="Repita a nova senha" style="width:100%">
+      </div>
+      <div id="pa-senha-err" style="display:none;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:8px;padding:10px 12px;font-size:12px;color:#F87171;margin-bottom:10px"></div>
+      <button class="btn btn-primary" id="pa-btn-salvar" onclick="_salvarSenhaPrimeiroAcesso()" style="width:100%">🔐 Definir senha e continuar</button>
     </div>
   </div>
 </div>
