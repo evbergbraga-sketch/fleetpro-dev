@@ -1405,6 +1405,13 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div id="eu-campos-perm" style="display:none;margin-top:4px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:12px 0 10px;border-top:1px solid var(--border2);padding-top:14px">🔒 Permissões de Acesso</div>
 
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">💸 Desconto máximo permitido em contratos:</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <input type="number" id="eu-desconto-max" min="0" max="100" step="1" placeholder="0" style="width:90px">
+          <span style="font-size:13px;color:var(--muted)">%</span>
+          <span style="font-size:11px;color:var(--muted2)">(0 = não pode aplicar desconto)</span>
+        </div>
+
         <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">📋 Páginas que pode acessar:</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="dashboard"> Dashboard</label>
@@ -1418,6 +1425,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="calendario"> 📆 Calendário</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="chat"> 💬 Chat WhatsApp</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="financeiro"> 💰 Financeiro</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="investidores"> 📈 Investidores</label>
         </div>
 
         <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">👤 Campos visíveis no perfil do cliente:</div>

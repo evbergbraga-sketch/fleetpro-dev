@@ -514,9 +514,18 @@ function previewContrato(){
   const descontoValor = parseFloat(document.getElementById('c-desconto-valor')?.value)||0;
   const descontoTipo  = document.getElementById('c-desconto-tipo')?.value||'reais';
   const diaOriginal = dia;
-  const diaComDesconto = descontoTipo==='pct'
+  let diaComDesconto = descontoTipo==='pct'
     ? Math.max(0, dia - (dia * descontoValor/100))
     : Math.max(0, dia - descontoValor);
+
+  // ── Limite de desconto por usuário (admin = sem limite) ──
+  const descontoMaxPct = currentPerfil?.perfil==='admin' ? 100 : (currentPerfil?.desconto_max_pct ?? 0);
+  const descontoAplicadoPct = diaOriginal>0 ? ((diaOriginal-diaComDesconto)/diaOriginal*100) : 0;
+  const descontoBloqueado = descontoAplicadoPct > descontoMaxPct + 0.001;
+  if(descontoBloqueado){
+    diaComDesconto = diaOriginal * (1 - descontoMaxPct/100);
+  }
+
   const temDesconto = descontoValor > 0 && diaComDesconto < diaOriginal;
   const km    = document.getElementById('c-km')?.value||'—';
   const obs   = document.getElementById('c-obs')?.value||'';
@@ -648,9 +657,13 @@ function previewContrato(){
 
   const descPrevEl = document.getElementById('c-desconto-preview');
   if(descPrevEl){
-    descPrevEl.textContent = temDesconto
-      ? `Valor com desconto: R$ ${diaComDesconto.toLocaleString('pt-BR',{minimumFractionDigits:2})} (original R$ ${diaOriginal.toLocaleString('pt-BR',{minimumFractionDigits:2})})`
-      : '';
+    if(descontoBloqueado){
+      descPrevEl.innerHTML = `<span style="color:var(--red,#dc2626)">⚠️ Desconto limitado a ${descontoMaxPct}% para seu perfil. Valor ajustado: R$ ${diaComDesconto.toLocaleString('pt-BR',{minimumFractionDigits:2})} (original R$ ${diaOriginal.toLocaleString('pt-BR',{minimumFractionDigits:2})})</span>`;
+    } else if(temDesconto){
+      descPrevEl.textContent = `Valor com desconto: R$ ${diaComDesconto.toLocaleString('pt-BR',{minimumFractionDigits:2})} (original R$ ${diaOriginal.toLocaleString('pt-BR',{minimumFractionDigits:2})})`;
+    } else {
+      descPrevEl.textContent = '';
+    }
   }
   _set('ct-servicos-total', totalServicos>0 ? `+ R$ ${totalServicos.toLocaleString('pt-BR',{minimumFractionDigits:2})} (serviços)` : '');
   const ctTaxaEl = document.getElementById('ct-taxa-admin-display');

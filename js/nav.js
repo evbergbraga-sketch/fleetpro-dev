@@ -147,6 +147,7 @@ async function editarUsuario(id){
   document.getElementById('eu-tel').value       = p.telefone||'';
   document.getElementById('eu-email-emp').value = p.email_empresa||'';
   document.getElementById('eu-setor').value     = p.setor||'';
+  document.getElementById('eu-desconto-max').value = p.desconto_max_pct ?? '';
   const invEl = document.getElementById('eu-campos-inv');
   if(invEl) invEl.style.display = isInv ? '' : 'none';
   const errEl=document.getElementById('eu-err'); if(errEl) errEl.style.display='none';
@@ -202,6 +203,7 @@ async function salvarEdicaoUsuario(){
   const obj = {
     nome, perfil,
     setor: document.getElementById('eu-setor').value || null,
+    desconto_max_pct: document.getElementById('eu-desconto-max').value !== '' ? parseFloat(document.getElementById('eu-desconto-max').value) : null,
     empresa:       document.getElementById('eu-empresa').value.trim()||null,
     razao_social:  document.getElementById('eu-razao').value.trim()||null,
     cnpj_cpf:      document.getElementById('eu-cnpj').value.trim()||null,
