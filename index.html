@@ -1380,6 +1380,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="investidor">📈 Investidor</option>
           </select>
         </div>
+        <div class="form-group full"><label>Setor (aparece na assinatura do chat)</label>
+          <select id="eu-setor" style="width:100%">
+            <option value="">— Não definido —</option>
+            <option value="Atendimento">Atendimento</option>
+            <option value="Financeiro">Financeiro</option>
+            <option value="Administrativo">Administrativo</option>
+            <option value="Sinistro">Sinistro</option>
+          </select>
+        </div>
       </div>
       <div id="eu-campos-inv" style="display:none;margin-top:4px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:12px 0 10px;border-top:1px solid var(--border2);padding-top:14px">🏢 Dados da empresa</div>
@@ -2040,10 +2049,9 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         </div>
       </div>
       <div class="form-group" style="margin-bottom:16px">
-        <label>Setor (aparece na assinatura do chat)</label>
-        <input type="text" id="mp-setor" placeholder="Ex: Administrativo, Atendimento, Financeiro" style="width:100%" oninput="_atualizarPreviewSetor()">
-        <div style="font-size:11px;color:var(--muted2);margin-top:4px">Prévia: <strong id="mp-setor-preview">SEU NOME</strong> - <span id="mp-setor-preview2">Setor</span>:</div>
-        <button class="btn btn-ghost" onclick="salvarSetorPerfil()" style="margin-top:8px;font-size:12px;padding:6px 14px">💾 Salvar setor</button>
+        <label>Setor</label>
+        <div style="font-size:13px;padding:8px 12px;background:var(--bg2);border-radius:8px;color:var(--text)" id="mp-setor-display">—</div>
+        <div style="font-size:11px;color:var(--muted2);margin-top:4px">Definido pelo administrador. Prévia da assinatura no chat: <strong id="mp-setor-preview">SEU NOME</strong> - <span id="mp-setor-preview2">Setor</span>:</div>
       </div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:12px">🔐 Alterar senha</div>
       <div class="form-group" style="margin-bottom:10px">

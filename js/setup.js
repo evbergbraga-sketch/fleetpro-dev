@@ -404,8 +404,8 @@ function abrirModalMeuPerfil(){
   const em = document.getElementById('mp-email');  if(em) em.textContent=u.email||'—';
   const ro = document.getElementById('mp-role');   if(ro){ ro.textContent=ROLE_LABELS[p.perfil]||p.perfil; ro.className='role-chip '+p.perfil; }
 
-  const setorInput = document.getElementById('mp-setor');
-  if(setorInput) setorInput.value = p.setor||'';
+  const setorDisplay = document.getElementById('mp-setor-display');
+  if(setorDisplay) setorDisplay.textContent = p.setor || 'Não definido (solicite ao administrador)';
   _atualizarPreviewSetor();
 
   // Limpa campos e feedbacks
@@ -418,20 +418,6 @@ function abrirModalMeuPerfil(){
 function _atualizarPreviewSetor(){
   const nomeEl = document.getElementById('mp-setor-preview');
   const setorEl = document.getElementById('mp-setor-preview2');
-  const input = document.getElementById('mp-setor');
   if(nomeEl) nomeEl.textContent = (currentPerfil?.nome||'SEU NOME').toUpperCase();
-  if(setorEl) setorEl.textContent = input?.value?.trim() || 'Setor';
-}
-
-async function salvarSetorPerfil(){
-  const setor = document.getElementById('mp-setor')?.value?.trim()||'';
-  try{
-    const {error} = await sb.from('perfis').update({setor}).eq('id', currentUser.id);
-    if(error) throw error;
-    currentPerfil.setor = setor;
-    _atualizarPreviewSetor();
-    notify('Setor atualizado!','success');
-  }catch(e){
-    notify('Erro ao salvar setor: '+e.message,'error');
-  }
+  if(setorEl) setorEl.textContent = currentPerfil?.setor?.trim() || 'Setor';
 }

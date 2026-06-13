@@ -127,6 +127,7 @@ function renderUsuarios(){
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span class="badge ${CORES[p.perfil]||'badge-gray'}">${LABELS[p.perfil]||p.perfil}</span>
+        ${p.setor?`<span class="badge badge-gray">${p.setor}</span>`:''}
         <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="editarUsuario('${p.id}')">✏️ Editar</button>
       </div>
     </div>`).join('');
@@ -145,6 +146,7 @@ async function editarUsuario(id){
   document.getElementById('eu-resp').value      = p.responsavel||'';
   document.getElementById('eu-tel').value       = p.telefone||'';
   document.getElementById('eu-email-emp').value = p.email_empresa||'';
+  document.getElementById('eu-setor').value     = p.setor||'';
   const invEl = document.getElementById('eu-campos-inv');
   if(invEl) invEl.style.display = isInv ? '' : 'none';
   const errEl=document.getElementById('eu-err'); if(errEl) errEl.style.display='none';
@@ -199,6 +201,7 @@ async function salvarEdicaoUsuario(){
 
   const obj = {
     nome, perfil,
+    setor: document.getElementById('eu-setor').value || null,
     empresa:       document.getElementById('eu-empresa').value.trim()||null,
     razao_social:  document.getElementById('eu-razao').value.trim()||null,
     cnpj_cpf:      document.getElementById('eu-cnpj').value.trim()||null,
