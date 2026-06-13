@@ -1154,7 +1154,8 @@ async function sendMsg(){
   inp.value = '';
   try{
     await evoSendText(telefone, textoFinal);
-    await salvarMsgDB(c?.id||null, telefone, textoFinal, 'text', 'saida', null);
+    // NÃO salvar no banco aqui — o bridge já salva quando processa o envio.
+    // Salvar aqui causaria duplicata no banco e consequentemente visual.
   }catch(e){
     notify('Erro ao enviar: '+e.message,'error');
   }
@@ -1237,7 +1238,7 @@ async function _enviarMidiaWpp(c){
       }
     }catch(_){}
     adicionarMsgLocal(activeChatId, fileName||'Arquivo', tipo, localUrl);
-    await salvarMsgDB(c?.id||null, telefone, fileName||'Arquivo', tipo, 'saida', storageUrl);
+    // bridge salva no banco — não duplicar aqui
     cancelarMidia();
     notify('Arquivo enviado ✓','success');
   }catch(err){
@@ -1348,7 +1349,7 @@ async function enviarContratoWpp(){
   texto += `\n_FleetPro Locadora 🚗🏍️_`;
   try{
     await evoSendText(c.telefone, texto);
-    await salvarMsgDB(activeChatId, c.telefone, texto, 'text', 'saida', null);
+    // bridge salva no banco — não duplicar aqui
     adicionarMsgLocal(activeChatId, texto, 'text', null);
     notify('Contrato enviado ✓','success');
   }catch(e){
@@ -1520,7 +1521,7 @@ async function crSalvarReserva(notificar=false){
           `_Locadora Royal — aguardamos você!_ 🏍️🚗`;
         try{
           await evoSendText(telefone, msg);
-          await salvarMsgDB(cid, telefone, msg, 'text', 'saida', null);
+          // bridge salva no banco — não duplicar aqui
           notify('Reserva criada e cliente notificado no WhatsApp! ✅','success');
         }catch(_){
           notify('Reserva criada! Falha ao enviar WhatsApp.','error');
