@@ -2,6 +2,7 @@
 
 // ══ ESTADO ══
 let _finLancamentos = [];
+let _finLancamentosTudo = []; // todos os lançamentos (sem filtro), p/ saldo total acumulado
 let _finVeiculoSel = null;
 
 // ══ CATEGORIAS ══
@@ -16,11 +17,13 @@ const FIN_CAT_ICONES = {
 
 // ══ INICIALIZAÇÃO ══
 async function iniciarFinanceiro(){
+  await _finCarregarTotaisGerais();
   await finCarregarLancamentos();
   finPopularSelectVeiculos();
   await finRenderSeguros();
   await finRenderIpva();
   await finVerificarAlertas();
+  document.getElementById('fin-chart-btn-tempo')?.classList.add('btn-primary');
   _finTab('fluxo');
 }
 
@@ -54,6 +57,14 @@ function finPopularSelectVeiculos(){
 }
 
 // ══ CARREGAR LANÇAMENTOS ══
+// ══ TOTAIS GERAIS (saldo acumulado, independente do filtro) ══
+async function _finCarregarTotaisGerais(){
+  try{
+    const {data} = await sb.from('lancamentos').select('tipo,valor').limit(5000);
+    _finLancamentosTudo = data||[];
+  }catch(e){ console.warn('[fin/totais]', e.message); _finLancamentosTudo = []; }
+}
+
 async function finCarregarLancamentos(){
   if(!sb) return;
   const periodo = document.getElementById('fin-filtro-periodo')?.value||'mes';
@@ -61,15 +72,7 @@ async function finCarregarLancamentos(){
   const cat     = document.getElementById('fin-filtro-cat')?.value||'';
   const veiId   = document.getElementById('fin-filtro-veiculo')?.value||'';
 
-  const hoje = new Date();
-  let dataInicio = null;
-  if(periodo==='mes'){
-    dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
-  } else if(periodo==='trimestre'){
-    dataInicio = new Date(hoje.getFullYear(), hoje.getMonth()-2, 1).toISOString().slice(0,10);
-  } else if(periodo==='ano'){
-    dataInicio = new Date(hoje.getFullYear(), 0, 1).toISOString().slice(0,10);
-  }
+  const {dataInicio, dataFim} = _finCalcPeriodo(periodo);
 
   let query = sb.from('lancamentos')
     .select('*,veiculos(marca,modelo,placa,tipo)')
@@ -77,6 +80,7 @@ async function finCarregarLancamentos(){
     .limit(500);
 
   if(dataInicio) query = query.gte('data', dataInicio);
+  if(dataFim)    query = query.lte('data', dataFim);
   if(tipo)       query = query.eq('tipo', tipo);
   if(cat)        query = query.eq('categoria', cat);
   if(veiId)      query = query.eq('veiculo_id', veiId);
@@ -87,7 +91,138 @@ async function finCarregarLancamentos(){
 
   finRenderLancamentos();
   finAtualizarCards();
+  _finAtualizarLabelPeriodo(periodo);
+  _finRenderChart();
 }
+
+// ══ LABEL DINÂMICO DOS CARDS ══
+function _finAtualizarLabelPeriodo(periodo){
+  const labels = {
+    semana: 'da semana', mes: 'do mês', trimestre: 'do trimestre',
+    semestre: 'do semestre', ano: 'do ano', tudo: 'total', personalizado: 'do período',
+  };
+  const txt = labels[periodo] || 'do período';
+  ['fin-label-periodo-1','fin-label-periodo-2','fin-label-periodo-3'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = txt;
+  });
+}
+
+// ══ CÁLCULO DO PERÍODO SELECIONADO ══
+function _finCalcPeriodo(periodo){
+  const hoje = new Date();
+  let dataInicio = null, dataFim = null;
+
+  if(periodo==='semana'){
+    // Início da semana (domingo)
+    const diaSemana = hoje.getDay();
+    const inicio = new Date(hoje);
+    inicio.setDate(hoje.getDate() - diaSemana);
+    dataInicio = inicio.toISOString().slice(0,10);
+  } else if(periodo==='mes'){
+    dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
+  } else if(periodo==='trimestre'){
+    dataInicio = new Date(hoje.getFullYear(), hoje.getMonth()-2, 1).toISOString().slice(0,10);
+  } else if(periodo==='semestre'){
+    dataInicio = new Date(hoje.getFullYear(), hoje.getMonth()-5, 1).toISOString().slice(0,10);
+  } else if(periodo==='ano'){
+    dataInicio = new Date(hoje.getFullYear(), 0, 1).toISOString().slice(0,10);
+  } else if(periodo==='personalizado'){
+    dataInicio = document.getElementById('fin-filtro-data-ini')?.value||null;
+    dataFim    = document.getElementById('fin-filtro-data-fim')?.value||null;
+  }
+  // 'tudo' → dataInicio e dataFim ficam null
+
+  return {dataInicio, dataFim};
+}
+
+// ══ MOSTRA/ESCONDE CAMPOS DE DATA PERSONALIZADA ══
+function _finPeriodoChange(){
+  const periodo = document.getElementById('fin-filtro-periodo')?.value||'mes';
+  const isPersonalizado = periodo==='personalizado';
+  ['fin-filtro-data-ini','fin-filtro-data-sep','fin-filtro-data-fim'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = isPersonalizado ? '' : 'none';
+  });
+  if(!isPersonalizado) finCarregarLancamentos();
+}
+
+// ══ GRÁFICO RECEITAS X DESPESAS ══
+let _finChart = null;
+let _finChartModoAtual = 'tempo';
+
+function _finChartModo(modo){
+  _finChartModoAtual = modo;
+  ['fin-chart-btn-cat','fin-chart-btn-tempo'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('btn-primary');
+  });
+  const ativoId = modo==='categoria' ? 'fin-chart-btn-cat' : 'fin-chart-btn-tempo';
+  document.getElementById(ativoId)?.classList.add('btn-primary');
+  _finRenderChart();
+}
+
+function _finRenderChart(){
+  const canvas = document.getElementById('fin-chart');
+  if(!canvas || typeof Chart==='undefined') return;
+
+  let labels, receitas, despesas;
+
+  if(_finChartModoAtual==='categoria'){
+    // Agrupa por categoria
+    const mapaCat = {};
+    _finLancamentos.forEach(l=>{
+      const cat = l.categoria||'Outros';
+      if(!mapaCat[cat]) mapaCat[cat] = {receita:0, despesa:0};
+      mapaCat[cat][l.tipo] = (mapaCat[cat][l.tipo]||0) + Number(l.valor);
+    });
+    labels = Object.keys(mapaCat);
+    receitas = labels.map(c=>mapaCat[c].receita||0);
+    despesas = labels.map(c=>mapaCat[c].despesa||0);
+  } else {
+    // Agrupa por mês (AAAA-MM)
+    const mapaMes = {};
+    _finLancamentos.forEach(l=>{
+      const mes = (l.data||'').slice(0,7);
+      if(!mes) return;
+      if(!mapaMes[mes]) mapaMes[mes] = {receita:0, despesa:0};
+      mapaMes[mes][l.tipo] = (mapaMes[mes][l.tipo]||0) + Number(l.valor);
+    });
+    const meses = Object.keys(mapaMes).sort();
+    labels = meses.map(m=>{
+      const [ano,mes] = m.split('-');
+      const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      return `${nomesMes[parseInt(mes)-1]}/${ano.slice(2)}`;
+    });
+    receitas = meses.map(m=>mapaMes[m].receita||0);
+    despesas = meses.map(m=>mapaMes[m].despesa||0);
+  }
+
+  if(_finChart) _finChart.destroy();
+  _finChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Receitas', data:receitas, backgroundColor:'rgba(22,163,74,.7)', borderRadius:4 },
+        { label:'Despesas', data:despesas, backgroundColor:'rgba(220,38,38,.7)', borderRadius:4 },
+      ],
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top', labels:{boxWidth:12, font:{size:11}}},
+        tooltip:{callbacks:{ label: ctx => `${ctx.dataset.label}: R$ ${ctx.parsed.y.toLocaleString('pt-BR',{minimumFractionDigits:2})}` }},
+      },
+      scales:{
+        y:{ ticks:{ callback: v => 'R$ '+v.toLocaleString('pt-BR') } },
+        x:{ ticks:{ font:{size:10} } },
+      },
+    },
+  });
+}
+
+
 
 // ══ RENDERIZAR TABELA ══
 function finRenderLancamentos(){
@@ -120,18 +255,14 @@ function finRenderLancamentos(){
 
 // ══ CARDS RESUMO ══
 function finAtualizarCards(){
-  const hoje = new Date();
-  const mesAtual = hoje.toISOString().slice(0,7);
-
-  // Mês atual
-  const doMes = _finLancamentos.filter(l=>l.data?.startsWith(mesAtual));
-  const receitaMes  = doMes.filter(l=>l.tipo==='receita').reduce((a,l)=>a+Number(l.valor),0);
-  const despesaMes  = doMes.filter(l=>l.tipo==='despesa').reduce((a,l)=>a+Number(l.valor),0);
+  // Receita/Despesa/Saldo do PERÍODO selecionado (já filtrado em _finLancamentos)
+  const receitaMes  = _finLancamentos.filter(l=>l.tipo==='receita').reduce((a,l)=>a+Number(l.valor),0);
+  const despesaMes  = _finLancamentos.filter(l=>l.tipo==='despesa').reduce((a,l)=>a+Number(l.valor),0);
   const saldoMes    = receitaMes - despesaMes;
 
-  // Saldo acumulado (todos os lançamentos carregados)
-  const totalRec = _finLancamentos.filter(l=>l.tipo==='receita').reduce((a,l)=>a+Number(l.valor),0);
-  const totalDes = _finLancamentos.filter(l=>l.tipo==='despesa').reduce((a,l)=>a+Number(l.valor),0);
+  // Saldo acumulado (todos os lançamentos, sem filtro de período/categoria/veículo)
+  const totalRec = (_finLancamentosTudo||_finLancamentos).filter(l=>l.tipo==='receita').reduce((a,l)=>a+Number(l.valor),0);
+  const totalDes = (_finLancamentosTudo||_finLancamentos).filter(l=>l.tipo==='despesa').reduce((a,l)=>a+Number(l.valor),0);
 
   const fmt = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const el = id => document.getElementById(id);
@@ -566,23 +697,28 @@ async function finExportarPdf(){
   y=24;
 
   const periodo = document.getElementById('fin-filtro-periodo')?.value||'mes';
+  const periodoLabels = {semana:'Esta semana', mes:'Este mês', trimestre:'Último trimestre', semestre:'Último semestre', ano:'Este ano', tudo:'Tudo', personalizado:'Personalizado'};
+  let periodoTxt = periodoLabels[periodo]||periodo;
+  if(periodo==='personalizado'){
+    const di = document.getElementById('fin-filtro-data-ini')?.value;
+    const df = document.getElementById('fin-filtro-data-fim')?.value;
+    if(di && df) periodoTxt = `${di.split('-').reverse().join('/')} a ${df.split('-').reverse().join('/')}`;
+  }
   const hoje = new Date().toLocaleDateString('pt-BR');
-  txt(`Gerado em: ${hoje}   |   Período: ${periodo}`,M,y,{size:8,color:'#666'});
+  txt(`Gerado em: ${hoje}   |   Período: ${periodoTxt}`,M,y,{size:8,color:'#666'});
   y+=8;
 
-  // Cards resumo
+  // Cards resumo (do período filtrado)
   const fmt = v => 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2});
-  const mesAtual = new Date().toISOString().slice(0,7);
-  const doMes = _finLancamentos.filter(l=>l.data?.startsWith(mesAtual));
-  const recMes  = doMes.filter(l=>l.tipo==='receita').reduce((a,l)=>a+Number(l.valor),0);
-  const despMes = doMes.filter(l=>l.tipo==='despesa').reduce((a,l)=>a+Number(l.valor),0);
+  const recMes  = _finLancamentos.filter(l=>l.tipo==='receita').reduce((a,l)=>a+Number(l.valor),0);
+  const despMes = _finLancamentos.filter(l=>l.tipo==='despesa').reduce((a,l)=>a+Number(l.valor),0);
 
   rect(M,y,CW/3-2,16,'#e8f5e9','#c8e6c9');
-  txt('Receita do Mês',M+3,y+5,{size:7,color:'#333'});
+  txt('Receita do Período',M+3,y+5,{size:7,color:'#333'});
   txt(fmt(recMes),M+3,y+12,{size:9,bold:true,color:'#16a34a'});
 
   rect(M+CW/3+2,y,CW/3-2,16,'#ffebee','#ffcdd2');
-  txt('Despesa do Mês',M+CW/3+5,y+5,{size:7,color:'#333'});
+  txt('Despesa do Período',M+CW/3+5,y+5,{size:7,color:'#333'});
   txt(fmt(despMes),M+CW/3+5,y+12,{size:9,bold:true,color:'#dc2626'});
 
   rect(M+2*(CW/3)+4,y,CW/3-2,16,'#e8eaf6','#c5cae9');
