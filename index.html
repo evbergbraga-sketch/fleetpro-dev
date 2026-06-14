@@ -1687,6 +1687,29 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
       <div class="form-section-title">💬 Observações</div>
       <div class="form-group full"><textarea id="ec-obs" rows="2" style="width:100%;resize:vertical"></textarea></div>
+
+      <div class="form-section-title">🎯 CRM</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group">
+          <label>Status do lead</label>
+          <select id="ec-status-crm" style="width:100%">
+            <option value="sem_status">— Sem status —</option>
+            <option value="interesse">🟡 Interesse</option>
+            <option value="potencial">🔵 Potencial</option>
+            <option value="ativo">🟢 Ativo</option>
+            <option value="reprovado">🔴 Ficha reprovada</option>
+            <option value="inativo">⚫ Inativo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Follow-up em</label>
+          <input type="date" id="ec-followup-em" style="width:100%">
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Motivo de perda / reprovação</label>
+        <input type="text" id="ec-motivo-perda" placeholder="Ex: Score baixo, sem CNH, desistiu do preço..." style="width:100%">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('editar-cliente')">Cancelar</button>

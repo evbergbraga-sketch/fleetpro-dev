@@ -427,6 +427,9 @@ function editarCliente(id){
   sv('ec-nome', c.nome);
   sv('ec-cpf',  c.cpf);
   sv('ec-obs',  c.observacoes);
+  sv('ec-status-crm', c.status_crm||'sem_status');
+  sv('ec-followup-em', c.followup_em||'');
+  sv('ec-motivo-perda', c.motivo_perda||'');
   _cliAnexos['ec'] = [];
   window._cliAnexosRemovidos['ec'] = [];
   _preencherCamposCliente('ec', c);
@@ -450,7 +453,13 @@ async function atualizarCliente(){
     const novosUrls = await _uploadAnexosCli('ec', id);
     const existentes = _coletarAnexosCliExistentes('ec');
     const todosAnexos = [...existentes, ...novosUrls];
+    const statusCrm  = document.getElementById('ec-status-crm')?.value||'sem_status';
+    const followupEm = document.getElementById('ec-followup-em')?.value||null;
+    const motivoPerda= document.getElementById('ec-motivo-perda')?.value.trim()||null;
     const obj = { nome, cpf, observacoes:obs, ...extras,
+      status_crm: statusCrm,
+      followup_em: followupEm,
+      motivo_perda: motivoPerda,
       anexos_urls: todosAnexos.length ? JSON.stringify(todosAnexos) : null };
     const {error} = await sb.from('clientes').update(obj).eq('id',id);
     if(error) throw error;

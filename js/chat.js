@@ -877,11 +877,17 @@ function renderChatContacts(){
           <div style="font-size:12px;color:${nl>0?'#e9edef':'#8696a0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${previewIcon}${_esc(String(preview).slice(0,40))}</div>
           ${badge}
         </div>
+        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span></div>` : ''}
       </div>
     </div>`;
   }).join('')||'<div style="padding:24px 16px;font-size:13px;color:#8696a0;text-align:center">Sem conversas ainda</div>';
 }
 function filtrarContatos(){ renderChatContacts(); }
+
+// ── CRM: helpers de badge na lista de contatos ──
+function _crmLabel(s){ return {interesse:'Interesse',potencial:'Potencial',ativo:'Ativo',reprovado:'Reprovado',inativo:'Inativo'}[s]||s; }
+function _crmBadgeBg(s){ return {interesse:'#3D2E00',potencial:'#0C2340',ativo:'#0A2E1A',reprovado:'#2E0A0A',inativo:'#2A2A28'}[s]||'#2A2A28'; }
+function _crmBadgeColor(s){ return {interesse:'#FAC775',potencial:'#85B7EB',ativo:'#C0DD97',reprovado:'#F09595',inativo:'#B4B2A9'}[s]||'#B4B2A9'; }
 
 // ── FOTO DE PERFIL WPP ──
 const _fotoCache = {}; // { numero: url|null }
