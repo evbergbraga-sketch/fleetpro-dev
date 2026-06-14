@@ -1868,16 +1868,9 @@ function _selecionarPlanoCR(radio){
 // Chamado quando um contato é selecionado no mobile
 function _chatAbrirMobile(){
   if(window.innerWidth > 768) return;
-  const layout = document.querySelector('.chat-layout');
-  const backBtn = document.querySelector('.chat-back-btn');
-  if(layout)  layout.classList.add('chat-open');
-  if(backBtn) backBtn.style.display = 'flex';
+  document.querySelector('.chat-layout')?.classList.add('chat-open');
 }
 
-// Chamado pelo botão ← para voltar à lista
 function _chatVoltar(){
-  const layout = document.querySelector('.chat-layout');
-  const backBtn = document.querySelector('.chat-back-btn');
-  if(layout)  layout.classList.remove('chat-open');
-  if(backBtn) backBtn.style.display = 'none';
+  document.querySelector('.chat-layout')?.classList.remove('chat-open');
 }

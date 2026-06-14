@@ -400,3 +400,65 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
   .sidebar { position:fixed; left:-260px; z-index:100; transition:left .25s cubic-bezier(.4,0,.2,1); height:100%; width:260px; }
   .sidebar.open { left:0; box-shadow:4px 0 32px rgba(0,0,0,.7); }
 }
+
+/* ── CHAT MOBILE ── */
+@media (max-width:768px) {
+  /* Layout: 3 colunas vira 1 coluna empilhada */
+  .chat-layout {
+    grid-template-columns: 100% !important;
+    grid-template-rows: 1fr;
+    height: calc(100vh - 68px);
+    position: relative;
+    overflow: hidden;
+  }
+  /* Lista: ocupa tela inteira por padrão */
+  .chat-list {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 2;
+    transform: translateX(0);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+  }
+  /* Janela de conversa: fora da tela à direita por padrão */
+  .chat-window {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 3;
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+  }
+  /* Painel lateral: escondido no mobile */
+  .chat-side {
+    display: none !important;
+  }
+  /* Quando uma conversa está aberta: lista some, janela aparece */
+  .chat-layout.chat-open .chat-list {
+    transform: translateX(-100%);
+  }
+  .chat-layout.chat-open .chat-window {
+    transform: translateX(0);
+  }
+  /* Botão voltar: aparece só no mobile */
+  .chat-back-btn {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: #aebac1;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  /* Header do chat: compactar no mobile */
+  .chat-top-actions {
+    gap: 6px !important;
+  }
+  .chat-top-actions .btn {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+}
