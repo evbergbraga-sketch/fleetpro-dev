@@ -1174,10 +1174,15 @@ async function _crmCarregarPainel(cid){
 
   // Popula select de responsável com perfis da equipe
   const sel = document.getElementById('crm-responsavel');
-  if(sel && allPerfis?.length){
-    const equipe = allPerfis.filter(p=>p.perfil==='admin'||p.perfil==='atendente');
+  if(sel){
+    let perfis = (allPerfis||[]).filter(p=>p.perfil==='admin'||p.perfil==='atendente');
+    if(!perfis.length){
+      // allPerfis ainda não carregou — busca diretamente
+      const {data} = await sb.from('perfis').select('id,nome,perfil').in('perfil',['admin','atendente']).order('nome');
+      perfis = data||[];
+    }
     sel.innerHTML = '<option value="">— Sem responsável —</option>' +
-      equipe.map(p=>`<option value="${p.id}"${p.id===c.responsavel_id?' selected':''}>${p.nome}</option>`).join('');
+      perfis.map(p=>`<option value="${p.id}"${p.id===c.responsavel_id?' selected':''}>${p.nome}</option>`).join('');
   }
 
   // Atualiza badge no header do painel
