@@ -1013,14 +1013,6 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="verPerfilCliente()">👤 Perfil</button>
                 <button id="btn-encaminhar-chat" onclick="_crmToggleEncaminhar(event)" style="font-size:11px;padding:5px 10px;background:rgba(99,102,241,.15);color:#818CF8;border:1px solid rgba(99,102,241,.3);border-radius:8px;cursor:pointer;font-weight:600;position:relative">
                   📨 Encaminhar
-                  <div id="crm-enc-dropdown" style="display:none;position:fixed;background:#182229;border:1px solid rgba(255,255,255,.1);border-radius:10px;z-index:9999;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.6)">
-                    <div style="padding:6px 0">
-                      <div onclick="_crmEncaminhar('Financeiro')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#378ADD;display:inline-block"></span>Financeiro</div>
-                      <div onclick="_crmEncaminhar('Administrativo')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#7F77DD;display:inline-block"></span>Administrativo</div>
-                      <div onclick="_crmEncaminhar('Sinistro')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#E24B4A;display:inline-block"></span>Sinistro</div>
-                      <div onclick="_crmEncaminhar('Atendimento')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#639922;display:inline-block"></span>Atendimento</div>
-                    </div>
-                  </div>
                 </button>
                 <button id="btn-sara-toggle" onclick="toggleSara()" style="font-size:11px;padding:5px 10px;background:rgba(0,168,132,.15);color:#00a884;border:1px solid rgba(0,168,132,.3);border-radius:8px;cursor:pointer;font-weight:600">🤖 Pausar SARA</button>
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:none" id="btn-cadastrar-chat" onclick="abrirCadastroClienteChat()">➕ Cadastrar</button>
@@ -2489,6 +2481,16 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div id="mc-info-extra" style="width:100%;background:#202c33;border-radius:10px;padding:12px 16px"></div>
       <div id="mc-btns-contato" style="display:flex;gap:8px;width:100%;margin-top:4px"></div>
     </div>
+  </div>
+</div>
+
+<!-- CRM: dropdown encaminhar — fora de qualquer overflow:hidden para z-index funcionar -->
+<div id="crm-enc-dropdown" style="display:none;position:fixed;background:#182229;border:1px solid rgba(255,255,255,.12);border-radius:10px;z-index:99999;min-width:170px;box-shadow:0 8px 32px rgba(0,0,0,.7)">
+  <div style="padding:6px 0">
+    <div onclick="_crmEncaminhar('Financeiro')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#378ADD;display:inline-block;flex-shrink:0"></span>Financeiro</div>
+    <div onclick="_crmEncaminhar('Administrativo')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#7F77DD;display:inline-block;flex-shrink:0"></span>Administrativo</div>
+    <div onclick="_crmEncaminhar('Sinistro')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#E24B4A;display:inline-block;flex-shrink:0"></span>Sinistro</div>
+    <div onclick="_crmEncaminhar('Atendimento')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#639922;display:inline-block;flex-shrink:0"></span>Atendimento</div>
   </div>
 </div>
 
