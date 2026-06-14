@@ -15,6 +15,7 @@ const SVG_VEICULO = (tipo) => tipo === 'moto' ? SVG_MOTO : SVG_CARRO;
 // ══ SVG ICONS ══
 const ICONS = {
   ajuda: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg>`,
+  pipeline: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="18" rx="1"/><rect x="9" y="7" width="6" height="14" rx="1"/><rect x="16" y="11" width="6" height="10" rx="1"/></svg>`,
   dashboard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
   carros:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l3-4h8l3 4h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/><circle cx="7.5" cy="17" r="2.5"/><circle cx="16.5" cy="17" r="2.5"/><path d="M5 9h14"/></svg>`,
   motos:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h-5L7 17"/><path d="M15 6l3 5.5"/><path d="M15 6l2-3h3"/><path d="M10 6l2 5"/></svg>`,
@@ -43,6 +44,7 @@ const ROLE_MENUS = {
     {id:'historico',   icon:ICONS.historico,     label:'Histórico'},
     {section:'Clientes'},
     {id:'clientes',    icon:ICONS.clientes,      label:'Clientes'},
+    {id:'pipeline',    icon:ICONS.pipeline,      label:'Pipeline CRM'},
     {id:'reservas',    icon:ICONS.reservas,      label:'Reservas'},
     {id:'locacoes',    icon:ICONS.locacoes,      label:'Locações'},
     {id:'contratos',   icon:ICONS.contratos,     label:'Contratos'},
@@ -65,6 +67,7 @@ const ROLE_MENUS = {
     {id:'motos',       icon:ICONS.motos,         label:'Motos'},
     {section:'Clientes'},
     {id:'clientes',    icon:ICONS.clientes,      label:'Clientes'},
+    {id:'pipeline',    icon:ICONS.pipeline,      label:'Pipeline CRM'},
     {id:'reservas',    icon:ICONS.reservas,      label:'Reservas'},
     {id:'locacoes',    icon:ICONS.locacoes,      label:'Locações'},
     {id:'contratos',   icon:ICONS.contratos,     label:'Contratos'},

@@ -1414,7 +1414,48 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         </div>
       </div>
 
-      <!-- ACCESS DENIED -->
+      <!-- PIPELINE CRM -->
+      <div class="page" id="page-pipeline">
+
+        <!-- MÉTRICAS (Fase 5) -->
+        <div id="pipeline-metricas" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px"></div>
+
+        <!-- FILTROS -->
+        <div class="card" style="padding:12px 16px;margin-bottom:16px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="text" id="pl-busca" placeholder="🔍 Buscar cliente..." oninput="renderPipeline()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;min-width:200px">
+            <select id="pl-responsavel" onchange="renderPipeline()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+              <option value="">Todos responsáveis</option>
+            </select>
+            <select id="pl-followup" onchange="renderPipeline()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+              <option value="">Todos follow-ups</option>
+              <option value="hoje">🔔 Follow-up hoje</option>
+              <option value="atrasado">⚠️ Follow-up atrasado</option>
+              <option value="pendente">📅 Com follow-up</option>
+            </select>
+            <div style="margin-left:auto;display:flex;gap:6px">
+              <button onclick="_plVisu('kanban')" id="pl-btn-kanban" class="btn btn-primary" style="font-size:12px;padding:6px 14px">⬛ Kanban</button>
+              <button onclick="_plVisu('lista')"  id="pl-btn-lista"  class="btn btn-ghost"   style="font-size:12px;padding:6px 14px">☰ Lista</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KANBAN -->
+        <div id="pl-kanban" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start"></div>
+
+        <!-- LISTA -->
+        <div id="pl-lista" style="display:none">
+          <div class="card" style="padding:0;overflow:hidden">
+            <table>
+              <thead><tr><th>Cliente</th><th>Status</th><th>Responsável</th><th>Follow-up</th><th>Último contato</th><th></th></tr></thead>
+              <tbody id="pl-lista-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+
       <div class="page" id="page-denied">
         <div class="access-denied">
           <div class="ad-icon">🚫</div>
@@ -2344,6 +2385,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <!-- Scripts — ordem importa! -->
 <script src="js/config.js"></script>
 <script src="js/ajuda.js"></script>
+<script src="js/pipeline.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/setup.js"></script>
 <script src="js/nav.js"></script>
