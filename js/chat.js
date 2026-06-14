@@ -1102,6 +1102,173 @@ function abrirChat(cid){
       _atualizarAvatarLista(cid, url, c.nome);
     });
   }
+  // Carrega painel CRM
+  _crmCarregarPainel(cid);
+}
+
+// ── CRM FASE 2 ──
+
+const _CRM_STATUS_CFG = {
+  interesse: {label:'🟡 Interesse', bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
+  potencial: {label:'🔵 Potencial', bg:'rgba(56,138,221,.15)', border:'rgba(56,138,221,.4)', color:'#85B7EB'},
+  ativo:     {label:'🟢 Ativo',     bg:'rgba(100,153,34,.15)',  border:'rgba(100,153,34,.4)',  color:'#C0DD97'},
+  reprovado: {label:'🔴 Reprovado', bg:'rgba(226,75,74,.15)',   border:'rgba(226,75,74,.4)',   color:'#F09595'},
+  inativo:   {label:'⚫ Inativo',   bg:'rgba(136,135,128,.15)', border:'rgba(136,135,128,.4)', color:'#B4B2A9'},
+};
+
+async function _crmCarregarPainel(cid){
+  const c = allClientes?.find(x=>x.id===cid);
+  if(!c) return;
+
+  // Atualiza badge no header do painel
+  const badge = document.getElementById('crm-painel-badge');
+  const cfg = _CRM_STATUS_CFG[c.status_crm];
+  if(badge){
+    if(cfg){
+      badge.textContent = cfg.label;
+      badge.style.cssText = `display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;font-weight:600;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.border}`;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // Marca botão de status ativo
+  document.querySelectorAll('.crm-sb').forEach(btn=>{
+    const s = btn.dataset.s;
+    const isSel = s === c.status_crm;
+    const scfg = _CRM_STATUS_CFG[s];
+    btn.style.background = isSel && scfg ? scfg.bg : 'rgba(255,255,255,.04)';
+    btn.style.borderColor = isSel && scfg ? scfg.border : 'rgba(255,255,255,.1)';
+    btn.style.color       = isSel && scfg ? scfg.color : '#8696a0';
+    btn.style.fontWeight  = isSel ? '700' : '400';
+  });
+
+  // Follow-up
+  const fu = document.getElementById('crm-followup');
+  if(fu) fu.value = c.followup_em||'';
+
+  // Carrega histórico (encaminhamentos + notas)
+  await _crmCarregarHistorico(cid);
+}
+
+async function _crmCarregarHistorico(cid){
+  const hist = document.getElementById('crm-historico');
+  if(!hist) return;
+  try{
+    const [{data:encs},{data:notas}] = await Promise.all([
+      sb.from('encaminhamentos').select('*,perfis(nome)').eq('cliente_id',cid).order('created_at',{ascending:false}).limit(10),
+      sb.from('notas_internas').select('*,perfis(nome)').eq('cliente_id',cid).order('created_at',{ascending:false}).limit(10),
+    ]);
+    const items = [
+      ...(encs||[]).map(e=>({...e, _tipo:'enc'})),
+      ...(notas||[]).map(n=>({...n, _tipo:'nota'})),
+    ].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+    if(!items.length){ hist.innerHTML='<div style="font-size:11px;color:#8696a0;text-align:center;padding:8px">Sem histórico ainda</div>'; return; }
+
+    hist.innerHTML = items.map(it=>{
+      const dt = new Date(it.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' +
+                 new Date(it.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const quem = it.perfis?.nome?.split(' ')[0]||'';
+      if(it._tipo==='enc'){
+        return `<div style="padding:7px 10px;background:rgba(99,102,241,.1);border-left:2px solid #6366F1;border-radius:0 7px 7px 0;font-size:11px;color:#a5b4fc">
+          📨 Encaminhado → <strong style="color:#c7d2fe">${it.setor_destino}</strong><br>
+          <span style="color:#8696a0">${dt} · ${quem}</span>
+          ${it.observacao?`<br><span style="color:#8696a0;font-style:italic">${it.observacao}</span>`:''}
+        </div>`;
+      } else {
+        return `<div style="padding:7px 10px;background:rgba(255,255,255,.04);border-left:2px solid #8696a0;border-radius:0 7px 7px 0;font-size:11px;color:#e9edef">
+          📝 ${_esc(it.texto)}<br>
+          <span style="color:#8696a0">${dt} · ${quem}</span>
+        </div>`;
+      }
+    }).join('');
+  }catch(e){ console.warn('[crm hist]',e.message); }
+}
+
+function _crmToggleEncaminhar(e){
+  e.stopPropagation();
+  const dd = document.getElementById('crm-enc-dropdown');
+  if(dd) dd.style.display = dd.style.display==='none' ? 'block' : 'none';
+}
+document.addEventListener('click', ()=>{
+  const dd = document.getElementById('crm-enc-dropdown');
+  if(dd) dd.style.display = 'none';
+});
+
+async function _crmEncaminhar(setor){
+  const dd = document.getElementById('crm-enc-dropdown');
+  if(dd) dd.style.display = 'none';
+  if(!activeChatId){ notify('Selecione um cliente','error'); return; }
+  const c = allClientes?.find(x=>x.id===activeChatId);
+  if(!c){ notify('Cliente não cadastrado — encaminhamento disponível apenas para clientes cadastrados','error'); return; }
+  const obs = prompt(`Observação para o setor ${setor} (opcional):`)||null;
+  try{
+    await sb.from('encaminhamentos').insert({
+      cliente_id: c.id,
+      setor_destino: setor,
+      encaminhado_por: currentUser?.id||null,
+      observacao: obs,
+    });
+    // Exibe pílula na conversa
+    const area = document.getElementById('chat-msgs');
+    if(area){
+      const pill = document.createElement('div');
+      pill.style.cssText = 'text-align:center;margin:8px 0';
+      pill.innerHTML = `<span style="display:inline-block;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;border-radius:999px;padding:4px 14px;font-size:11px">📨 Encaminhado para ${setor} · agora</span>`;
+      area.appendChild(pill);
+      area.scrollTop = area.scrollHeight;
+    }
+    notify(`Encaminhado para ${setor}!`,'success');
+    await _crmCarregarHistorico(c.id);
+    // Abre o painel CRM automaticamente
+    const body = document.getElementById('crm-painel-body');
+    if(body && body.style.display==='none') _toggleSideSection('crm-painel-body');
+  }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+async function _crmSetStatus(status){
+  if(!activeChatId){ notify('Selecione um cliente','error'); return; }
+  const c = allClientes?.find(x=>x.id===activeChatId);
+  if(!c){ notify('Cliente não cadastrado','error'); return; }
+  try{
+    await sb.from('clientes').update({status_crm:status}).eq('id',c.id);
+    c.status_crm = status;
+    _crmCarregarPainel(activeChatId);
+    renderChatContacts();
+    notify('Status atualizado!','success');
+  }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+async function _crmSalvarFollowup(){
+  if(!activeChatId) return;
+  const c = allClientes?.find(x=>x.id===activeChatId);
+  if(!c){ notify('Cliente não cadastrado','error'); return; }
+  const val = document.getElementById('crm-followup')?.value||null;
+  try{
+    await sb.from('clientes').update({followup_em:val}).eq('id',c.id);
+    c.followup_em = val;
+    notify(val ? `Follow-up salvo para ${val.split('-').reverse().join('/')}` : 'Follow-up removido','success');
+  }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+async function _crmSalvarNota(){
+  if(!activeChatId) return;
+  const c = allClientes?.find(x=>x.id===activeChatId);
+  if(!c){ notify('Cliente não cadastrado','error'); return; }
+  const inp = document.getElementById('crm-nota-input');
+  const texto = inp?.value?.trim();
+  if(!texto){ notify('Digite uma nota','error'); return; }
+  try{
+    await sb.from('notas_internas').insert({
+      cliente_id: c.id,
+      texto,
+      criado_por: currentUser?.id||null,
+    });
+    if(inp) inp.value = '';
+    notify('Nota registrada!','success');
+    await _crmCarregarHistorico(c.id);
+  }catch(e){ notify('Erro: '+e.message,'error'); }
 }
 
 // ── ENVIAR MENSAGEM ──
