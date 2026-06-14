@@ -1189,7 +1189,18 @@ async function _crmCarregarHistorico(cid){
 function _crmToggleEncaminhar(e){
   e.stopPropagation();
   const dd = document.getElementById('crm-enc-dropdown');
-  if(dd) dd.style.display = dd.style.display==='none' ? 'block' : 'none';
+  if(!dd) return;
+  const btn = document.getElementById('btn-encaminhar-chat');
+  if(dd.style.display==='none'){
+    if(btn){
+      const r = btn.getBoundingClientRect();
+      dd.style.top  = (r.bottom + 6) + 'px';
+      dd.style.left = (r.right - 170) + 'px';
+    }
+    dd.style.display = 'block';
+  } else {
+    dd.style.display = 'none';
+  }
 }
 document.addEventListener('click', ()=>{
   const dd = document.getElementById('crm-enc-dropdown');
