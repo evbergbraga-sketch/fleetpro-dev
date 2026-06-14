@@ -877,7 +877,7 @@ function renderChatContacts(){
           <div style="font-size:12px;color:${nl>0?'#e9edef':'#8696a0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${previewIcon}${_esc(String(preview).slice(0,40))}</div>
           ${badge}
         </div>
-        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span></div>` : ''}
+        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span>${_crmFollowupBadge(c)}</div>` : _crmFollowupBadge(c) ? `<div style="margin-top:3px">${_crmFollowupBadge(c)}</div>` : ''}
       </div>
     </div>`;
   }).join('')||'<div style="padding:24px 16px;font-size:13px;color:#8696a0;text-align:center">Sem conversas ainda</div>';
@@ -888,6 +888,15 @@ function filtrarContatos(){ renderChatContacts(); }
 function _crmLabel(s){ return {interesse:'Interesse',potencial:'Potencial',ativo:'Ativo',reprovado:'Reprovado',inativo:'Inativo'}[s]||s; }
 function _crmBadgeBg(s){ return {interesse:'#3D2E00',potencial:'#0C2340',ativo:'#0A2E1A',reprovado:'#2E0A0A',inativo:'#2A2A28'}[s]||'#2A2A28'; }
 function _crmBadgeColor(s){ return {interesse:'#FAC775',potencial:'#85B7EB',ativo:'#C0DD97',reprovado:'#F09595',inativo:'#B4B2A9'}[s]||'#B4B2A9'; }
+function _crmFollowupBadge(c){
+  if(!c?.followup_em) return '';
+  const hoje = new Date().toISOString().slice(0,10);
+  const fu = c.followup_em?.slice?.(0,10);
+  if(!fu) return '';
+  if(fu === hoje) return `<span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:600;background:#2D2200;color:#f5b942;margin-left:4px">🔔 hoje</span>`;
+  if(fu < hoje)   return `<span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:600;background:#2E0A0A;color:#F09595;margin-left:4px">⚠️ atrasado</span>`;
+  return '';
+}
 
 // ── FOTO DE PERFIL WPP ──
 const _fotoCache = {}; // { numero: url|null }
@@ -1106,7 +1115,50 @@ function abrirChat(cid){
   _crmCarregarPainel(cid);
 }
 
-// ── CRM FASE 2 ──
+async function _crmSalvarResponsavel(){
+  if(!activeChatId) return;
+  const c = allClientes?.find(x=>x.id===activeChatId);
+  if(!c){ notify('Cliente não cadastrado','error'); return; }
+  const val = document.getElementById('crm-responsavel')?.value||null;
+  try{
+    await sb.from('clientes').update({responsavel_id: val||null}).eq('id',c.id);
+    c.responsavel_id = val||null;
+    notify('Responsável salvo!','success');
+  }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+// ── FOLLOW-UPS NO DASHBOARD ──
+async function _dashCarregarFollowups(){
+  try{
+    const hoje = new Date().toISOString().slice(0,10);
+    const {data} = await sb.from('clientes')
+      .select('id,nome,telefone,status_crm,followup_em,responsavel_id,perfis(nome)')
+      .eq('followup_em', hoje)
+      .limit(10);
+    const card = document.getElementById('dash-followup-card');
+    const list = document.getElementById('dash-followup-list');
+    if(!card||!list) return;
+    if(!data?.length){ card.style.display='none'; return; }
+    card.style.display = '';
+    list.innerHTML = data.map(c=>{
+      const cfg = _CRM_STATUS_CFG?.[c.status_crm]||null;
+      const badgeCrm = cfg ? `<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.border};font-weight:600">${cfg.label}</span>` : '';
+      const resp = c.perfis?.nome ? `<span style="font-size:11px;color:var(--muted)">👤 ${c.perfis.nome.split(' ')[0]}</span>` : '';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;gap:10px;cursor:pointer" onclick="goPage('chat');setTimeout(()=>abrirChat('${c.id}'),300)">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nome}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${c.telefone||'—'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          ${badgeCrm}
+          ${resp}
+          <span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(245,185,66,.15);color:#f5b942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Hoje</span>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ console.warn('[crm followup]',e.message); }
+}
+
 
 const _CRM_STATUS_CFG = {
   interesse: {label:'🟡 Interesse', bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
@@ -1119,6 +1171,14 @@ const _CRM_STATUS_CFG = {
 async function _crmCarregarPainel(cid){
   const c = allClientes?.find(x=>x.id===cid);
   if(!c) return;
+
+  // Popula select de responsável com perfis da equipe
+  const sel = document.getElementById('crm-responsavel');
+  if(sel && allPerfis?.length){
+    const equipe = allPerfis.filter(p=>p.perfil==='admin'||p.perfil==='atendente');
+    sel.innerHTML = '<option value="">— Sem responsável —</option>' +
+      equipe.map(p=>`<option value="${p.id}"${p.id===c.responsavel_id?' selected':''}>${p.nome}</option>`).join('');
+  }
 
   // Atualiza badge no header do painel
   const badge = document.getElementById('crm-painel-badge');

@@ -327,6 +327,8 @@ function renderDashboard(){
   _renderAgendaSemanal(meusLocs, allReservas, allManutencoes);
   _renderFrotaStatus(meusVeiculos, meusLocs);
   _renderAtividade(meusLocs, allManutencoes, allReservas);
+  // CRM: follow-ups do dia
+  if(typeof _dashCarregarFollowups === 'function') _dashCarregarFollowups();
 }
 
 // ── AGENDA SEMANAL COM PAINEL DE DETALHES ──

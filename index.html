@@ -260,6 +260,17 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           </div>
         </div>
 
+        <!-- CRM: Follow-ups do dia -->
+        <div id="dash-followup-card" style="display:none;margin-bottom:14px">
+          <div class="card" style="border-left:3px solid var(--accent)">
+            <div class="card-header">
+              <span class="card-title">📋 Follow-ups de hoje</span>
+              <button class="btn btn-ghost" style="font-size:11px" onclick="goPage('chat')">Abrir chat →</button>
+            </div>
+            <div id="dash-followup-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+
         <!-- LINHA 3: Locações + Atividade recente -->
         <div class="grid2" style="margin-bottom:14px">
           <div class="card">
@@ -1074,6 +1085,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <span style="font-size:10px;color:#8696a0">▼</span>
               </div>
               <div id="crm-painel-body" style="display:none;padding:0 16px 14px">
+
+                <!-- Responsável -->
+                <div style="font-size:10px;color:#8696a0;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Responsável</div>
+                <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center">
+                  <select id="crm-responsavel" style="flex:1;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,.08);color:#e9edef;border-radius:8px;padding:6px 8px;outline:none">
+                    <option value="">— Sem responsável —</option>
+                  </select>
+                  <button onclick="_crmSalvarResponsavel()" style="font-size:11px;padding:6px 10px;background:rgba(99,102,241,.15);color:#818CF8;border:1px solid rgba(99,102,241,.3);border-radius:7px;cursor:pointer;white-space:nowrap">💾 Salvar</button>
+                </div>
 
                 <!-- Status do lead -->
                 <div style="font-size:10px;color:#8696a0;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Status do lead</div>
