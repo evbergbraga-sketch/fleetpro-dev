@@ -1373,6 +1373,13 @@ async function _crmSetStatus(status){
   try{
     await sb.from('clientes').update({status_crm:status}).eq('id',c.id);
     c.status_crm = status;
+    // Sincroniza _plDados (pipeline) se estiver carregado
+    if(typeof _plDados !== 'undefined'){
+      const pc = _plDados.find(x=>x.id===c.id);
+      if(pc) pc.status_crm = status;
+      if(typeof renderPipeline==='function') renderPipeline();
+      if(typeof _plRenderMetricas==='function') _plRenderMetricas();
+    }
     _crmCarregarPainel(activeChatId);
     renderChatContacts();
     notify('Status atualizado!','success');

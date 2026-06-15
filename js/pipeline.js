@@ -209,8 +209,21 @@ async function _plDrop(e, novoStatus){
 
   // Atualiza local imediatamente (UI responsiva)
   c.status_crm = novoStatus;
+
+  // Sincroniza allClientes (usado pelo chat) para manter consistência
+  if(typeof allClientes !== 'undefined'){
+    const cc = allClientes.find(x=>x.id===id);
+    if(cc) cc.status_crm = novoStatus;
+  }
+
   renderPipeline();
   _plRenderMetricas();
+
+  // Se o chat estiver aberto nesse cliente, atualiza o painel CRM
+  if(typeof activeChatId !== 'undefined' && activeChatId === id){
+    if(typeof _crmCarregarPainel === 'function') _crmCarregarPainel(id);
+  }
+  if(typeof renderChatContacts === 'function') renderChatContacts();
 
   // Persiste no banco
   try{
@@ -425,9 +438,16 @@ async function _plModalSalvar(){
   const followup = document.getElementById('plm-followup')?.value||null;
   try{
     await sb.from('clientes').update({status_crm:status, interesse_veiculo:interesse, followup_em:followup}).eq('id',_plModalData.id);
-    // Atualiza local
+    // Atualiza _plDados local
     const idx = _plDados.findIndex(x=>x.id===_plModalData.id);
     if(idx>=0){ _plDados[idx].status_crm=status; _plDados[idx].interesse_veiculo=interesse; _plDados[idx].followup_em=followup; }
+    // Sincroniza allClientes (chat)
+    if(typeof allClientes !== 'undefined'){
+      const cc = allClientes.find(x=>x.id===_plModalData.id);
+      if(cc){ cc.status_crm=status; cc.interesse_veiculo=interesse; cc.followup_em=followup; }
+    }
+    if(typeof renderChatContacts==='function') renderChatContacts();
+    if(typeof activeChatId!=='undefined' && activeChatId===_plModalData.id && typeof _crmCarregarPainel==='function') _crmCarregarPainel(activeChatId);
     notify('Lead atualizado!','success');
     closeModal('pl-modal');
     _plRenderMetricas();
