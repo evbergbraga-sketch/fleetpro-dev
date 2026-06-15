@@ -877,7 +877,7 @@ function renderChatContacts(){
           <div style="font-size:12px;color:${nl>0?'#e9edef':'#8696a0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${previewIcon}${_esc(String(preview).slice(0,40))}</div>
           ${badge}
         </div>
-        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span>${_crmFollowupBadge(c)}</div>` : _crmFollowupBadge(c) ? `<div style="margin-top:3px">${_crmFollowupBadge(c)}</div>` : ''}
+        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)};display:inline-flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:${_crmBadgeColor(c.status_crm)};display:inline-block;flex-shrink:0"></span>${_crmLabel(c.status_crm)}</span>${_crmFollowupBadge(c)}</div>` : _crmFollowupBadge(c) ? `<div style="margin-top:3px">${_crmFollowupBadge(c)}</div>` : ''}
         ${c.tipo==='lead' ? `<div style="margin-top:2px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:600;background:rgba(139,92,246,.2);color:#A78BFA;border:1px solid rgba(139,92,246,.3)">⚡ Lead</span></div>` : ''}
       </div>
     </div>`;
@@ -886,9 +886,27 @@ function renderChatContacts(){
 function filtrarContatos(){ renderChatContacts(); }
 
 // ── CRM: helpers de badge na lista de contatos ──
-function _crmLabel(s){ return {interesse:'Interesse',potencial:'Potencial',ativo:'Ativo',reprovado:'Reprovado',inativo:'Inativo'}[s]||s; }
-function _crmBadgeBg(s){ return {interesse:'#3D2E00',potencial:'#0C2340',ativo:'#0A2E1A',reprovado:'#2E0A0A',inativo:'#2A2A28'}[s]||'#2A2A28'; }
-function _crmBadgeColor(s){ return {interesse:'#FAC775',potencial:'#85B7EB',ativo:'#C0DD97',reprovado:'#F09595',inativo:'#B4B2A9'}[s]||'#B4B2A9'; }
+function _crmLabel(s){
+  if(typeof _PL_STATUS!=='undefined' && _PL_STATUS.length){
+    const found = _PL_STATUS.find(x=>x.label===s||x.key===s);
+    if(found) return found.label;
+  }
+  return {interesse:'Interesse',potencial:'Potencial',ativo:'Ativo',reprovado:'Reprovado',inativo:'Inativo'}[s]||s;
+}
+function _crmBadgeBg(s){
+  if(typeof _PL_STATUS!=='undefined' && _PL_STATUS.length){
+    const found = _PL_STATUS.find(x=>x.label===s||x.key===s);
+    if(found){ const r=parseInt(found.cor.slice(1,3),16),g=parseInt(found.cor.slice(3,5),16),b=parseInt(found.cor.slice(5,7),16); return `rgba(${r},${g},${b},.2)`; }
+  }
+  return {interesse:'#3D2E00',potencial:'#0C2340',ativo:'#0A2E1A',reprovado:'#2E0A0A',inativo:'#2A2A28'}[s]||'#2A2A28';
+}
+function _crmBadgeColor(s){
+  if(typeof _PL_STATUS!=='undefined' && _PL_STATUS.length){
+    const found = _PL_STATUS.find(x=>x.label===s||x.key===s);
+    if(found) return found.cor;
+  }
+  return {interesse:'#FAC775',potencial:'#85B7EB',ativo:'#C0DD97',reprovado:'#F09595',inativo:'#B4B2A9'}[s]||'#B4B2A9';
+}
 function _crmFollowupBadge(c){
   if(!c?.followup_em) return '';
   const hoje = new Date().toISOString().slice(0,10);
@@ -1185,17 +1203,17 @@ function _getCrmStatusCfg(){
   if(typeof _PL_STATUS !== 'undefined' && _PL_STATUS.length){
     const cfg = {};
     _PL_STATUS.forEach(s=>{
-      cfg[s.label] = { label: s.emoji+' '+s.label, bg: s.bg, border: s.border, color: s.cor };
+      cfg[s.label] = { label: s.label, bg: s.bg, border: s.border, color: s.cor };
       cfg[s.key]   = cfg[s.label]; // compatibilidade com keys antigas (slug)
     });
     return cfg;
   }
   // Fallback hardcoded
   return {
-    interesse: {label:'🟡 Interesse', bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
-    potencial: {label:'🔵 Potencial', bg:'rgba(56,138,221,.15)', border:'rgba(56,138,221,.4)', color:'#85B7EB'},
-    ativo:     {label:'🟢 Ativo',     bg:'rgba(100,153,34,.15)',  border:'rgba(100,153,34,.4)',  color:'#C0DD97'},
-    reprovado: {label:'🔴 Reprovado', bg:'rgba(226,75,74,.15)',   border:'rgba(226,75,74,.4)',   color:'#F09595'},
+    interesse: {label:'Interesse', bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
+    potencial: {label:'Potencial', bg:'rgba(56,138,221,.15)', border:'rgba(56,138,221,.4)', color:'#85B7EB'},
+    ativo:     {label:'Ativo',     bg:'rgba(100,153,34,.15)',  border:'rgba(100,153,34,.4)',  color:'#C0DD97'},
+    reprovado: {label:'Reprovado', bg:'rgba(226,75,74,.15)',   border:'rgba(226,75,74,.4)',   color:'#F09595'},
   };
 }
 
@@ -1216,7 +1234,7 @@ async function _crmRenderStatusBtns(statusAtual){
     const isSel = s.label === statusAtual || s.key === statusAtual;
     return `<button onclick="_crmSetStatus('${s.label}')" class="crm-sb" data-s="${s.label}"
       style="padding:6px 4px;font-size:11px;border:1px solid ${isSel ? s.border : 'rgba(255,255,255,.1)'};border-radius:7px;background:${isSel ? s.bg : 'rgba(255,255,255,.04)'};color:${isSel ? s.cor : '#8696a0'};cursor:pointer;transition:.15s;font-weight:${isSel?'700':'400'}${isLast(i) && status.length%2!==0 ? ';grid-column:span 2' : ''}">
-      ${s.emoji} ${s.label}
+      ${s.label}
     </button>`;
   }).join('');
 }

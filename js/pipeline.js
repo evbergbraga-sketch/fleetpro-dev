@@ -20,6 +20,12 @@ const _PL_VEICULO = {
   indefinido:{ label:'—',    icon:'' },
 };
 
+
+// Círculo colorido como ícone de status (substitui emoji)
+function _plDot(cor, size=10){
+  return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${cor};flex-shrink:0"></span>`;
+}
+
 // ── INICIALIZAÇÃO ──
 async function iniciarPipeline(){
   // Carrega status customizados do banco PRIMEIRO
@@ -122,7 +128,7 @@ function _plRenderKanban(dados){
     return `<div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border2)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border2)">
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:15px">${s.emoji}</span>
+          ${_plDot(s.cor, 12)}
           <span style="font-size:13px;font-weight:700;color:var(--text)">${s.label}</span>
         </div>
         <span style="font-size:11px;font-weight:700;color:${s.cor};background:${s.bg};border:1px solid ${s.border};padding:2px 9px;border-radius:999px">${itens.length}</span>
@@ -153,7 +159,7 @@ function _plRenderLista(dados){
         <div style="font-weight:600">${c.nome}</div>
         <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
       </td>
-      <td><span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}">${s?.emoji} ${s?.label||c.status_crm}</span></td>
+      <td><span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}"><span style="display:inline-flex;align-items:center;gap:5px">${_plDot(s?.cor||'#999')}<span>${s?.label||c.status_crm}</span></span></span></td>
       <td style="font-size:13px">${vei.icon} ${vei.icon ? vei.label : '—'}</td>
       <td style="font-size:12px;color:var(--muted)">${resp ? resp.nome.split(' ')[0] : '—'}</td>
       <td style="font-size:12px;color:${fuCor}">${fuTxt}</td>
@@ -234,7 +240,7 @@ async function _plAbrirModal(id){
       <div style="flex:1">
         <div style="font-size:18px;font-weight:800;color:var(--text)">${c.nome}</div>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
-          <span style="font-size:12px;padding:3px 12px;border-radius:999px;font-weight:600;background:${s?.bg};color:${s?.cor};border:1px solid ${s?.border}">${s?.emoji} ${s?.label}</span>
+          <span style="font-size:12px;padding:3px 12px;border-radius:999px;font-weight:600;background:${s?.bg};color:${s?.cor};border:1px solid ${s?.border}" style="display:inline-flex;align-items:center;gap:6px">${_plDot(s?.cor||'#999',10)}<span>${s?.label}</span></span>
           ${vei.icon ? `<span style="font-size:12px;padding:3px 12px;border-radius:999px;background:var(--bg2);color:var(--text);border:1px solid var(--border2)">${vei.icon} ${vei.label}</span>` : ''}
           ${fuBadge}
         </div>
@@ -276,7 +282,7 @@ async function _plAbrirModal(id){
         <div>
           <label style="font-size:11px;color:var(--muted2);margin-bottom:4px;display:block">Status CRM</label>
           <select id="plm-status" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
-            ${_PL_STATUS.map(st=>`<option value="${st.key}"${st.key===c.status_crm?' selected':''}>${st.emoji} ${st.label}</option>`).join('')}
+            ${_PL_STATUS.map(st=>`<option value="${st.key}"${st.key===c.status_crm?' selected':''}>${st.label}</option>`).join('')}
           </select>
         </div>
         <div>
@@ -411,10 +417,8 @@ function _plRenderConfigLista(){
         <button onclick="_plCfgMover('${s.id}',1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0;line-height:1" ${i===_plStatusDB.length-1?'disabled style="opacity:.3"':''}>▼</button>
       </div>
 
-      <!-- Emoji picker simples -->
-      <input type="text" value="${s.emoji}" maxlength="2"
-        onchange="_plCfgUpdate('${s.id}','emoji',this.value)"
-        style="width:36px;font-size:18px;text-align:center;border:1px solid var(--border2);border-radius:6px;background:var(--card);color:var(--text);padding:4px">
+      <!-- Dot preview -->
+      <div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center">${_plDot(s.cor, 16)}</div>
 
       <!-- Label -->
       <input type="text" value="${s.label}"
@@ -428,7 +432,7 @@ function _plRenderConfigLista(){
         style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:0">
 
       <!-- Preview badge -->
-      <span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s.bg};color:${s.cor};border:1px solid ${s.border};white-space:nowrap">${s.emoji} ${s.label}</span>
+      <span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s.bg};color:${s.cor};border:1px solid ${s.border};white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:5px">${_plDot(s.cor,8)}<span>${s.label}</span></span></span>
 
       <!-- Remover -->
       <button onclick="_plCfgRemover('${s.id}','${s.label}')"
@@ -528,9 +532,9 @@ async function _plConfigSalvarAplicar(){
     rows.forEach((row,i)=>{
       const id      = row.dataset.id;
       const inputs  = row.querySelectorAll('input');
-      const emoji   = inputs[0]?.value?.trim()||'🔵';
-      const label   = inputs[1]?.value?.trim();
-      const cor     = inputs[2]?.value||'#60A5FA';
+      const emoji   = '●'; // placeholder, emoji removido
+      const label   = inputs[0]?.value?.trim();
+      const cor     = inputs[1]?.value||'#60A5FA';
       if(!label) return;
       const r = parseInt(cor.slice(1,3),16);
       const g = parseInt(cor.slice(3,5),16);
@@ -563,7 +567,7 @@ async function _plConfigSalvarAplicar(){
 async function _plConfigNovoStatus(){
   const label = prompt('Nome do novo status:');
   if(!label?.trim()) return;
-  const emoji = prompt('Emoji (ex: 🟣):')||'🔵';
+  const emoji = '●'; // sem emoji
   const cor   = '#60A5FA';
   const maxOrdem = _plStatusDB.length ? Math.max(..._plStatusDB.map(s=>s.ordem)) : 0;
 
