@@ -223,3 +223,121 @@ function _toggleSideSection(id){
   if(id==='wpp-cfg-body' && cfgArrow)
     cfgArrow.textContent = isOpen ? '▼' : '▲';
 }
+
+// ── NOTIFICAÇÕES (sino) ──
+function _toggleNotifDropdown(e){
+  e.stopPropagation();
+  const dd = document.getElementById('notif-dropdown');
+  if(!dd) return;
+  if(dd.style.display==='none'){
+    _renderNotifDropdown();
+    dd.style.display='block';
+  } else {
+    dd.style.display='none';
+  }
+}
+
+document.addEventListener('click', ()=>{
+  const dd = document.getElementById('notif-dropdown');
+  if(dd) dd.style.display='none';
+});
+
+function _renderNotifDropdown(){
+  const dd = document.getElementById('notif-dropdown');
+  if(!dd) return;
+
+  const hoje     = new Date().toISOString().slice(0,10);
+  const hojeDate = new Date();
+  const mesAtual = hojeDate.getMonth()+1;
+  const diaAtual = hojeDate.getDate();
+
+  // 1. Follow-ups do dia (e atrasados)
+  const followups = (allClientes||[]).filter(c=>{
+    const fu = (c.followup_em||'').slice(0,10);
+    return fu && fu <= hoje;
+  }).sort((a,b)=>(a.followup_em||'').localeCompare(b.followup_em||''));
+
+  // 2. Locações atrasadas
+  const atrasadas = (allLocacoes||[]).filter(l=>{
+    return Math.ceil((new Date(l.data_fim)-new Date())/86400000) < 0;
+  });
+
+  // 3. Aniversariantes de hoje
+  const aniversariantes = (allClientes||[]).filter(c=>{
+    if(!c.data_nascimento) return false;
+    const [,mes,dia] = c.data_nascimento.slice(0,10).split('-');
+    return parseInt(mes)===mesAtual && parseInt(dia)===diaAtual;
+  });
+
+  let html = `<div style="padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:13px;font-weight:700;color:var(--text)">🔔 Notificações</span>
+    <span style="font-size:11px;color:var(--muted)">${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>`;
+
+  const total = followups.length + atrasadas.length + aniversariantes.length;
+
+  if(!total){
+    html += `<div style="padding:32px 16px;text-align:center;color:var(--muted);font-size:13px">✅ Nenhuma notificação pendente</div>`;
+    dd.innerHTML = html;
+    return;
+  }
+
+  // Follow-ups
+  if(followups.length){
+    html += `<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2)">Follow-ups</div>`;
+    followups.slice(0,5).forEach(c=>{
+      const fu    = (c.followup_em||'').slice(0,10);
+      const atras = fu < hoje;
+      const label = atras ? `⚠️ Atrasado (${fu.split('-').reverse().join('/')})` : '🔔 Hoje';
+      const cor   = atras ? '#F87171' : '#F5B942';
+      html += `<div onclick="goPage('chat');setTimeout(()=>{if(typeof abrirChat!=='undefined')abrirChat('${c.id}')},300);document.getElementById('notif-dropdown').style.display='none'"
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border2)"
+        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='none'">
+        <div style="width:34px;height:34px;border-radius:50%;background:rgba(245,185,66,.12);color:${cor};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">📋</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${c.nome}</div>
+          <div style="font-size:11px;color:${cor}">${label}</div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Locações atrasadas
+  if(atrasadas.length){
+    html += `<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2)">Locações atrasadas</div>`;
+    atrasadas.slice(0,5).forEach(l=>{
+      const nome = l.clientes?.nome || '—';
+      const vei  = `${l.veiculos?.modelo||'—'} · ${l.veiculos?.placa||''}`;
+      const dias = Math.abs(Math.ceil((new Date(l.data_fim)-new Date())/86400000));
+      html += `<div onclick="goPage('locacoes');document.getElementById('notif-dropdown').style.display='none'"
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border2)"
+        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='none'">
+        <div style="width:34px;height:34px;border-radius:50%;background:rgba(248,113,113,.12);color:#F87171;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">⚠️</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${nome}</div>
+          <div style="font-size:11px;color:#F87171">${vei} · ${dias}d em atraso</div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Aniversariantes
+  if(aniversariantes.length){
+    html += `<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2)">Aniversariantes hoje 🎂</div>`;
+    aniversariantes.forEach(c=>{
+      const nasc  = c.data_nascimento?.slice(0,10);
+      const anos  = nasc ? new Date().getFullYear() - parseInt(nasc.slice(0,4)) : null;
+      html += `<div onclick="goPage('chat');setTimeout(()=>{if(typeof abrirChat!=='undefined')abrirChat('${c.id}')},300);document.getElementById('notif-dropdown').style.display='none'"
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border2)"
+        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='none'">
+        <div style="width:34px;height:34px;border-radius:50%;background:rgba(99,102,241,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🎂</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${c.nome}</div>
+          <div style="font-size:11px;color:var(--muted)">${anos ? `Faz ${anos} anos hoje` : 'Aniversário hoje'} · ${c.telefone||'—'}</div>
+        </div>
+      </div>`;
+    });
+  }
+
+  dd.innerHTML = html;
+}

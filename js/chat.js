@@ -11,123 +11,21 @@ function incrementUnread(cid){ const u=getUnread(); u[cid]=(u[cid]||0)+1; localS
 function clearUnread(cid){ const u=getUnread(); delete u[cid]; localStorage.setItem(UNREAD_KEY,JSON.stringify(u)); }
 function totalUnread(){ return Object.values(getUnread()).reduce((a,b)=>a+b,0); }
 function atualizarBadgeNotif(){
-  const total=totalUnread();
-  const dot=document.querySelector('.notif-dot');
-  if(dot) dot.style.display=total>0?'block':'none';
-  document.title=total>0?`(${total}) FleetPro | Plataforma de Locadoras`:'FleetPro | Plataforma de Locadoras';
+  const hoje     = new Date().toISOString().slice(0,10);
+  const hojeDate = new Date();
+  const mesAtual = hojeDate.getMonth()+1;
+  const diaAtual = hojeDate.getDate();
+
+  const fuCount   = (allClientes||[]).filter(c=>{ const fu=(c.followup_em||'').slice(0,10); return fu&&fu<=hoje; }).length;
+  const atrasCount= (allLocacoes||[]).filter(l=>Math.ceil((new Date(l.data_fim)-new Date())/86400000)<0).length;
+  const aniCount  = (allClientes||[]).filter(c=>{ if(!c.data_nascimento) return false; const [,m,d]=c.data_nascimento.slice(0,10).split('-'); return parseInt(m)===mesAtual&&parseInt(d)===diaAtual; }).length;
+
+  const total = fuCount + atrasCount + aniCount;
+  const dot = document.querySelector('.notif-dot');
+  if(dot) dot.style.display = total>0 ? 'block' : 'none';
+  document.title = total>0 ? `(${total}) FleetPro | Plataforma de Locadoras` : 'FleetPro | Plataforma de Locadoras';
 }
 
-function _toggleNotifDropdown(e){
-  e.stopPropagation();
-  const dd = document.getElementById('notif-dropdown');
-  if(!dd) return;
-  if(dd.style.display==='none'){
-    _renderNotifDropdown();
-    dd.style.display='block';
-  } else {
-    dd.style.display='none';
-  }
-}
-
-document.addEventListener('click', ()=>{
-  const dd = document.getElementById('notif-dropdown');
-  if(dd) dd.style.display='none';
-});
-
-function _renderNotifDropdown(){
-  const dd = document.getElementById('notif-dropdown');
-  if(!dd) return;
-
-  const hoje = new Date().toISOString().slice(0,10);
-
-  // 1. Mensagens não lidas
-  const unreadItems = [];
-  Object.entries(chatMsgs||{}).forEach(([cid, msgs])=>{
-    const naoLidas = (msgs||[]).filter(m=>m.direcao==='entrada'&&!m.lida);
-    if(!naoLidas.length) return;
-    const c = allClientes?.find(x=>x.id===cid);
-    const nome = c?.nome || cid;
-    const ultima = naoLidas[naoLidas.length-1];
-    unreadItems.push({ nome, cid, count: naoLidas.length, texto: ultima?.texto||'Mídia' });
-  });
-
-  // 2. Follow-ups do dia
-  const followups = (allClientes||[]).filter(c=>{
-    const fu = (c.followup_em||'').slice(0,10);
-    return fu === hoje;
-  });
-
-  // 3. Locações atrasadas
-  const atrasadas = (allLocacoes||[]).filter(l=>{
-    return Math.ceil((new Date(l.data_fim)-new Date())/86400000) < 0;
-  });
-
-  let html = `<div style="padding:14px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between">
-    <span style="font-size:13px;font-weight:700;color:var(--text)">🔔 Notificações</span>
-    ${unreadItems.length ? `<button onclick="goPage('chat');document.getElementById('notif-dropdown').style.display='none'" style="font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer">Ver chat →</button>` : ''}
-  </div>`;
-
-  const total = unreadItems.length + followups.length + atrasadas.length;
-  if(!total){
-    html += `<div style="padding:32px 16px;text-align:center;color:var(--muted);font-size:13px">✅ Nenhuma notificação pendente</div>`;
-    dd.innerHTML = html;
-    return;
-  }
-
-  // Mensagens não lidas
-  if(unreadItems.length){
-    html += `<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2)">Mensagens não lidas</div>`;
-    unreadItems.slice(0,5).forEach(it=>{
-      html += `<div onclick="goPage('chat');setTimeout(()=>abrirChat('${it.cid}'),300);document.getElementById('notif-dropdown').style.display='none'"
-        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border2);transition:.15s"
-        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='none'">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(99,102,241,.15);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">💬</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600;color:var(--text)">${it.nome}</div>
-          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${String(it.texto).slice(0,40)}</div>
-        </div>
-        <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--accent);color:#fff;flex-shrink:0">${it.count}</span>
-      </div>`;
-    });
-  }
-
-  // Follow-ups
-  if(followups.length){
-    html += `<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2)">Follow-ups hoje</div>`;
-    followups.slice(0,3).forEach(c=>{
-      html += `<div onclick="goPage('chat');setTimeout(()=>abrirChat('${c.id}'),300);document.getElementById('notif-dropdown').style.display='none'"
-        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border2);transition:.15s"
-        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='none'">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(245,185,66,.15);color:#F5B942;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🔔</div>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:600;color:var(--text)">${c.nome}</div>
-          <div style="font-size:11px;color:var(--muted)">Follow-up agendado para hoje</div>
-        </div>
-      </div>`;
-    });
-  }
-
-  // Atrasos
-  if(atrasadas.length){
-    html += `<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2)">Locações atrasadas</div>`;
-    atrasadas.slice(0,3).forEach(l=>{
-      const nome = l.clientes?.nome || '—';
-      const vei  = `${l.veiculos?.modelo||'—'} ${l.veiculos?.placa||''}`;
-      const dias  = Math.abs(Math.ceil((new Date(l.data_fim)-new Date())/86400000));
-      html += `<div onclick="goPage('locacoes');document.getElementById('notif-dropdown').style.display='none'"
-        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border2);transition:.15s"
-        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='none'">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(248,113,113,.15);color:#F87171;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">⚠️</div>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:600;color:var(--text)">${nome}</div>
-          <div style="font-size:11px;color:var(--muted)">${vei} · ${dias}d em atraso</div>
-        </div>
-      </div>`;
-    });
-  }
-
-  dd.innerHTML = html;
-}
 
 function fmtPhone(tel){
   if(!tel) return '';

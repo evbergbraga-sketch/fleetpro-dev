@@ -95,6 +95,7 @@ async function carregarTudo(){
   ]);
   expirarReservas();
   renderDashboard();
+  if(typeof atualizarBadgeNotif==='function') atualizarBadgeNotif();
   const loading = document.getElementById('app-loading');
   if(loading) loading.style.display='none';
   if(sb){
