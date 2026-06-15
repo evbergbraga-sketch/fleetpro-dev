@@ -313,6 +313,7 @@ async function _plAbrirModal(id){
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button onclick="closeModal('pl-modal');_plIrChat('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:rgba(74,222,128,.12);color:#4ADE80;border:1px solid rgba(74,222,128,.3);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">💬 Abrir chat</button>
       <button onclick="closeModal('pl-modal');editarCliente('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:var(--bg2);color:var(--text);border:1px solid var(--border2);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">✏️ Editar perfil</button>
+      ${c.tipo==='lead' ? `<button onclick="closeModal('pl-modal');abrirConverterCliente('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:rgba(99,102,241,.12);color:var(--accent);border:1px solid rgba(99,102,241,.3);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">✅ Converter em cliente</button>` : ''}
     </div>
   `;
 

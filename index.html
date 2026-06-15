@@ -1027,6 +1027,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 </button>
                 <button id="btn-sara-toggle" onclick="toggleSara()" style="font-size:11px;padding:5px 10px;background:rgba(0,168,132,.15);color:#00a884;border:1px solid rgba(0,168,132,.3);border-radius:8px;cursor:pointer;font-weight:600">🤖 Pausar SARA</button>
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:none" id="btn-cadastrar-chat" onclick="abrirCadastroClienteChat()">➕ Cadastrar</button>
+                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:none;background:rgba(139,92,246,.15);color:#A78BFA;border-color:rgba(139,92,246,.3)" id="btn-lead-chat" onclick="abrirLeadRapido()">⚡ Lead</button>
               </div>
             </div>
             <div class="chat-msgs scrollbar-thin" id="chat-msgs"><div style="text-align:center;font-size:12px;color:var(--muted2);margin:20px 0">Selecione uma conversa</div></div>
@@ -2551,6 +2552,75 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       </div>
       <div id="mc-info-extra" style="width:100%;background:#202c33;border-radius:10px;padding:12px 16px"></div>
       <div id="mc-btns-contato" style="display:flex;gap:8px;width:100%;margin-top:4px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LEAD RÁPIDO -->
+<div class="modal-overlay" id="m-lead-rapido">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">⚡ Cadastrar Lead</div>
+      <button onclick="closeModal('lead-rapido')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <div style="padding:4px 0">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Cadastro rápido para acompanhar no Pipeline CRM. CPF e documentos podem ser preenchidos depois.</p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Nome ou apelido <span style="color:var(--red)">*</span></label>
+        <input type="text" id="lr-nome" placeholder="Ex: João da Rua XV" style="width:100%">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Telefone</label>
+        <input type="text" id="lr-tel" placeholder="(21) 99999-0000" style="width:100%" readonly>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label>Interesse em</label>
+          <select id="lr-interesse" style="width:100%">
+            <option value="indefinido">— Indefinido —</option>
+            <option value="carro">🚗 Carro</option>
+            <option value="moto">🏍️ Moto</option>
+            <option value="ambos">🚗🏍️ Ambos</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Status CRM</label>
+          <select id="lr-status" style="width:100%">
+            <option value="interesse">🟡 Interesse</option>
+            <option value="potencial">🔵 Potencial</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Observação inicial</label>
+        <input type="text" id="lr-obs" placeholder="Ex: Quer moto para trabalho, orçamento até R$400/sem" style="width:100%">
+      </div>
+      <div class="login-err" id="lr-err" style="display:none;margin-bottom:10px"></div>
+      <button onclick="salvarLeadRapido()" class="btn btn-primary" style="width:100%">⚡ Cadastrar Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONVERTER EM CLIENTE -->
+<div class="modal-overlay" id="m-converter-cliente">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">✅ Converter em Cliente</div>
+      <button onclick="closeModal('converter-cliente')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <div style="padding:4px 0">
+      <div id="cc-lead-info" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(99,102,241,.08));border:1px solid rgba(139,92,246,.2);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--text)"></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Para virar cliente, precisamos pelo menos do CPF. Os demais dados podem ser preenchidos depois no perfil.</p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>CPF <span style="color:var(--red)">*</span></label>
+        <input type="text" id="cc-cpf" placeholder="000.000.000-00" style="width:100%">
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>CNH (opcional)</label>
+        <input type="text" id="cc-cnh" placeholder="00000000000" style="width:100%">
+      </div>
+      <div class="login-err" id="cc-err" style="display:none;margin-bottom:10px"></div>
+      <button onclick="converterEmCliente()" class="btn btn-primary" style="width:100%;background:var(--green,#16a34a);border-color:var(--green,#16a34a)">✅ Confirmar conversão</button>
     </div>
   </div>
 </div>

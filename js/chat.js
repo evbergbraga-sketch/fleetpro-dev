@@ -878,6 +878,7 @@ function renderChatContacts(){
           ${badge}
         </div>
         ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span>${_crmFollowupBadge(c)}</div>` : _crmFollowupBadge(c) ? `<div style="margin-top:3px">${_crmFollowupBadge(c)}</div>` : ''}
+        ${c.tipo==='lead' ? `<div style="margin-top:2px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:600;background:rgba(139,92,246,.2);color:#A78BFA;border:1px solid rgba(139,92,246,.3)">⚡ Lead</span></div>` : ''}
       </div>
     </div>`;
   }).join('')||'<div style="padding:24px 16px;font-size:13px;color:#8696a0;text-align:center">Sem conversas ainda</div>';
@@ -1085,6 +1086,8 @@ function abrirChat(cid){
     document.getElementById('chat-info').textContent = cid+' · Clique em Cadastrar para registrar';
     const btnCad = document.getElementById('btn-cadastrar-chat');
     if(btnCad) btnCad.style.display = 'flex';
+    const btnLead = document.getElementById('btn-lead-chat');
+    if(btnLead) btnLead.style.display = 'flex';
     const btnSara2 = document.getElementById('btn-sara-toggle');
     if(btnSara2) btnSara2.style.display = '';
     _checarStatusSara(cid);
@@ -1097,9 +1100,25 @@ function abrirChat(cid){
   // Avatar: inicia com iniciais, depois busca foto
   _setAvatar('chat-av', c.nome, null);
   document.getElementById('chat-name').textContent = c.nome;
+  // Info: lead vs cliente
+  const isLead = c.tipo === 'lead';
   document.getElementById('chat-info').textContent = c.telefone ? '📱 '+c.telefone : 'Sem telefone';
   const btnCad = document.getElementById('btn-cadastrar-chat');
   if(btnCad) btnCad.style.display = 'none';
+  const btnLead = document.getElementById('btn-lead-chat');
+  if(btnLead) btnLead.style.display = 'none';
+  // Botão "Converter" aparece só para leads
+  let btnConv = document.getElementById('btn-converter-chat');
+  if(!btnConv){
+    btnConv = document.createElement('button');
+    btnConv.id = 'btn-converter-chat';
+    btnConv.className = 'btn btn-ghost';
+    btnConv.style.cssText = 'font-size:11px;padding:5px 10px;background:rgba(74,222,128,.12);color:#4ADE80;border-color:rgba(74,222,128,.3)';
+    btnConv.textContent = '✅ Converter em cliente';
+    btnConv.onclick = ()=>abrirConverterCliente(activeChatId);
+    document.querySelector('.chat-top-actions')?.appendChild(btnConv);
+  }
+  btnConv.style.display = isLead ? 'flex' : 'none';
   if(c.telefone) _checarStatusSara(c.telefone);
   renderChatMsgs(cid);
   renderChatContacts();
@@ -1828,7 +1847,90 @@ function abrirCadastroClienteChat(){
   openModal('cliente');
 }
 
-function setMsg(t){ const i=document.getElementById('chat-msg-input'); if(i){i.value=t;i.focus();} }
+// ── LEAD RÁPIDO ──
+function abrirLeadRapido(){
+  if(!activeChatId) return;
+  const num = activeChatId.includes('-') ? '' : activeChatId;
+  const telEl = document.getElementById('lr-tel');
+  if(telEl) telEl.value = num;
+  ['lr-nome','lr-obs'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const err = document.getElementById('lr-err');
+  if(err) err.style.display='none';
+  document.getElementById('lr-interesse').value='indefinido';
+  document.getElementById('lr-status').value='interesse';
+  document.getElementById('m-lead-rapido')?.classList.add('show');
+}
+
+async function salvarLeadRapido(){
+  const nome     = document.getElementById('lr-nome')?.value.trim();
+  const tel      = document.getElementById('lr-tel')?.value.trim();
+  const interesse= document.getElementById('lr-interesse')?.value||'indefinido';
+  const status   = document.getElementById('lr-status')?.value||'interesse';
+  const obs      = document.getElementById('lr-obs')?.value.trim()||null;
+  const errEl    = document.getElementById('lr-err');
+  if(errEl) errEl.style.display='none';
+  if(!nome){ if(errEl){errEl.textContent='Nome é obrigatório.';errEl.style.display='block';} return; }
+
+  try{
+    const {data,error} = await sb.from('clientes').insert({
+      nome,
+      telefone: tel||null,
+      tipo: 'lead',
+      status_crm: status,
+      interesse_veiculo: interesse,
+      observacoes: obs,
+    }).select().single();
+    if(error) throw error;
+    notify(`Lead "${nome}" cadastrado!`,'success');
+    document.getElementById('m-lead-rapido')?.classList.remove('show');
+    await loadClientes();
+    renderChatContacts();
+    // Vincula conversa ao lead recém-criado
+    if(data?.id){ activeChatId = data.id; abrirChat(data.id); }
+  }catch(e){
+    if(errEl){errEl.textContent='Erro: '+e.message;errEl.style.display='block';}
+  }
+}
+
+// ── CONVERTER LEAD EM CLIENTE ──
+let _ccLeadId = null;
+function abrirConverterCliente(id){
+  _ccLeadId = id || activeChatId;
+  const c = allClientes?.find(x=>x.id===_ccLeadId);
+  if(!c){ notify('Lead não encontrado','error'); return; }
+  const info = document.getElementById('cc-lead-info');
+  const vei  = {carro:'🚗 Carro',moto:'🏍️ Moto',ambos:'🚗🏍️ Ambos',indefinido:'—'}[c.interesse_veiculo||'indefinido'];
+  if(info) info.innerHTML = `<strong>${c.nome}</strong> · ${c.telefone||'—'}<br><span style="color:var(--muted);font-size:12px">Interesse: ${vei} · Lead desde ${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>`;
+  ['cc-cpf','cc-cnh'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const err = document.getElementById('cc-err');
+  if(err) err.style.display='none';
+  document.getElementById('m-converter-cliente')?.classList.add('show');
+}
+
+async function converterEmCliente(){
+  const cpf  = document.getElementById('cc-cpf')?.value.trim();
+  const cnh  = document.getElementById('cc-cnh')?.value.trim()||null;
+  const errEl= document.getElementById('cc-err');
+  if(errEl) errEl.style.display='none';
+  if(!cpf){ if(errEl){errEl.textContent='CPF é obrigatório para virar cliente.';errEl.style.display='block';} return; }
+  if(!_ccLeadId){ notify('Lead não identificado','error'); return; }
+  try{
+    const {error} = await sb.from('clientes').update({ tipo:'cliente', cpf, cnh: cnh||undefined }).eq('id',_ccLeadId);
+    if(error) throw error;
+    const c = allClientes?.find(x=>x.id===_ccLeadId);
+    if(c){ c.tipo='cliente'; c.cpf=cpf; }
+    notify('Lead convertido em cliente com sucesso! 🎉','success');
+    document.getElementById('m-converter-cliente')?.classList.remove('show');
+    await loadClientes();
+    renderChatContacts();
+    // Atualiza pipeline se estiver aberto
+    if(typeof _plCarregarDados==='function') _plCarregarDados();
+  }catch(e){
+    if(errEl){errEl.textContent='Erro: '+e.message;errEl.style.display='block';}
+  }
+}
+
+
 
 // ── RECONEXÃO AO VOLTAR PARA A ABA ──
 document.addEventListener('visibilitychange', ()=>{

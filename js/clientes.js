@@ -20,7 +20,11 @@ function cnhBadge(val){
 // ══ RENDER LISTA ══
 function renderClientes(){
   const s=(document.getElementById('s-clientes')?.value||'').toLowerCase();
-  const data=allClientes.filter(c=>!s||`${c.nome} ${c.cpf} ${c.telefone||''}`.toLowerCase().includes(s));
+  const data=allClientes.filter(c=>{
+    // Mostra só clientes reais (não leads) por padrão
+    if(c.tipo==='lead') return false;
+    return !s||`${c.nome} ${c.cpf} ${c.telefone||''}`.toLowerCase().includes(s);
+  });
   const tb=document.getElementById('tb-clientes');
   if(!tb) return;
   tb.innerHTML=data.length?data.map(c=>{
