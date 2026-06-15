@@ -289,6 +289,18 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           </div>
         </div>
 
+        <!-- ANIVERSARIANTES -->
+        <div class="card" id="dash-aniversariantes-card" style="margin-bottom:14px;display:none">
+          <div class="card-header">
+            <span class="card-title">🎂 Aniversariantes</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button onclick="_dashAnivToggle('dia')"  id="dash-aniv-btn-dia"  class="btn btn-primary"  style="font-size:11px;padding:4px 12px">Hoje</button>
+              <button onclick="_dashAnivToggle('semana')" id="dash-aniv-btn-semana" class="btn btn-ghost" style="font-size:11px;padding:4px 12px">Esta semana</button>
+            </div>
+          </div>
+          <div id="dash-aniversariantes-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:4px"></div>
+        </div>
+
         <!-- LINHA 4: Reservas + Manutenções -->
         <div class="grid2">
           <div class="card">

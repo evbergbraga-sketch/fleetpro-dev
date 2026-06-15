@@ -330,6 +330,7 @@ function renderDashboard(){
   _renderAgendaSemanal(meusLocs, allReservas, allManutencoes);
   _renderFrotaStatus(meusVeiculos, meusLocs);
   _renderAtividade(meusLocs, allManutencoes, allReservas);
+  _renderAniversariantes('dia');
   // CRM: follow-ups do dia
   if(typeof _dashCarregarFollowups === 'function') _dashCarregarFollowups();
 }
@@ -697,3 +698,78 @@ function _tempoRelativo(isoStr){
 }
 
 // ══ VEÍCULOS (render chamado de veiculos.js) ══
+
+// ── ANIVERSARIANTES NO DASHBOARD ──
+let _dashAnivModo = 'dia';
+
+function _dashAnivToggle(modo){
+  _dashAnivModo = modo;
+  document.getElementById('dash-aniv-btn-dia')?.classList.toggle('btn-primary', modo==='dia');
+  document.getElementById('dash-aniv-btn-dia')?.classList.toggle('btn-ghost', modo!=='dia');
+  document.getElementById('dash-aniv-btn-semana')?.classList.toggle('btn-primary', modo==='semana');
+  document.getElementById('dash-aniv-btn-semana')?.classList.toggle('btn-ghost', modo!=='semana');
+  _renderAniversariantes(modo);
+}
+
+function _renderAniversariantes(modo){
+  const card  = document.getElementById('dash-aniversariantes-card');
+  const lista = document.getElementById('dash-aniversariantes-lista');
+  if(!card||!lista) return;
+
+  const hoje = new Date();
+  const aniversariantes = (allClientes||[]).filter(c=>{
+    if(!c.data_nascimento) return false;
+    const [,mes,dia] = c.data_nascimento.slice(0,10).split('-');
+    const m = parseInt(mes), d = parseInt(dia);
+    if(modo==='dia'){
+      return m === hoje.getMonth()+1 && d === hoje.getDate();
+    } else {
+      // Semana: verifica os próximos 7 dias
+      for(let i=0; i<7; i++){
+        const dt = new Date(hoje);
+        dt.setDate(hoje.getDate()+i);
+        if(m === dt.getMonth()+1 && d === dt.getDate()) return true;
+      }
+      return false;
+    }
+  });
+
+  if(!aniversariantes.length){
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = '';
+  const hoje2 = hoje;
+
+  lista.innerHTML = aniversariantes.map(c=>{
+    const [ano,mes,dia] = c.data_nascimento.slice(0,10).split('-');
+    const anos  = hoje2.getFullYear() - parseInt(ano);
+    const ini   = c.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+
+    // Calcula se é hoje ou quantos dias faltam
+    const dtAniv = new Date(hoje2.getFullYear(), parseInt(mes)-1, parseInt(dia));
+    if(dtAniv < hoje2) dtAniv.setFullYear(dtAniv.getFullYear()+1);
+    const diffDias = Math.round((dtAniv-hoje2)/(1000*60*60*24));
+    const isHoje   = diffDias === 0;
+    const labelDia = isHoje ? '🎂 Hoje!' : `em ${diffDias} dia${diffDias>1?'s':''}`;
+    const corLabel = isHoje ? '#F5B942' : 'var(--muted)';
+
+    // Monta mensagem de parabéns para WhatsApp
+    const msgParabens = encodeURIComponent(`🎂 Feliz aniversário, ${c.nome.split(' ')[0]}! A Locadora Royal deseja um ótimo dia! 🎉`);
+    const tel = (c.telefone||'').replace(/\D/g,'');
+
+    return `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;${isHoje?'border-color:var(--gold,#f5b942);background:rgba(245,185,66,.06)':''}">
+      <div style="width:42px;height:42px;border-radius:50%;background:${isHoje?'rgba(245,185,66,.2)':'rgba(99,102,241,.1)'};color:${isHoje?'#f5b942':'var(--accent)'};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0">${isHoje?'🎂':ini}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${anos} anos · <span style="color:${corLabel};font-weight:600">${labelDia}</span></div>
+      </div>
+      <button onclick="goPage('chat');setTimeout(()=>{if(typeof abrirChat!=='undefined')abrirChat('${c.id}')},300)"
+        style="flex-shrink:0;padding:6px 12px;font-size:11px;font-weight:600;background:rgba(74,222,128,.12);color:#4ADE80;border:1px solid rgba(74,222,128,.3);border-radius:8px;cursor:pointer;white-space:nowrap;transition:.15s"
+        onmouseover="this.style.background='rgba(74,222,128,.2)'" onmouseout="this.style.background='rgba(74,222,128,.12)'">
+        💬 Enviar
+      </button>
+    </div>`;
+  }).join('');
+}
