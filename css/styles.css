@@ -345,6 +345,7 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 .notify { position:fixed; bottom:24px; right:24px; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:500; z-index:999; animation:slideUp .3s ease; display:none; box-shadow:var(--shadow-lg); }
 .notify.success { background:var(--green-bg); border:1px solid var(--green-border); color:#4ade80; }
 .notify.error   { background:var(--red-bg);   border:1px solid var(--red-border);   color:#F87171; }
+.notify.warning { background:rgba(245,185,66,.12); border:1px solid rgba(245,185,66,.3); color:#F5B942; }
 @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
 
 .tab-filter { display:flex; gap:6px; margin-bottom:16px; }

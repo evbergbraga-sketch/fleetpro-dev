@@ -49,11 +49,11 @@ function fmtPhone(tel){
 }
 function notify(msg, type='success'){
   const el = document.getElementById('notify');
-  el.textContent = (type==='success' ? '✓ ' : '✕ ') + msg;
-  el.className = 'notify ' + type;
+  el.textContent = (type==='success' ? '✓ ' : type==='warning' ? '⚠️ ' : '✕ ') + msg;
+  el.className = 'notify ' + (type==='warning' ? 'warning' : type);
   el.style.display = 'block';
   clearTimeout(el._t);
-  el._t = setTimeout(()=> el.style.display='none', 3500);
+  el._t = setTimeout(()=> el.style.display='none', 4000);
 }
 function setMsg(txt){
   const inp = document.getElementById('chat-msg-input');

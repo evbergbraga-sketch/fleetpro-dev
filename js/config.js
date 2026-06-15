@@ -169,15 +169,23 @@ function maskCpfCnpj(input){
   else input.style.borderColor = '';
 }
 
-function checarCpfCnpj(valor, campo='CPF/CNPJ'){
+function checarCpfCnpj(valor, campo='CPF/CNPJ', avisoApenas=false){
   const raw = valor.replace(/\D/g,'');
   if(!raw) return true;
+  let valido = true;
   if(raw.length===11){
-    if(!validarCPF(raw)){ notify(campo+' inválido','error'); return false; }
+    if(!validarCPF(raw)) valido = false;
   } else if(raw.length===14){
-    if(!validarCNPJ(raw)){ notify(campo+' inválido','error'); return false; }
+    if(!validarCNPJ(raw)) valido = false;
   } else {
     notify(campo+' deve ter 11 (CPF) ou 14 (CNPJ) dígitos','error'); return false;
+  }
+  if(!valido){
+    if(avisoApenas){
+      notify(campo+' pode estar incorreto (dígito verificador inválido). Verifique ou prossiga mesmo assim.','warning');
+      return true; // avisa mas não bloqueia
+    }
+    notify(campo+' inválido','error'); return false;
   }
   return true;
 }

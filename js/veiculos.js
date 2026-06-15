@@ -550,7 +550,7 @@ async function salvarVeiculo(){
   if(!marca||!modelo||!placa){notify('Marca, modelo e placa são obrigatórios','error');return;}
   if(!diaria){notify('Informe o valor da diária','error');return;}
   const _cpfPropMv = document.getElementById('mv-cpf-cnpj-prop')?.value||'';
-  if(_cpfPropMv && !checarCpfCnpj(_cpfPropMv,'CPF/CNPJ do proprietário')) return;
+  if(_cpfPropMv && !checarCpfCnpj(_cpfPropMv,'CPF/CNPJ do proprietário', true)) return;
   const btn = document.querySelector('#m-veiculo .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
   try{
