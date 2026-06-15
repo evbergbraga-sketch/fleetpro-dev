@@ -2609,6 +2609,10 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Arraste para reordenar. Ao remover um status, os leads vinculados ficam sem status.</p>
       <div id="pl-config-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
       <button onclick="_plConfigNovoStatus()" style="width:100%;padding:10px;border:1.5px dashed var(--border2);border-radius:10px;background:none;color:var(--muted);font-size:13px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">+ Adicionar novo status</button>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);display:flex;gap:8px">
+        <button onclick="_plConfigSalvarAplicar()" class="btn btn-primary" style="flex:1">✓ Salvar e aplicar</button>
+        <button onclick="closeModal('pl-config')" class="btn btn-ghost">Fechar</button>
+      </div>
     </div>
   </div>
 </div>

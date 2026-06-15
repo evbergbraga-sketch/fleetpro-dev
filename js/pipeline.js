@@ -423,6 +423,7 @@ function _plRenderConfigLista(){
 
       <!-- Cor -->
       <input type="color" value="${s.cor}"
+        oninput="_plCfgPreviewCor('${s.id}',this.value)"
         onchange="_plCfgUpdate('${s.id}','cor',this.value)"
         style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:0">
 
@@ -467,6 +468,19 @@ async function _plCfgUpdate(id, campo, valor){
   _plRenderConfigLista();
 }
 
+function _plCfgPreviewCor(id, cor){
+  // Atualiza só o badge de preview em tempo real, sem salvar no banco
+  const row    = document.querySelector(`[data-id="${id}"]`);
+  const badge  = row?.querySelector('span[style*="border-radius:999px"]');
+  if(!badge) return;
+  const r = parseInt(cor.slice(1,3),16);
+  const g = parseInt(cor.slice(3,5),16);
+  const b = parseInt(cor.slice(5,7),16);
+  badge.style.background = `rgba(${r},${g},${b},.12)`;
+  badge.style.color      = cor;
+  badge.style.borderColor= `rgba(${r},${g},${b},.3)`;
+}
+
 async function _plCfgMover(id, dir){
   const idx = _plStatusDB.findIndex(x=>x.id===id);
   if(idx===-1) return;
@@ -502,6 +516,48 @@ async function _plCfgRemover(id, label){
   _plStatusDB = _plStatusDB.filter(x=>x.id!==id);
   _plRenderConfigLista();
   notify(`Status "${label}" removido.`,'success');
+}
+
+async function _plConfigSalvarAplicar(){
+  const btn = document.querySelector('#m-pl-config .btn-primary');
+  if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
+  try{
+    // Salva cada row atual (lê diretamente dos inputs no DOM)
+    const rows = document.querySelectorAll('#pl-config-lista [data-id]');
+    const updates = [];
+    rows.forEach((row,i)=>{
+      const id      = row.dataset.id;
+      const inputs  = row.querySelectorAll('input');
+      const emoji   = inputs[0]?.value?.trim()||'🔵';
+      const label   = inputs[1]?.value?.trim();
+      const cor     = inputs[2]?.value||'#60A5FA';
+      if(!label) return;
+      const r = parseInt(cor.slice(1,3),16);
+      const g = parseInt(cor.slice(3,5),16);
+      const b = parseInt(cor.slice(5,7),16);
+      const bg     = `rgba(${r},${g},${b},.12)`;
+      const border = `rgba(${r},${g},${b},.3)`;
+      const old    = _plStatusDB.find(x=>x.id===id);
+      updates.push({ id, emoji, label, cor, bg, border, ordem: i+1, oldLabel: old?.label });
+    });
+
+    // Atualiza banco + migra leads se label mudou
+    await Promise.all(updates.map(async u=>{
+      if(u.oldLabel && u.oldLabel !== u.label){
+        await sb.from('clientes').update({status_crm: u.label}).eq('status_crm', u.oldLabel);
+      }
+      return sb.from('crm_status').update({emoji:u.emoji, label:u.label, cor:u.cor, bg:u.bg, border:u.border, ordem:u.ordem}).eq('id', u.id);
+    }));
+
+    // Recarrega status e re-renderiza tudo
+    await _plCarregarStatus();
+    await _plCarregarDados();
+    notify('Status atualizados e aplicados!','success');
+  }catch(e){
+    notify('Erro ao salvar: '+e.message,'error');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='✓ Salvar e aplicar'; }
+  }
 }
 
 async function _plConfigNovoStatus(){
