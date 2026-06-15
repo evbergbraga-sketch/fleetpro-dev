@@ -128,10 +128,17 @@ async function _salvarSenhaPrimeiroAcesso(){
   try{
     const {error} = await sb.auth.updateUser({password: nova});
     if(error) throw error;
-    await sb.from('perfis').update({senha_provisoria:false}).eq('id', currentUser.id);
-    currentPerfil.senha_provisoria = false;
+    // Se for troca provisória (primeiro acesso), limpa a flag
+    if(currentUser?.id){
+      await sb.from('perfis').update({senha_provisoria:false}).eq('id', currentUser.id);
+      if(currentPerfil) currentPerfil.senha_provisoria = false;
+    }
     document.getElementById('m-primeiro-acesso')?.classList.remove('show');
-    notify('Senha definida com sucesso!','success');
+    notify('Senha definida com sucesso! Faça login com a nova senha.','success');
+    // Se veio do recovery (não logado), redireciona para login após 2s
+    if(!currentUser){
+      setTimeout(()=>{ goLayer('login'); }, 2000);
+    }
   }catch(e){
     if(errEl){errEl.textContent='Erro: '+e.message;errEl.style.display='block';}
   }finally{

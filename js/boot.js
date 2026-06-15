@@ -13,7 +13,20 @@ window.addEventListener('DOMContentLoaded', async()=>{
 
   goLayer('app');
   sb = createClient(url, key, {
-    auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false }
+    auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+  });
+
+  // ── Detecta link de redefinição de senha ──
+  sb.auth.onAuthStateChange((event, session)=>{
+    if(event === 'PASSWORD_RECOVERY'){
+      // Limpa o hash da URL para não reprocessar
+      history.replaceState(null,'',window.location.pathname);
+      // Mostra o modal de definir nova senha (mesmo do primeiro acesso)
+      goLayer('app');
+      setTimeout(()=>{
+        document.getElementById('m-primeiro-acesso')?.classList.add('show');
+      }, 800);
+    }
   });
 
   try{
