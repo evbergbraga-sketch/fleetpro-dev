@@ -452,6 +452,7 @@ function renderVeiculos(){
           <div style="display:flex;gap:6px">
             <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="verHistorico('${v.id}')">📋 Histórico</button>
             <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="editarVeiculo('${v.id}')">✏️ Editar</button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red);border-color:rgba(220,38,38,.2)" onclick="excluirVeiculo('${v.id}','${(v.marca+' '+v.modelo).replace(/'/g,"\\'")}','${v.placa}')">🗑️</button>
           </div>`:'—'}</td>
       </tr>`;
     }).join(''):'<tr class="empty-row"><td colspan="7">Nenhum veículo encontrado</td></tr>';
@@ -459,6 +460,24 @@ function renderVeiculos(){
 }
 
 // ── EDITAR VEÍCULO ──
+async function excluirVeiculo(id, nome, placa){
+  if(!confirm(`Excluir veículo "${nome} (${placa})"?\n\nAtenção: só é possível excluir veículos sem locações ou contratos vinculados.`)) return;
+  try{
+    const {error} = await sb.from('veiculos').delete().eq('id', id);
+    if(error){
+      if(error.message.includes('foreign key') || error.code === '23503'){
+        notify('Não é possível excluir — este veículo tem locações ou contratos vinculados.','error');
+      } else {
+        throw error;
+      }
+      return;
+    }
+    notify(`Veículo "${nome}" excluído.`,'success');
+    await loadVeiculos();
+    renderDashboard();
+  }catch(e){ notify('Erro ao excluir: '+e.message,'error'); }
+}
+
 function editarVeiculo(id){
   const v = allVeiculos.find(x=>x.id===id);
   if(!v) return;
