@@ -153,7 +153,7 @@ function validarCNPJ(cnpj){
   return r === parseInt(d.charAt(1));
 }
 
-function maskCpfCnpj(input){
+function maskCpfCnpj(input, validarCor=true){
   let v = input.value.replace(/\D/g,'').slice(0,14);
   if(v.length <= 11){
     if(v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/,'$1.$2.$3-$4');
@@ -163,6 +163,7 @@ function maskCpfCnpj(input){
     v = v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/,'$1.$2.$3/$4-$5');
   }
   input.value = v;
+  if(!validarCor){ input.style.borderColor = ''; return; }
   const raw = v.replace(/\D/g,'');
   if(raw.length===11) input.style.borderColor = validarCPF(raw)?'#16a34a':'#dc2626';
   else if(raw.length===14) input.style.borderColor = validarCNPJ(raw)?'#16a34a':'#dc2626';
