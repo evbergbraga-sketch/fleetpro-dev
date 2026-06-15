@@ -1099,11 +1099,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <!-- Status do lead -->
                 <div style="font-size:10px;color:#8696a0;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Status do lead</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:14px" id="crm-status-btns">
-                  <button onclick="_crmSetStatus('interesse')" class="crm-sb" data-s="interesse" style="padding:6px 4px;font-size:11px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(255,255,255,.04);color:#8696a0;cursor:pointer;transition:.15s">🟡 Interesse</button>
-                  <button onclick="_crmSetStatus('potencial')" class="crm-sb" data-s="potencial" style="padding:6px 4px;font-size:11px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(255,255,255,.04);color:#8696a0;cursor:pointer;transition:.15s">🔵 Potencial</button>
-                  <button onclick="_crmSetStatus('ativo')" class="crm-sb" data-s="ativo" style="padding:6px 4px;font-size:11px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(255,255,255,.04);color:#8696a0;cursor:pointer;transition:.15s">🟢 Ativo</button>
-                  <button onclick="_crmSetStatus('reprovado')" class="crm-sb" data-s="reprovado" style="padding:6px 4px;font-size:11px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(255,255,255,.04);color:#8696a0;cursor:pointer;transition:.15s">🔴 Reprovado</button>
-                  <button onclick="_crmSetStatus('inativo')" class="crm-sb" data-s="inativo" style="padding:6px 4px;font-size:11px;border:1px solid rgba(255,255,255,.1);border-radius:7px;background:rgba(255,255,255,.04);color:#8696a0;cursor:pointer;transition:.15s;grid-column:span 2">⚫ Inativo</button>
+                  <!-- preenchido dinamicamente por _crmRenderStatusBtns() -->
                 </div>
 
                 <!-- Follow-up -->
@@ -1413,6 +1409,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <div style="margin-left:auto;display:flex;gap:6px">
               <button onclick="_plVisu('kanban')" id="pl-btn-kanban" class="btn btn-primary" style="font-size:12px;padding:6px 14px">⬛ Kanban</button>
               <button onclick="_plVisu('lista')"  id="pl-btn-lista"  class="btn btn-ghost"   style="font-size:12px;padding:6px 14px">☰ Lista</button>
+              <button onclick="_plAbrirConfig()" id="pl-btn-config" class="btn btn-ghost" style="font-size:12px;padding:6px 14px;display:none">⚙️ Configurar</button>
             </div>
           </div>
         </div>
@@ -2597,6 +2594,21 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       </div>
       <div class="login-err" id="cc-err" style="display:none;margin-bottom:10px"></div>
       <button onclick="converterEmCliente()" class="btn btn-primary" style="width:100%;background:var(--green,#16a34a);border-color:var(--green,#16a34a)">✅ Confirmar conversão</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIG STATUS CRM -->
+<div class="modal-overlay" id="m-pl-config">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Configurar Status do Pipeline</div>
+      <button onclick="closeModal('pl-config')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <div style="padding:4px 0">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Arraste para reordenar. Ao remover um status, os leads vinculados ficam sem status.</p>
+      <div id="pl-config-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+      <button onclick="_plConfigNovoStatus()" style="width:100%;padding:10px;border:1.5px dashed var(--border2);border-radius:10px;background:none;color:var(--muted);font-size:13px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">+ Adicionar novo status</button>
     </div>
   </div>
 </div>

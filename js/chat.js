@@ -1179,13 +1179,47 @@ async function _dashCarregarFollowups(){
 }
 
 
-const _CRM_STATUS_CFG = {
-  interesse: {label:'🟡 Interesse', bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
-  potencial: {label:'🔵 Potencial', bg:'rgba(56,138,221,.15)', border:'rgba(56,138,221,.4)', color:'#85B7EB'},
-  ativo:     {label:'🟢 Ativo',     bg:'rgba(100,153,34,.15)',  border:'rgba(100,153,34,.4)',  color:'#C0DD97'},
-  reprovado: {label:'🔴 Reprovado', bg:'rgba(226,75,74,.15)',   border:'rgba(226,75,74,.4)',   color:'#F09595'},
-  inativo:   {label:'⚫ Inativo',   bg:'rgba(136,135,128,.15)', border:'rgba(136,135,128,.4)', color:'#B4B2A9'},
-};
+// _CRM_STATUS_CFG é gerado dinamicamente a partir de _PL_STATUS (pipeline.js)
+// ou usa fallback hardcoded se o pipeline ainda não carregou
+function _getCrmStatusCfg(){
+  if(typeof _PL_STATUS !== 'undefined' && _PL_STATUS.length){
+    const cfg = {};
+    _PL_STATUS.forEach(s=>{
+      cfg[s.label] = { label: s.emoji+' '+s.label, bg: s.bg, border: s.border, color: s.cor };
+      cfg[s.key]   = cfg[s.label]; // compatibilidade com keys antigas (slug)
+    });
+    return cfg;
+  }
+  // Fallback hardcoded
+  return {
+    interesse: {label:'🟡 Interesse', bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
+    potencial: {label:'🔵 Potencial', bg:'rgba(56,138,221,.15)', border:'rgba(56,138,221,.4)', color:'#85B7EB'},
+    ativo:     {label:'🟢 Ativo',     bg:'rgba(100,153,34,.15)',  border:'rgba(100,153,34,.4)',  color:'#C0DD97'},
+    reprovado: {label:'🔴 Reprovado', bg:'rgba(226,75,74,.15)',   border:'rgba(226,75,74,.4)',   color:'#F09595'},
+  };
+}
+
+// Renderiza botões de status CRM dinamicamente
+async function _crmRenderStatusBtns(statusAtual){
+  const wrap = document.getElementById('crm-status-btns');
+  if(!wrap) return;
+
+  // Garante que _PL_STATUS está carregado
+  let status = (typeof _PL_STATUS !== 'undefined' && _PL_STATUS.length) ? _PL_STATUS : null;
+  if(!status){
+    const {data} = await sb.from('crm_status').select('*').eq('ativo',true).order('ordem');
+    status = (data||[]).map(s=>({key:s.label, label:s.label, emoji:s.emoji, cor:s.cor, bg:s.bg, border:s.border}));
+  }
+
+  const isLast = i => i === status.length - 1;
+  wrap.innerHTML = status.map((s,i)=>{
+    const isSel = s.label === statusAtual || s.key === statusAtual;
+    return `<button onclick="_crmSetStatus('${s.label}')" class="crm-sb" data-s="${s.label}"
+      style="padding:6px 4px;font-size:11px;border:1px solid ${isSel ? s.border : 'rgba(255,255,255,.1)'};border-radius:7px;background:${isSel ? s.bg : 'rgba(255,255,255,.04)'};color:${isSel ? s.cor : '#8696a0'};cursor:pointer;transition:.15s;font-weight:${isSel?'700':'400'}${isLast(i) && status.length%2!==0 ? ';grid-column:span 2' : ''}">
+      ${s.emoji} ${s.label}
+    </button>`;
+  }).join('');
+}
 
 async function _crmCarregarPainel(cid){
   const c = allClientes?.find(x=>x.id===cid);
@@ -1206,7 +1240,7 @@ async function _crmCarregarPainel(cid){
 
   // Atualiza badge no header do painel
   const badge = document.getElementById('crm-painel-badge');
-  const cfg = _CRM_STATUS_CFG[c.status_crm];
+  const cfg = _getCrmStatusCfg()[c.status_crm];
   if(badge){
     if(cfg){
       badge.textContent = cfg.label;
@@ -1216,16 +1250,8 @@ async function _crmCarregarPainel(cid){
     }
   }
 
-  // Marca botão de status ativo
-  document.querySelectorAll('.crm-sb').forEach(btn=>{
-    const s = btn.dataset.s;
-    const isSel = s === c.status_crm;
-    const scfg = _CRM_STATUS_CFG[s];
-    btn.style.background = isSel && scfg ? scfg.bg : 'rgba(255,255,255,.04)';
-    btn.style.borderColor = isSel && scfg ? scfg.border : 'rgba(255,255,255,.1)';
-    btn.style.color       = isSel && scfg ? scfg.color : '#8696a0';
-    btn.style.fontWeight  = isSel ? '700' : '400';
-  });
+  // Renderiza botões de status dinamicamente (do banco)
+  await _crmRenderStatusBtns(c.status_crm);
 
   // Follow-up
   const fu = document.getElementById('crm-followup');

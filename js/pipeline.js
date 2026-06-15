@@ -22,6 +22,10 @@ const _PL_VEICULO = {
 
 // ── INICIALIZAÇÃO ──
 async function iniciarPipeline(){
+  // Carrega status customizados do banco PRIMEIRO
+  await _plCarregarStatus();
+  _plMostrarConfigBtn();
+
   if(!_plPerfis.length){
     const {data} = await sb.from('perfis').select('id,nome,perfil').in('perfil',['admin','atendente']).order('nome');
     _plPerfis = data||[];
@@ -363,4 +367,157 @@ function _plVisu(modo){
 function _plIrChat(id){
   goPage('chat');
   setTimeout(()=>{ if(typeof abrirChat==='function') abrirChat(id); }, 300);
+}
+
+// ══ STATUS CUSTOMIZÁVEIS ══
+let _plStatusDB = []; // carregado do banco
+
+async function _plCarregarStatus(){
+  const {data,error} = await sb.from('crm_status').select('*').eq('ativo',true).order('ordem');
+  if(error){ console.warn('[crm_status]',error.message); return; }
+  _plStatusDB = data||[];
+  // Sobrescreve o array global _PL_STATUS com os dados do banco
+  // Mantém compatibilidade com todo o resto do pipeline que usa _PL_STATUS
+  _PL_STATUS.length = 0;
+  _plStatusDB.forEach(s=>{
+    _PL_STATUS.push({ key: s.label.toLowerCase().replace(/\s+/g,'-'), label: s.label, emoji: s.emoji, cor: s.cor, bg: s.bg||`rgba(96,165,250,.12)`, border: s.border||`rgba(96,165,250,.3)`, _id: s.id, _ordem: s.ordem });
+  });
+}
+
+// Mostra botão configurar só para admin
+function _plMostrarConfigBtn(){
+  const btn = document.getElementById('pl-btn-config');
+  if(btn) btn.style.display = currentPerfil?.perfil==='admin' ? '' : 'none';
+}
+
+// ── MODAL DE CONFIGURAÇÃO ──
+async function _plAbrirConfig(){
+  await _plCarregarStatus(); // refresh
+  _plRenderConfigLista();
+  document.getElementById('m-pl-config')?.classList.add('show');
+}
+
+function _plRenderConfigLista(){
+  const lista = document.getElementById('pl-config-lista');
+  if(!lista) return;
+
+  lista.innerHTML = _plStatusDB.map((s,i)=>`
+    <div id="plcfg-row-${s.id}" data-id="${s.id}" data-ordem="${s.ordem}"
+      style="display:grid;grid-template-columns:auto 1fr auto auto auto auto;gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px">
+
+      <!-- Setas reordenar -->
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <button onclick="_plCfgMover('${s.id}',-1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0;line-height:1" ${i===0?'disabled style="opacity:.3"':''}>▲</button>
+        <button onclick="_plCfgMover('${s.id}',1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0;line-height:1" ${i===_plStatusDB.length-1?'disabled style="opacity:.3"':''}>▼</button>
+      </div>
+
+      <!-- Emoji picker simples -->
+      <input type="text" value="${s.emoji}" maxlength="2"
+        onchange="_plCfgUpdate('${s.id}','emoji',this.value)"
+        style="width:36px;font-size:18px;text-align:center;border:1px solid var(--border2);border-radius:6px;background:var(--card);color:var(--text);padding:4px">
+
+      <!-- Label -->
+      <input type="text" value="${s.label}"
+        onchange="_plCfgUpdate('${s.id}','label',this.value)"
+        style="flex:1;padding:7px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;font-weight:500">
+
+      <!-- Cor -->
+      <input type="color" value="${s.cor}"
+        onchange="_plCfgUpdate('${s.id}','cor',this.value)"
+        style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:0">
+
+      <!-- Preview badge -->
+      <span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s.bg};color:${s.cor};border:1px solid ${s.border};white-space:nowrap">${s.emoji} ${s.label}</span>
+
+      <!-- Remover -->
+      <button onclick="_plCfgRemover('${s.id}','${s.label}')"
+        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 4px;border-radius:6px;transition:.15s"
+        onmouseover="this.style.color='#F87171'" onmouseout="this.style.color='var(--muted)'">✕</button>
+    </div>`).join('');
+}
+
+async function _plCfgUpdate(id, campo, valor){
+  const s = _plStatusDB.find(x=>x.id===id);
+  if(!s) return;
+
+  // Calcula bg e border a partir da cor hex
+  let updateObj = { [campo]: valor };
+  if(campo==='cor'){
+    // Extrai r,g,b para gerar bg/border consistentes
+    const r = parseInt(valor.slice(1,3),16);
+    const g = parseInt(valor.slice(3,5),16);
+    const b = parseInt(valor.slice(5,7),16);
+    updateObj.bg     = `rgba(${r},${g},${b},.12)`;
+    updateObj.border = `rgba(${r},${g},${b},.3)`;
+    s.bg     = updateObj.bg;
+    s.border = updateObj.border;
+  }
+
+  // Se renomear label: migra leads que tinham o label antigo
+  if(campo==='label' && s.label !== valor){
+    const oldLabel = s.label;
+    const oldKey   = oldLabel.toLowerCase().replace(/\s+/g,'-');
+    // Atualiza clientes que tinham o status antigo
+    await sb.from('clientes').update({status_crm: valor}).eq('status_crm', oldKey);
+    await sb.from('clientes').update({status_crm: valor}).eq('status_crm', oldLabel);
+  }
+
+  s[campo] = valor;
+  await sb.from('crm_status').update(updateObj).eq('id', id);
+  _plRenderConfigLista();
+}
+
+async function _plCfgMover(id, dir){
+  const idx = _plStatusDB.findIndex(x=>x.id===id);
+  if(idx===-1) return;
+  const troca = idx + dir;
+  if(troca < 0 || troca >= _plStatusDB.length) return;
+
+  // Troca ordens
+  const ordemA = _plStatusDB[idx].ordem;
+  const ordemB = _plStatusDB[troca].ordem;
+  _plStatusDB[idx].ordem   = ordemB;
+  _plStatusDB[troca].ordem = ordemA;
+
+  await Promise.all([
+    sb.from('crm_status').update({ordem: ordemB}).eq('id', _plStatusDB[idx].id),
+    sb.from('crm_status').update({ordem: ordemA}).eq('id', _plStatusDB[troca].id),
+  ]);
+
+  // Reordena array local
+  [_plStatusDB[idx], _plStatusDB[troca]] = [_plStatusDB[troca], _plStatusDB[idx]];
+  _plRenderConfigLista();
+}
+
+async function _plCfgRemover(id, label){
+  if(!confirm(`Remover o status "${label}"? Leads com esse status ficarão sem status.`)) return;
+
+  // Leads com esse status → sem_status
+  const key = label.toLowerCase().replace(/\s+/g,'-');
+  await sb.from('clientes').update({status_crm:'sem_status'}).eq('status_crm', key);
+  await sb.from('clientes').update({status_crm:'sem_status'}).eq('status_crm', label);
+
+  // Marca como inativo no banco
+  await sb.from('crm_status').update({ativo: false}).eq('id', id);
+  _plStatusDB = _plStatusDB.filter(x=>x.id!==id);
+  _plRenderConfigLista();
+  notify(`Status "${label}" removido.`,'success');
+}
+
+async function _plConfigNovoStatus(){
+  const label = prompt('Nome do novo status:');
+  if(!label?.trim()) return;
+  const emoji = prompt('Emoji (ex: 🟣):')||'🔵';
+  const cor   = '#60A5FA';
+  const maxOrdem = _plStatusDB.length ? Math.max(..._plStatusDB.map(s=>s.ordem)) : 0;
+
+  const {data,error} = await sb.from('crm_status').insert({
+    label: label.trim(), emoji, cor,
+    bg: 'rgba(96,165,250,.12)', border: 'rgba(96,165,250,.3)',
+    ordem: maxOrdem + 1, ativo: true,
+  }).select().single();
+  if(error){ notify('Erro: '+error.message,'error'); return; }
+  _plStatusDB.push(data);
+  _plRenderConfigLista();
+  notify(`Status "${label.trim()}" criado!`,'success');
 }
