@@ -88,28 +88,33 @@ function _plRenderKanban(dados){
   const hoje = new Date().toISOString().slice(0,10);
 
   kb.innerHTML = _PL_STATUS.map(s=>{
-    const itens = dados.filter(c=>c.status_crm===s.key);
+    const itens = dados.filter(c=>c.status_crm===s.key||c.status_crm===s.label);
 
     const cards = itens.map(c=>{
       const resp  = _plPerfis.find(p=>p.id===c.responsavel_id);
       const fu    = (c.followup_em||'').slice(0,10);
       const vei   = _PL_VEICULO[c.interesse_veiculo||'indefinido'];
       const ini   = c.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const cores = {interesse:'#92400E',potencial:'#1E3A5F',ativo:'#14532D',reprovado:'#7F1D1D',inativo:'#374151'};
-      const bgIni = cores[s.key]||'#374151';
+      const bgIni = s.cor+'33'; // cor do status com transparência para o avatar
 
       let fuHtml = '';
-      if(fu===hoje)       fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(245,185,66,.15);color:#F5B942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Follow-up hoje</span>`;
+      if(fu===hoje)        fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(245,185,66,.15);color:#F5B942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Follow-up hoje</span>`;
       else if(fu&&fu<hoje) fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600">⚠️ Atrasado</span>`;
       else if(fu)          fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3,rgba(0,0,0,.15));color:var(--muted2)">📅 ${fu.split('-').reverse().join('/')}</span>`;
 
-      return `<div onclick="_plAbrirModal('${c.id}')"
-        style="background:${s.bg};border:1px solid ${s.border};border-left:3px solid ${s.cor};border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.04)"
-        onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)';this.style.borderColor='${s.cor}'"
-        onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.04)';this.style.borderColor='${s.border}'">
+      return `<div
+        draggable="true"
+        data-id="${c.id}"
+        data-status="${s.label}"
+        onclick="_plAbrirModal('${c.id}')"
+        ondragstart="_plDragStart(event,'${c.id}')"
+        ondragend="_plDragEnd(event)"
+        style="background:${s.bg};border:1px solid ${s.border};border-left:3px solid ${s.cor};border-radius:10px;padding:14px;margin-bottom:8px;cursor:grab;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.04);user-select:none"
+        onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)'"
+        onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.04)'">
 
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div style="width:36px;height:36px;border-radius:50%;background:${bgIni};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${ini}</div>
+          <div style="width:36px;height:36px;border-radius:50%;background:${bgIni};color:${s.cor};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;border:1.5px solid ${s.border}">${ini}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</div>
             <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
@@ -123,19 +128,103 @@ function _plRenderKanban(dados){
           ${c.origem ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)">${c.origem}</span>` : ''}
         </div>
       </div>`;
-    }).join('') || `<div style="font-size:12px;color:var(--muted2);text-align:center;padding:24px 0;opacity:.6">Nenhum lead</div>`;
+    }).join('') || `<div class="pl-drop-empty" data-col="${s.label}" style="font-size:12px;color:var(--muted2);text-align:center;padding:24px 0;opacity:.6;border-radius:8px;border:2px dashed transparent;transition:.15s">Nenhum lead</div>`;
 
-    return `<div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border2)">
+    return `<div
+      class="pl-col"
+      data-col="${s.label}"
+      ondragover="_plDragOver(event)"
+      ondragenter="_plDragEnter(event,'${s.label}')"
+      ondragleave="_plDragLeave(event)"
+      ondrop="_plDrop(event,'${s.label}')"
+      style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border2);transition:border-color .15s,background .15s;min-height:100px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border2)">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:13px;font-weight:700;color:var(--text)">${s.label}</span>
-        </div>
+        <span style="font-size:13px;font-weight:700;color:${s.cor}">${s.label}</span>
         <span style="font-size:11px;font-weight:700;color:${s.cor};background:${s.bg};border:1px solid ${s.border};padding:2px 9px;border-radius:999px">${itens.length}</span>
       </div>
       ${cards}
     </div>`;
   }).join('');
 }
+
+// ── DRAG & DROP ──
+let _plDragId = null;
+
+function _plDragStart(e, id){
+  _plDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  // Atraso para aplicar opacidade depois de iniciar o drag
+  setTimeout(()=>{ if(e.target) e.target.style.opacity = '0.4'; }, 0);
+}
+
+function _plDragEnd(e){
+  if(e.target) e.target.style.opacity = '1';
+  // Remove highlight de todas as colunas
+  document.querySelectorAll('.pl-col').forEach(col=>{
+    col.style.background   = 'var(--bg2)';
+    col.style.borderColor  = 'var(--border2)';
+  });
+}
+
+function _plDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function _plDragEnter(e, colLabel){
+  e.preventDefault();
+  const col = e.currentTarget;
+  const s   = _PL_STATUS.find(x=>x.label===colLabel);
+  if(col && s){
+    col.style.background  = s.bg;
+    col.style.borderColor = s.cor;
+  }
+}
+
+function _plDragLeave(e){
+  // Só remove highlight se saiu para fora da coluna (não para filho)
+  if(!e.currentTarget.contains(e.relatedTarget)){
+    e.currentTarget.style.background  = 'var(--bg2)';
+    e.currentTarget.style.borderColor = 'var(--border2)';
+  }
+}
+
+async function _plDrop(e, novoStatus){
+  e.preventDefault();
+  if(!_plDragId) return;
+  const id = _plDragId;
+  _plDragId = null;
+
+  // Remove highlight
+  document.querySelectorAll('.pl-col').forEach(col=>{
+    col.style.background  = 'var(--bg2)';
+    col.style.borderColor = 'var(--border2)';
+  });
+
+  // Encontra o cliente e verifica se o status realmente mudou
+  const c = _plDados.find(x=>x.id===id);
+  if(!c) return;
+  const statusAtual = c.status_crm;
+  if(statusAtual===novoStatus) return; // mesma coluna, não faz nada
+
+  // Atualiza local imediatamente (UI responsiva)
+  c.status_crm = novoStatus;
+  renderPipeline();
+  _plRenderMetricas();
+
+  // Persiste no banco
+  try{
+    await sb.from('clientes').update({status_crm: novoStatus}).eq('id', id);
+    notify(`${c.nome} → ${novoStatus}`,'success');
+  }catch(err){
+    // Reverte se falhou
+    c.status_crm = statusAtual;
+    renderPipeline();
+    notify('Erro ao mover: '+err.message,'error');
+  }
+}
+
+
 
 // ── LISTA ──
 function _plRenderLista(dados){
