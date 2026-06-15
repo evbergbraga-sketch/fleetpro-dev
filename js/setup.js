@@ -87,10 +87,18 @@ async function fazerCadastro(){
 }
 
 async function esqueceuSenha(){
-  const email=document.getElementById('l-email').value.trim();
-  if(!email){notify('Digite seu email primeiro','error');return;}
-  await sb.auth.resetPasswordForEmail(email);
-  notify('Email de recuperação enviado!','success');
+  const email = document.getElementById('l-email').value.trim();
+  const errEl = document.getElementById('login-err');
+  const msgEl = document.getElementById('login-recovery-msg');
+  if(!email){
+    if(errEl){ errEl.textContent='Digite seu email primeiro.'; errEl.style.display='block'; }
+    return;
+  }
+  if(errEl) errEl.style.display='none';
+  await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if(msgEl) msgEl.style.display='block';
 }
 
 async function fazerLogout(){
