@@ -104,9 +104,9 @@ function _plRenderKanban(dados){
       else if(fu)          fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3,rgba(0,0,0,.15));color:var(--muted2)">📅 ${fu.split('-').reverse().join('/')}</span>`;
 
       return `<div onclick="_plAbrirModal('${c.id}')"
-        style="background:var(--card,#fff);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.04)"
-        onmouseover="this.style.borderColor='${s.cor}';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'"
-        onmouseout="this.style.borderColor='var(--border2)';this.style.boxShadow='0 1px 3px rgba(0,0,0,.04)'">
+        style="background:${s.bg};border:1px solid ${s.border};border-left:3px solid ${s.cor};border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.04)"
+        onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)';this.style.borderColor='${s.cor}'"
+        onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.04)';this.style.borderColor='${s.border}'">
 
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <div style="width:36px;height:36px;border-radius:50%;background:${bgIni};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${ini}</div>
@@ -128,7 +128,6 @@ function _plRenderKanban(dados){
     return `<div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border2)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border2)">
         <div style="display:flex;align-items:center;gap:8px">
-          ${_plDot(s.cor, 12)}
           <span style="font-size:13px;font-weight:700;color:var(--text)">${s.label}</span>
         </div>
         <span style="font-size:11px;font-weight:700;color:${s.cor};background:${s.bg};border:1px solid ${s.border};padding:2px 9px;border-radius:999px">${itens.length}</span>
@@ -159,7 +158,7 @@ function _plRenderLista(dados){
         <div style="font-weight:600">${c.nome}</div>
         <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
       </td>
-      <td><span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}"><span style="display:inline-flex;align-items:center;gap:5px">${_plDot(s?.cor||'#999')}<span>${s?.label||c.status_crm}</span></span></span></td>
+      <td><span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}">${s?.label||c.status_crm}</span></td>
       <td style="font-size:13px">${vei.icon} ${vei.icon ? vei.label : '—'}</td>
       <td style="font-size:12px;color:var(--muted)">${resp ? resp.nome.split(' ')[0] : '—'}</td>
       <td style="font-size:12px;color:${fuCor}">${fuTxt}</td>
@@ -240,7 +239,7 @@ async function _plAbrirModal(id){
       <div style="flex:1">
         <div style="font-size:18px;font-weight:800;color:var(--text)">${c.nome}</div>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
-          <span style="font-size:12px;padding:3px 12px;border-radius:999px;font-weight:600;background:${s?.bg};color:${s?.cor};border:1px solid ${s?.border}" style="display:inline-flex;align-items:center;gap:6px">${_plDot(s?.cor||'#999',10)}<span>${s?.label}</span></span>
+          <span style="font-size:12px;padding:3px 12px;border-radius:999px;font-weight:600;background:${s?.bg};color:${s?.cor};border:1px solid ${s?.border}">${s?.label}</span>
           ${vei.icon ? `<span style="font-size:12px;padding:3px 12px;border-radius:999px;background:var(--bg2);color:var(--text);border:1px solid var(--border2)">${vei.icon} ${vei.label}</span>` : ''}
           ${fuBadge}
         </div>
@@ -417,8 +416,8 @@ function _plRenderConfigLista(){
         <button onclick="_plCfgMover('${s.id}',1)" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0;line-height:1" ${i===_plStatusDB.length-1?'disabled style="opacity:.3"':''}>▼</button>
       </div>
 
-      <!-- Dot preview -->
-      <div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center">${_plDot(s.cor, 16)}</div>
+      <!-- Espaço ocupado pelo color picker já mostra a cor -->
+      <div style="width:36px"></div>
 
       <!-- Label -->
       <input type="text" value="${s.label}"
@@ -432,7 +431,7 @@ function _plRenderConfigLista(){
         style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:0">
 
       <!-- Preview badge -->
-      <span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s.bg};color:${s.cor};border:1px solid ${s.border};white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:5px">${_plDot(s.cor,8)}<span>${s.label}</span></span></span>
+      <span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s.bg};color:${s.cor};border:1px solid ${s.border};white-space:nowrap">${s.label}</span>
 
       <!-- Remover -->
       <button onclick="_plCfgRemover('${s.id}','${s.label}')"

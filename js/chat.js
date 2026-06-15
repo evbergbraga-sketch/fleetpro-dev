@@ -877,7 +877,7 @@ function renderChatContacts(){
           <div style="font-size:12px;color:${nl>0?'#e9edef':'#8696a0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${previewIcon}${_esc(String(preview).slice(0,40))}</div>
           ${badge}
         </div>
-        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)};display:inline-flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:${_crmBadgeColor(c.status_crm)};display:inline-block;flex-shrink:0"></span>${_crmLabel(c.status_crm)}</span>${_crmFollowupBadge(c)}</div>` : _crmFollowupBadge(c) ? `<div style="margin-top:3px">${_crmFollowupBadge(c)}</div>` : ''}
+        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span>${_crmFollowupBadge(c)}</div>` : _crmFollowupBadge(c) ? `<div style="margin-top:3px">${_crmFollowupBadge(c)}</div>` : ''}
         ${c.tipo==='lead' ? `<div style="margin-top:2px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:600;background:rgba(139,92,246,.2);color:#A78BFA;border:1px solid rgba(139,92,246,.3)">⚡ Lead</span></div>` : ''}
       </div>
     </div>`;
