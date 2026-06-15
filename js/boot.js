@@ -11,6 +11,29 @@ window.addEventListener('DOMContentLoaded', async()=>{
   if(!localStorage.getItem('fp_url')) localStorage.setItem('fp_url', FP_URL);
   if(!localStorage.getItem('fp_key')) localStorage.setItem('fp_key', FP_KEY);
 
+  // ── Detecta erros na URL (ex: link expirado) ──
+  const hash = window.location.hash.slice(1);
+  const params = new URLSearchParams(hash);
+  const urlError = params.get('error');
+  const urlErrorCode = params.get('error_code');
+  if(urlError){
+    history.replaceState(null,'',window.location.pathname);
+    goLayer('login');
+    const msgEl = document.getElementById('login-recovery-msg');
+    if(msgEl){
+      const isExpired = urlErrorCode === 'otp_expired';
+      msgEl.style.display = 'block';
+      msgEl.style.background = 'rgba(248,113,113,.1)';
+      msgEl.style.borderColor = 'rgba(248,113,113,.3)';
+      msgEl.innerHTML = `
+        <div style="font-size:20px;margin-bottom:6px">${isExpired ? '⏰' : '❌'}</div>
+        <div style="font-size:13px;font-weight:600;color:#F87171;margin-bottom:4px">${isExpired ? 'Link expirado' : 'Link inválido'}</div>
+        <div style="font-size:12px;color:var(--muted)">${isExpired ? 'Este link de redefinição expirou. Clique em "Esqueci minha senha" para solicitar um novo.' : 'O link é inválido. Solicite uma nova redefinição de senha.'}</div>
+      `;
+    }
+    return;
+  }
+
   goLayer('app');
   sb = createClient(url, key, {
     auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
