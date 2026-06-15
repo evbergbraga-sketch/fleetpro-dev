@@ -181,7 +181,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <div class="topbar-search"><span style="font-size:14px;color:var(--muted2)">🔍</span><input id="busca-global" placeholder="Buscar cliente, placa..." autocomplete="off"></div>
           <div id="busca-resultados" class="search-results" style="display:none"></div>
         </div>
-        <button class="topbar-btn notif-btn" title="Notificações">🔔<div class="notif-dot"></div></button>
+        <button class="topbar-btn notif-btn" id="btn-notif" title="Notificações" onclick="_toggleNotifDropdown(event)">🔔<div class="notif-dot"></div></button>
+        <div id="notif-dropdown" style="display:none;position:fixed;top:60px;right:80px;width:320px;max-height:420px;overflow-y:auto;background:var(--card);border:1px solid var(--border2);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999"></div>
         <span class="role-chip" id="role-chip" onclick="abrirModalMeuPerfil()" style="cursor:pointer" title="Meu perfil">admin</span>
         <button class="topbar-btn" onclick="carregarTudo()" title="Atualizar">↻</button>
         <button class="btn btn-primary" id="primary-action" style="display:none">+ Ação</button>
