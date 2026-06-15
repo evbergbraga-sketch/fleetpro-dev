@@ -428,6 +428,7 @@ function editarCliente(id){
   sv('ec-cpf',  c.cpf);
   sv('ec-obs',  c.observacoes);
   sv('ec-status-crm', c.status_crm||'sem_status');
+  sv('ec-interesse-veiculo', c.interesse_veiculo||'indefinido');
   sv('ec-followup-em', c.followup_em||'');
   sv('ec-motivo-perda', c.motivo_perda||'');
   _cliAnexos['ec'] = [];
@@ -454,10 +455,12 @@ async function atualizarCliente(){
     const existentes = _coletarAnexosCliExistentes('ec');
     const todosAnexos = [...existentes, ...novosUrls];
     const statusCrm  = document.getElementById('ec-status-crm')?.value||'sem_status';
+    const interesseVei = document.getElementById('ec-interesse-veiculo')?.value||'indefinido';
     const followupEm = document.getElementById('ec-followup-em')?.value||null;
     const motivoPerda= document.getElementById('ec-motivo-perda')?.value.trim()||null;
     const obj = { nome, cpf, observacoes:obs, ...extras,
       status_crm: statusCrm,
+      interesse_veiculo: interesseVei,
       followup_em: followupEm,
       motivo_perda: motivoPerda,
       anexos_urls: todosAnexos.length ? JSON.stringify(todosAnexos) : null };

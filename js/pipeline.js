@@ -1,19 +1,27 @@
-// pipeline.js — Pipeline CRM (Fases 4 e 5)
+// pipeline.js — Pipeline CRM redesenhado (Fases 4 e 5)
 
-let _plDados    = [];   // clientes com status_crm
-let _plPerfis   = [];   // equipe para filtro responsável
+let _plDados     = [];
+let _plPerfis    = [];
 let _plVisuAtual = 'kanban';
+let _plModalData = null; // cliente aberto no modal
 
 const _PL_STATUS = [
-  { key:'interesse', label:'🟡 Interesse', cor:'#FAC775', bg:'rgba(250,199,117,.08)', border:'rgba(250,199,117,.25)' },
-  { key:'potencial', label:'🔵 Potencial', cor:'#85B7EB', bg:'rgba(133,183,235,.08)', border:'rgba(133,183,235,.25)' },
-  { key:'ativo',     label:'🟢 Ativo',     cor:'#C0DD97', bg:'rgba(192,221,151,.08)', border:'rgba(192,221,151,.25)' },
-  { key:'reprovado', label:'🔴 Reprovado', cor:'#F09595', bg:'rgba(240,149,149,.08)', border:'rgba(240,149,149,.25)' },
-  { key:'inativo',   label:'⚫ Inativo',   cor:'#B4B2A9', bg:'rgba(180,178,169,.08)', border:'rgba(180,178,169,.25)' },
+  { key:'interesse', label:'Interesse', emoji:'🟡', cor:'#F5B942', bg:'rgba(245,185,66,.12)',  border:'rgba(245,185,66,.3)'  },
+  { key:'potencial', label:'Potencial', emoji:'🔵', cor:'#60A5FA', bg:'rgba(96,165,250,.12)',  border:'rgba(96,165,250,.3)'  },
+  { key:'ativo',     label:'Ativo',     emoji:'🟢', cor:'#4ADE80', bg:'rgba(74,222,128,.12)',  border:'rgba(74,222,128,.3)'  },
+  { key:'reprovado', label:'Reprovado', emoji:'🔴', cor:'#F87171', bg:'rgba(248,113,113,.12)', border:'rgba(248,113,113,.3)' },
+  { key:'inativo',   label:'Inativo',   emoji:'⚫', cor:'#9CA3AF', bg:'rgba(156,163,175,.12)', border:'rgba(156,163,175,.3)' },
 ];
 
+const _PL_VEICULO = {
+  carro:    { label:'Carro',  icon:'🚗' },
+  moto:     { label:'Moto',   icon:'🏍️' },
+  ambos:    { label:'Ambos',  icon:'🚗🏍️' },
+  indefinido:{ label:'—',    icon:'' },
+};
+
+// ── INICIALIZAÇÃO ──
 async function iniciarPipeline(){
-  // Carrega perfis para o filtro de responsável
   if(!_plPerfis.length){
     const {data} = await sb.from('perfis').select('id,nome,perfil').in('perfil',['admin','atendente']).order('nome');
     _plPerfis = data||[];
@@ -28,7 +36,7 @@ async function iniciarPipeline(){
 
 async function _plCarregarDados(){
   const {data,error} = await sb.from('clientes')
-    .select('id,nome,telefone,status_crm,responsavel_id,followup_em,created_at,perfis(nome)')
+    .select('id,nome,telefone,cpf,email,origem,observacoes,status_crm,responsavel_id,followup_em,motivo_perda,interesse_veiculo,created_at,perfis(nome)')
     .neq('status_crm','sem_status')
     .not('status_crm','is',null)
     .order('nome');
@@ -38,20 +46,20 @@ async function _plCarregarDados(){
   renderPipeline();
 }
 
+// ── FILTROS ──
 function _plFiltrar(){
-  const busca   = (document.getElementById('pl-busca')?.value||'').toLowerCase();
-  const resp    = document.getElementById('pl-responsavel')?.value||'';
-  const fu      = document.getElementById('pl-followup')?.value||'';
-  const hoje    = new Date().toISOString().slice(0,10);
-
+  const busca = (document.getElementById('pl-busca')?.value||'').toLowerCase();
+  const resp  = document.getElementById('pl-responsavel')?.value||'';
+  const fu    = document.getElementById('pl-followup')?.value||'';
+  const hoje  = new Date().toISOString().slice(0,10);
   return _plDados.filter(c=>{
     if(busca && !c.nome.toLowerCase().includes(busca) && !(c.telefone||'').includes(busca)) return false;
     if(resp && c.responsavel_id !== resp) return false;
     if(fu){
-      const cfuDate = (c.followup_em||'').slice(0,10);
-      if(fu==='hoje'     && cfuDate !== hoje)        return false;
-      if(fu==='atrasado' && (cfuDate >= hoje || !cfuDate)) return false;
-      if(fu==='pendente' && !cfuDate)                return false;
+      const d = (c.followup_em||'').slice(0,10);
+      if(fu==='hoje'     && d !== hoje)         return false;
+      if(fu==='atrasado' && (d>=hoje||!d))      return false;
+      if(fu==='pendente' && !d)                 return false;
     }
     return true;
   });
@@ -63,6 +71,7 @@ function renderPipeline(){
   else                        _plRenderLista(dados);
 }
 
+// ── KANBAN ──
 function _plRenderKanban(dados){
   const kb = document.getElementById('pl-kanban');
   if(!kb) return;
@@ -70,87 +79,275 @@ function _plRenderKanban(dados){
 
   kb.innerHTML = _PL_STATUS.map(s=>{
     const itens = dados.filter(c=>c.status_crm===s.key);
+
     const cards = itens.map(c=>{
-      const resp = _plPerfis.find(p=>p.id===c.responsavel_id);
-      const fu   = (c.followup_em||'').slice(0,10);
-      let fuBadge = '';
-      if(fu === hoje) fuBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(245,185,66,.15);color:#f5b942;border:1px solid rgba(245,185,66,.3)">🔔 hoje</span>`;
-      else if(fu && fu < hoje) fuBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:rgba(240,149,149,.15);color:#F09595;border:1px solid rgba(240,149,149,.3)">⚠️ atrasado</span>`;
-      else if(fu) fuBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:999px;background:var(--bg3);color:var(--muted2)">${fu.split('-').reverse().join('/')}</span>`;
-      return `<div onclick="_plAbrirCliente('${c.id}')" style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='${s.cor}'" onmouseout="this.style.borderColor='var(--border2)'">
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">${c.nome}</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${c.telefone||'—'}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          ${fuBadge}
-          ${resp ? `<span style="font-size:10px;color:var(--muted2)">👤 ${resp.nome.split(' ')[0]}</span>` : ''}
+      const resp  = _plPerfis.find(p=>p.id===c.responsavel_id);
+      const fu    = (c.followup_em||'').slice(0,10);
+      const vei   = _PL_VEICULO[c.interesse_veiculo||'indefinido'];
+      const ini   = c.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const cores = {interesse:'#92400E',potencial:'#1E3A5F',ativo:'#14532D',reprovado:'#7F1D1D',inativo:'#374151'};
+      const bgIni = cores[s.key]||'#374151';
+
+      let fuHtml = '';
+      if(fu===hoje)       fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(245,185,66,.15);color:#F5B942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Follow-up hoje</span>`;
+      else if(fu&&fu<hoje) fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600">⚠️ Atrasado</span>`;
+      else if(fu)          fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3,rgba(0,0,0,.15));color:var(--muted2)">📅 ${fu.split('-').reverse().join('/')}</span>`;
+
+      return `<div onclick="_plAbrirModal('${c.id}')"
+        style="background:var(--card,#fff);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.04)"
+        onmouseover="this.style.borderColor='${s.cor}';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'"
+        onmouseout="this.style.borderColor='var(--border2)';this.style.boxShadow='0 1px 3px rgba(0,0,0,.04)'">
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:36px;height:36px;border-radius:50%;background:${bgIni};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">${ini}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</div>
+            <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
+          </div>
+          ${vei.icon ? `<div style="font-size:16px;flex-shrink:0" title="Interesse: ${vei.label}">${vei.icon}</div>` : ''}
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+          ${fuHtml}
+          ${resp ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)">👤 ${resp.nome.split(' ')[0]}</span>` : ''}
+          ${c.origem ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)">${c.origem}</span>` : ''}
         </div>
       </div>`;
-    }).join('') || `<div style="font-size:12px;color:var(--muted2);text-align:center;padding:20px 0">—</div>`;
+    }).join('') || `<div style="font-size:12px;color:var(--muted2);text-align:center;padding:24px 0;opacity:.6">Nenhum lead</div>`;
 
-    return `<div style="background:var(--bg2);border-radius:12px;padding:12px;border:1px solid var(--border2)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:700;color:${s.cor}">${s.label}</div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);background:var(--bg3);padding:2px 8px;border-radius:999px">${itens.length}</div>
+    return `<div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border2)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:15px">${s.emoji}</span>
+          <span style="font-size:13px;font-weight:700;color:var(--text)">${s.label}</span>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${s.cor};background:${s.bg};border:1px solid ${s.border};padding:2px 9px;border-radius:999px">${itens.length}</span>
       </div>
       ${cards}
     </div>`;
   }).join('');
 }
 
+// ── LISTA ──
 function _plRenderLista(dados){
   const tb = document.getElementById('pl-lista-tbody');
   if(!tb) return;
   const hoje = new Date().toISOString().slice(0,10);
-  if(!dados.length){ tb.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum lead encontrado</td></tr>'; return; }
-
+  if(!dados.length){ tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum lead encontrado</td></tr>'; return; }
   tb.innerHTML = dados.map(c=>{
     const s    = _PL_STATUS.find(x=>x.key===c.status_crm);
     const resp = _plPerfis.find(p=>p.id===c.responsavel_id);
     const fu   = (c.followup_em||'').slice(0,10);
-    let fuTxt  = fu ? fu.split('-').reverse().join('/') : '—';
-    let fuCor  = 'var(--text)';
-    if(fu===hoje){ fuTxt='🔔 '+fuTxt; fuCor='#f5b942'; }
-    else if(fu && fu<hoje){ fuTxt='⚠️ '+fuTxt; fuCor='#F09595'; }
+    const vei  = _PL_VEICULO[c.interesse_veiculo||'indefinido'];
+    let fuTxt='—', fuCor='var(--text)';
+    if(fu){ fuTxt=fu.split('-').reverse().join('/'); }
+    if(fu===hoje){ fuTxt='🔔 '+fuTxt; fuCor='#F5B942'; }
+    else if(fu&&fu<hoje){ fuTxt='⚠️ '+fuTxt; fuCor='#F87171'; }
     const criado = c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—';
-    return `<tr style="cursor:pointer" onclick="_plAbrirCliente('${c.id}')">
+    return `<tr style="cursor:pointer" onclick="_plAbrirModal('${c.id}')">
       <td>
-        <div style="font-weight:500">${c.nome}</div>
+        <div style="font-weight:600">${c.nome}</div>
         <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
       </td>
-      <td><span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}">${s?.label||c.status_crm}</span></td>
+      <td><span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}">${s?.emoji} ${s?.label||c.status_crm}</span></td>
+      <td style="font-size:13px">${vei.icon} ${vei.icon ? vei.label : '—'}</td>
       <td style="font-size:12px;color:var(--muted)">${resp ? resp.nome.split(' ')[0] : '—'}</td>
       <td style="font-size:12px;color:${fuCor}">${fuTxt}</td>
       <td style="font-size:12px;color:var(--muted)">${criado}</td>
       <td>
-        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();_plAbrirCliente('${c.id}')">💬 Chat</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();_plAbrirModal('${c.id}')">👁 Ver</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();_plIrChat('${c.id}')">💬</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
 }
 
+// ── MÉTRICAS ──
 function _plRenderMetricas(){
   const el = document.getElementById('pipeline-metricas');
   if(!el) return;
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje  = new Date().toISOString().slice(0,10);
   const total = _plDados.length;
   const ativos    = _plDados.filter(c=>c.status_crm==='ativo').length;
-  const conversao = total ? Math.round(ativos/total*100) : 0;
+  const interesse = _plDados.filter(c=>c.status_crm==='interesse').length;
   const fuHoje    = _plDados.filter(c=>(c.followup_em||'').slice(0,10)===hoje).length;
-  const fuAtrasado= _plDados.filter(c=>{ const f=(c.followup_em||'').slice(0,10); return f && f<hoje; }).length;
-  const semResp   = _plDados.filter(c=>!c.responsavel_id).length;
+  const fuAtraso  = _plDados.filter(c=>{ const d=(c.followup_em||'').slice(0,10); return d&&d<hoje; }).length;
+  const conversao = total ? Math.round(ativos/total*100) : 0;
 
   el.innerHTML = [
-    { val:total,       lbl:'Leads totais',        cor:'var(--accent)',  ico:'🎯' },
-    { val:ativos,      lbl:'Ativos',               cor:'#C0DD97',        ico:'🟢' },
-    { val:conversao+'%',lbl:'Taxa de conversão',   cor:'var(--gold,#f5b942)', ico:'📈' },
-    { val:fuHoje,      lbl:'Follow-ups hoje',      cor:'#f5b942',        ico:'🔔' },
-    { val:fuAtrasado,  lbl:'Follow-ups atrasados', cor:'#F09595',        ico:'⚠️' },
+    { val:total,          lbl:'Total de leads',      cor:'var(--accent)',  ico:'🎯', sub:'no pipeline' },
+    { val:interesse,      lbl:'Em interesse',         cor:'#F5B942',        ico:'🟡', sub:'aguardando' },
+    { val:ativos,         lbl:'Leads ativos',         cor:'#4ADE80',        ico:'🟢', sub:'com contrato' },
+    { val:conversao+'%',  lbl:'Taxa de conversão',    cor:'#60A5FA',        ico:'📈', sub:'interesse→ativo' },
+    { val:fuHoje+fuAtraso,lbl:'Follow-ups pendentes', cor:fuHoje+fuAtraso>0?'#F87171':'var(--muted2)', ico:'🔔', sub:`${fuHoje} hoje · ${fuAtraso} atrasado${fuAtraso!==1?'s':''}` },
   ].map(m=>`
-    <div class="card" style="text-align:center;padding:14px">
-      <div style="font-size:20px;margin-bottom:4px">${m.ico}</div>
-      <div style="font-size:24px;font-weight:800;color:${m.cor}">${m.val}</div>
-      <div style="font-size:11px;color:var(--muted2);margin-top:2px">${m.lbl}</div>
+    <div class="card" style="padding:16px;position:relative;overflow:hidden">
+      <div style="font-size:24px;margin-bottom:8px">${m.ico}</div>
+      <div style="font-size:26px;font-weight:800;color:${m.cor};line-height:1">${m.val}</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:4px">${m.lbl}</div>
+      <div style="font-size:10px;color:var(--muted2);margin-top:2px">${m.sub}</div>
     </div>`).join('');
+}
+
+// ── MODAL LEAD ──
+async function _plAbrirModal(id){
+  const c = _plDados.find(x=>x.id===id);
+  if(!c) return;
+  _plModalData = c;
+  const resp = _plPerfis.find(p=>p.id===c.responsavel_id);
+  const s    = _PL_STATUS.find(x=>x.key===c.status_crm);
+  const fu   = (c.followup_em||'').slice(0,10);
+  const hoje = new Date().toISOString().slice(0,10);
+  const vei  = _PL_VEICULO[c.interesse_veiculo||'indefinido'];
+  const ini  = c.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+
+  // Busca notas e encaminhamentos
+  const [{data:notas},{data:encs}] = await Promise.all([
+    sb.from('notas_internas').select('*,perfis(nome)').eq('cliente_id',id).order('created_at',{ascending:false}).limit(5),
+    sb.from('encaminhamentos').select('*,perfis(nome)').eq('cliente_id',id).order('created_at',{ascending:false}).limit(5),
+  ]);
+  const hist = [...(notas||[]).map(n=>({...n,_t:'nota'})), ...(encs||[]).map(e=>({...e,_t:'enc'}))]
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  let fuBadge = '';
+  if(fu===hoje)       fuBadge = `<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(245,185,66,.15);color:#F5B942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Follow-up hoje</span>`;
+  else if(fu&&fu<hoje) fuBadge = `<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600">⚠️ Follow-up atrasado</span>`;
+  else if(fu)          fuBadge = `<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)">📅 ${fu.split('-').reverse().join('/')}</span>`;
+
+  const histHtml = hist.length ? hist.map(it=>{
+    const dt  = new Date(it.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+new Date(it.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const quem = it.perfis?.nome?.split(' ')[0]||'';
+    if(it._t==='enc') return `<div style="padding:8px 10px;background:rgba(99,102,241,.08);border-left:2px solid var(--accent);border-radius:0 8px 8px 0;font-size:12px;color:var(--text)">📨 → <strong>${it.setor_destino}</strong><br><span style="color:var(--muted);font-size:10px">${dt} · ${quem}</span></div>`;
+    return `<div style="padding:8px 10px;background:var(--bg2);border-left:2px solid var(--border2);border-radius:0 8px 8px 0;font-size:12px;color:var(--text)">📝 ${it.texto}<br><span style="color:var(--muted);font-size:10px">${dt} · ${quem}</span></div>`;
+  }).join('') : `<div style="font-size:12px;color:var(--muted2);text-align:center;padding:12px">Sem histórico</div>`;
+
+  document.getElementById('pl-modal-body').innerHTML = `
+    <!-- HEADER DO LEAD -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      <div style="width:52px;height:52px;border-radius:50%;background:${s?.bg||'var(--bg2)'};border:2px solid ${s?.cor||'var(--border2)'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:${s?.cor||'var(--text)'};flex-shrink:0">${ini}</div>
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:800;color:var(--text)">${c.nome}</div>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;padding:3px 12px;border-radius:999px;font-weight:600;background:${s?.bg};color:${s?.cor};border:1px solid ${s?.border}">${s?.emoji} ${s?.label}</span>
+          ${vei.icon ? `<span style="font-size:12px;padding:3px 12px;border-radius:999px;background:var(--bg2);color:var(--text);border:1px solid var(--border2)">${vei.icon} ${vei.label}</span>` : ''}
+          ${fuBadge}
+        </div>
+      </div>
+    </div>
+
+    <!-- GRID INFOS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Telefone</div>
+        <div style="font-size:13px;color:var(--text)">${c.telefone||'—'}</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Email</div>
+        <div style="font-size:13px;color:var(--text);word-break:break-all">${c.email||'—'}</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Responsável</div>
+        <div style="font-size:13px;color:var(--text)">${resp ? '👤 '+resp.nome : '—'}</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Origem</div>
+        <div style="font-size:13px;color:var(--text)">${c.origem||'—'}</div>
+      </div>
+      ${c.motivo_perda ? `<div style="background:rgba(248,113,113,.08);border-radius:10px;padding:12px;border:1px solid rgba(248,113,113,.2);grid-column:span 2">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#F87171;margin-bottom:6px">Motivo de perda</div>
+        <div style="font-size:13px;color:var(--text)">${c.motivo_perda}</div>
+      </div>` : ''}
+      ${c.observacoes ? `<div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2);grid-column:span 2">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Observações</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.5">${c.observacoes}</div>
+      </div>` : ''}
+    </div>
+
+    <!-- ALTERAR STATUS + INTERESSE -->
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border2);margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:10px">Atualizar lead</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:11px;color:var(--muted2);margin-bottom:4px;display:block">Status CRM</label>
+          <select id="plm-status" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
+            ${_PL_STATUS.map(st=>`<option value="${st.key}"${st.key===c.status_crm?' selected':''}>${st.emoji} ${st.label}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted2);margin-bottom:4px;display:block">Interesse</label>
+          <select id="plm-interesse" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
+            <option value="indefinido"${(c.interesse_veiculo||'indefinido')==='indefinido'?' selected':''}>— Indefinido</option>
+            <option value="carro"${c.interesse_veiculo==='carro'?' selected':''}>🚗 Carro</option>
+            <option value="moto"${c.interesse_veiculo==='moto'?' selected':''}>🏍️ Moto</option>
+            <option value="ambos"${c.interesse_veiculo==='ambos'?' selected':''}>🚗🏍️ Ambos</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted2);margin-bottom:4px;display:block">Follow-up em</label>
+          <input type="date" id="plm-followup" value="${fu}" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button onclick="_plModalSalvar()" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">💾 Salvar alterações</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTA RÁPIDA -->
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border2);margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:8px">Nota interna</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="plm-nota" placeholder="Registrar uma observação..." style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
+        <button onclick="_plModalNota()" style="padding:8px 14px;background:rgba(99,102,241,.15);color:var(--accent);border:1px solid rgba(99,102,241,.3);border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:600">📝 Registrar</button>
+      </div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border2);margin-bottom:18px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:10px">Histórico</div>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto">${histHtml}</div>
+    </div>
+
+    <!-- AÇÕES -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button onclick="closeModal('pl-modal');_plIrChat('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:rgba(74,222,128,.12);color:#4ADE80;border:1px solid rgba(74,222,128,.3);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">💬 Abrir chat</button>
+      <button onclick="closeModal('pl-modal');editarCliente('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:var(--bg2);color:var(--text);border:1px solid var(--border2);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">✏️ Editar perfil</button>
+    </div>
+  `;
+
+  document.getElementById('m-pl-modal')?.classList.add('show');
+}
+
+async function _plModalSalvar(){
+  if(!_plModalData) return;
+  const status   = document.getElementById('plm-status')?.value;
+  const interesse= document.getElementById('plm-interesse')?.value;
+  const followup = document.getElementById('plm-followup')?.value||null;
+  try{
+    await sb.from('clientes').update({status_crm:status, interesse_veiculo:interesse, followup_em:followup}).eq('id',_plModalData.id);
+    // Atualiza local
+    const idx = _plDados.findIndex(x=>x.id===_plModalData.id);
+    if(idx>=0){ _plDados[idx].status_crm=status; _plDados[idx].interesse_veiculo=interesse; _plDados[idx].followup_em=followup; }
+    notify('Lead atualizado!','success');
+    closeModal('pl-modal');
+    _plRenderMetricas();
+    renderPipeline();
+  }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+async function _plModalNota(){
+  if(!_plModalData) return;
+  const inp   = document.getElementById('plm-nota');
+  const texto = inp?.value?.trim();
+  if(!texto){ notify('Digite uma nota','error'); return; }
+  try{
+    await sb.from('notas_internas').insert({cliente_id:_plModalData.id, texto, criado_por:currentUser?.id||null});
+    if(inp) inp.value='';
+    notify('Nota registrada!','success');
+    // Reabre modal para atualizar histórico
+    _plAbrirModal(_plModalData.id);
+  }catch(e){ notify('Erro: '+e.message,'error'); }
 }
 
 function _plVisu(modo){
@@ -162,7 +359,7 @@ function _plVisu(modo){
   renderPipeline();
 }
 
-function _plAbrirCliente(id){
+function _plIrChat(id){
   goPage('chat');
   setTimeout(()=>{ if(typeof abrirChat==='function') abrirChat(id); }, 300);
 }

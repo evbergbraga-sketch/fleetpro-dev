@@ -1447,7 +1447,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <div id="pl-lista" style="display:none">
           <div class="card" style="padding:0;overflow:hidden">
             <table>
-              <thead><tr><th>Cliente</th><th>Status</th><th>Responsável</th><th>Follow-up</th><th>Último contato</th><th></th></tr></thead>
+              <thead><tr><th>Cliente</th><th>Status</th><th>Interesse</th><th>Responsável</th><th>Follow-up</th><th>Cadastrado</th><th></th></tr></thead>
               <tbody id="pl-lista-tbody"></tbody>
             </table>
           </div>
@@ -1729,6 +1729,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <option value="ativo">🟢 Ativo</option>
               <option value="reprovado">🔴 Ficha reprovada</option>
               <option value="inativo">⚫ Inativo</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:11px">Interesse em</label>
+            <select id="ec-interesse-veiculo" style="width:100%">
+              <option value="indefinido">— Indefinido —</option>
+              <option value="carro">🚗 Carro</option>
+              <option value="moto">🏍️ Moto</option>
+              <option value="ambos">🚗🏍️ Ambos</option>
             </select>
           </div>
           <div class="form-group" style="margin:0">
@@ -2546,7 +2555,18 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
   </div>
 </div>
 
-<!-- CRM: dropdown encaminhar — fora de qualquer overflow:hidden para z-index funcionar -->
+<!-- MODAL PIPELINE LEAD -->
+<div class="modal-overlay" id="m-pl-modal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <div class="modal-title">Lead</div>
+      <button onclick="closeModal('pl-modal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <div id="pl-modal-body" style="padding:4px 0"></div>
+  </div>
+</div>
+
+</body>
 <div id="crm-enc-dropdown" style="display:none;position:fixed;background:#182229;border:1px solid rgba(255,255,255,.12);border-radius:10px;z-index:99999;min-width:170px;box-shadow:0 8px 32px rgba(0,0,0,.7)">
   <div style="padding:6px 0">
     <div onclick="_crmEncaminhar('Financeiro')" style="padding:9px 14px;font-size:12px;color:#e9edef;cursor:pointer;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'"><span style="width:8px;height:8px;border-radius:50%;background:#378ADD;display:inline-block;flex-shrink:0"></span>Financeiro</div>
