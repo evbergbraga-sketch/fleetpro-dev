@@ -1180,35 +1180,11 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                   <span style="font-size:10px;color:#8696a0">▼</span>
                 </div>
               </div>
-              <div id="side-respostas" style="padding:0 12px 12px">
+              <div id="side-respostas" style="padding:0 12px 12px;display:none">
                 <div id="chat-respostas-rapidas"></div>
               </div>
             </div>
 
-            <!-- ASSINATURA -->
-            <div style="border-bottom:1px solid rgba(255,255,255,0.06)">
-              <div onclick="_toggleSideSection('side-assinatura')" style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='none'">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:14px">✍️</span>
-                  <span style="font-size:13px;font-weight:600;color:#e9edef">Assinatura</span>
-                </div>
-                <span style="font-size:10px;color:#8696a0">▼</span>
-              </div>
-              <div id="side-assinatura" style="padding:0 16px 14px;display:none">
-                <div style="margin-bottom:10px">
-                  <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">Nome da locadora</div>
-                  <input type="text" id="wpp-nome-locadora" value="FleetPro Locadora" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none">
-                </div>
-                <div style="margin-bottom:10px">
-                  <div style="font-size:10px;font-weight:600;color:#8696a0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">Texto da assinatura</div>
-                  <textarea id="wpp-assinatura" rows="2" style="width:100%;font-size:12px;background:#202c33;border:1px solid rgba(255,255,255,0.08);color:#e9edef;border-radius:8px;padding:8px 10px;outline:none;resize:none">— Equipe FleetPro 🚗🏍️</textarea>
-                </div>
-                <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#8696a0;cursor:pointer;margin-bottom:12px">
-                  <input type="checkbox" id="wpp-usar-assin" checked style="accent-color:#00a884"> Adicionar assinatura automática
-                </label>
-                <button onclick="salvarPersonalizacao()" style="width:100%;padding:9px;background:#202c33;border:1px solid rgba(255,255,255,0.1);color:#e9edef;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:.15s" onmouseover="this.style.borderColor='#00a884'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">💾 Salvar</button>
-              </div>
-            </div>
 
           </div>
         </div>
