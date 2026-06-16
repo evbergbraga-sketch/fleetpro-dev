@@ -473,6 +473,24 @@ async function evoSendText(telefone, texto){
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   if(!cfg.apiUrl||!cfg.apiKey) throw new Error('Evolution API não configurada. Configure no painel ⚙');
   const num = fmtPhone(telefone);
+
+  // Tenta enviar pelo bridge (salva no banco automaticamente, evita duplicata)
+  const bridgeUrl = cfg.bridgeUrl || cfg.apiUrl.replace('evo.','bridge.');
+  try{
+    const r = await fetch(bridgeUrl+'/api/enviar-mensagem', {
+      method:'POST',
+      headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+      body: JSON.stringify({
+        numero: num,
+        texto,
+        clienteId: activeChatId||null,
+        nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
+      })
+    });
+    if(r.ok) return await r.json();
+  }catch(_){}
+
+  // Fallback: envia direto pelo Evolution (sem salvar no banco)
   const r = await fetch(cfg.apiUrl+'/message/sendText/'+cfg.instancia,{
     method:'POST',
     headers:{'apikey':cfg.apiKey,'Content-Type':'application/json'},
@@ -1490,9 +1508,6 @@ async function sendMsg(){
   inp.value = '';
   try{
     await evoSendText(telefone, textoFinal);
-    // Salva no banco diretamente — webhook do Evolution não dispara para mensagens enviadas pelo sistema
-    const c = allClientes?.find(x=>x.id===activeChatId);
-    await salvarMsgDB(c?.id||null, telefone, textoFinal, 'text', 'saida', null);
   }catch(e){
     notify('Erro ao enviar: '+e.message,'error');
   }
@@ -1575,10 +1590,6 @@ async function _enviarMidiaWpp(c){
       }
     }catch(_){}
     adicionarMsgLocal(activeChatId, fileName||'Arquivo', tipo, localUrl);
-    // Salva no banco diretamente (webhook não dispara para mídia enviada pelo sistema)
-    const cm = allClientes?.find(x=>x.id===activeChatId);
-    const telMidia = cm?.telefone ? fmtPhone(cm.telefone) : activeChatId;
-    await salvarMsgDB(cm?.id||null, telMidia, fileName||'Arquivo', tipo, 'saida', storageUrl||localUrl||null);
     cancelarMidia();
     notify('Arquivo enviado ✓','success');
   }catch(err){
