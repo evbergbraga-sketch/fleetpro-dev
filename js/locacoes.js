@@ -417,10 +417,27 @@ async function abrirModalLocacao(locId){
     <div id="painel-estender" style="display:none">
       ${_renderFormEstender(locId, loc)}
     </div>` : ''}
+
+    <!-- ANEXOS -->
+    <div style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">📎 Arquivos e Documentos</span>
+        <label style="cursor:pointer;padding:6px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-weight:600">
+          + Anexar
+          <input type="file" id="loc-anexo-input" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" onchange="_locUploadAnexos(this,'${locId}')">
+        </label>
+      </div>
+      <div id="loc-anexos-lista" style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">⏳ Carregando anexos...</div>
+      </div>
+    </div>
   `;
 
   // Carrega itens do checklist filtrado por tipo de veículo
   await _carregarItensChecklist(loc.veiculos?.tipo || 'moto');
+
+  // Carrega anexos da locação
+  _locCarregarAnexos(locId);
 
   // Inicializa cálculo da extensão (nova devolução, totais)
   if(loc.status==='ativa' && typeof _calcExtensao==='function'){
@@ -1561,4 +1578,87 @@ function renderHistoricoLocacoes(){
           onclick="abrirModalLocacao('${l.id}')">📋 Detalhes</button>
       </td>
     </tr>`).join('');
+}
+
+// ── ANEXOS DA LOCAÇÃO ──
+async function _locCarregarAnexos(locId){
+  const lista = document.getElementById('loc-anexos-lista');
+  if(!lista) return;
+  try{
+    const {data,error} = await sb.from('locacao_anexos')
+      .select('*,perfis(nome)')
+      .eq('locacao_id', locId)
+      .order('created_at',{ascending:false});
+    if(error) throw error;
+    if(!data?.length){
+      lista.innerHTML = `<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px;border:1.5px dashed var(--border2);border-radius:8px">Nenhum arquivo anexado ainda</div>`;
+      return;
+    }
+    lista.innerHTML = data.map(a=>{
+      const ext   = a.nome.split('.').pop().toLowerCase();
+      const isImg = ['jpg','jpeg','png','gif','webp'].includes(ext);
+      const isPdf = ext === 'pdf';
+      const icon  = isImg ? '🖼️' : isPdf ? '📄' : ['doc','docx'].includes(ext) ? '📝' : ['xls','xlsx'].includes(ext) ? '📊' : '📎';
+      const tam   = a.tamanho ? (a.tamanho > 1024*1024 ? (a.tamanho/1024/1024).toFixed(1)+'MB' : Math.round(a.tamanho/1024)+'KB') : '';
+      const data_fmt = new Date(a.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+      const quem = a.perfis?.nome?.split(' ')[0]||'';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px">
+        <span style="font-size:20px;flex-shrink:0">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nome}</div>
+          <div style="font-size:10px;color:var(--muted)">${tam} · ${data_fmt}${quem?' · '+quem:''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <a href="${a.url}" target="_blank" style="padding:5px 10px;font-size:11px;background:rgba(99,102,241,.12);color:var(--accent);border:1px solid rgba(99,102,241,.25);border-radius:6px;text-decoration:none;font-weight:600">👁 Ver</a>
+          <button onclick="_locExcluirAnexo('${a.id}','${a.url}','${locId}')" style="padding:5px 8px;font-size:11px;background:none;color:var(--muted);border:1px solid var(--border2);border-radius:6px;cursor:pointer" onmouseover="this.style.color='#F87171'" onmouseout="this.style.color='var(--muted)'">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    if(lista) lista.innerHTML = `<div style="font-size:12px;color:var(--red)">Erro ao carregar: ${e.message}</div>`;
+  }
+}
+
+async function _locUploadAnexos(input, locId){
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  const lista = document.getElementById('loc-anexos-lista');
+  if(lista) lista.innerHTML = `<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">⏳ Enviando ${files.length} arquivo(s)...</div>`;
+
+  try{
+    for(const file of files){
+      const ext  = file.name.split('.').pop().toLowerCase();
+      const path = `locacoes/${locId}/${Date.now()}_${file.name.replace(/\s+/g,'_')}`;
+      const {data:up, error:upErr} = await sb.storage.from('locacoes-docs').upload(path, file, {upsert:false});
+      if(upErr) throw upErr;
+      const {data:{publicUrl}} = sb.storage.from('locacoes-docs').getPublicUrl(path);
+      const tipo = ['jpg','jpeg','png','gif','webp'].includes(ext) ? 'imagem' : ext==='pdf' ? 'pdf' : ['doc','docx'].includes(ext) ? 'documento' : 'outro';
+      await sb.from('locacao_anexos').insert({
+        locacao_id: locId,
+        nome: file.name,
+        url: publicUrl,
+        tipo,
+        tamanho: file.size,
+        criado_por: currentUser?.id||null,
+      });
+    }
+    notify(`${files.length} arquivo(s) anexado(s)!`,'success');
+  }catch(e){
+    notify('Erro no upload: '+e.message,'error');
+  }finally{
+    input.value = '';
+    _locCarregarAnexos(locId);
+  }
+}
+
+async function _locExcluirAnexo(id, url, locId){
+  if(!confirm('Remover este arquivo?')) return;
+  try{
+    // Extrai o path do Storage da URL pública
+    const match = url.match(/locacoes-docs\/(.+)$/);
+    if(match) await sb.storage.from('locacoes-docs').remove([match[1]]);
+    await sb.from('locacao_anexos').delete().eq('id', id);
+    notify('Arquivo removido','success');
+    _locCarregarAnexos(locId);
+  }catch(e){ notify('Erro: '+e.message,'error'); }
 }
