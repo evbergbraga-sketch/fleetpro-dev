@@ -31,13 +31,17 @@ function _aplRenderMetricas(){
     : 0;
 
   el.innerHTML = [
-    { val:total,          lbl:'Total de chamadas',   sub:'histórico',      ico:'📊', cor:'var(--accent)' },
-    { val:hojeCount,      lbl:'Hoje',                sub:'requisições',    ico:'📅', cor:'#4ADE80' },
-    { val:erros,          lbl:'Erros (4xx/5xx)',      sub:'total',          ico:'🔴', cor: erros>0?'#F87171':'var(--muted2)' },
-    { val:avgDur+'ms',    lbl:'Tempo médio',          sub:'de resposta',    ico:'⚡', cor:'#F5B942' },
+    { val:total,          lbl:'Total de chamadas',   sub:'histórico',      cor:'var(--accent)',
+      svg:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>` },
+    { val:hojeCount,      lbl:'Hoje',                sub:'requisições',    cor:'#4ADE80',
+      svg:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>` },
+    { val:erros,          lbl:'Erros (4xx/5xx)',      sub:'total',          cor: erros>0?'#F87171':'var(--muted2)',
+      svg:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>` },
+    { val:avgDur+'ms',    lbl:'Tempo médio',          sub:'de resposta',    cor:'#F5B942',
+      svg:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>` },
   ].map(m=>`
     <div class="card" style="padding:16px">
-      <div style="font-size:22px;margin-bottom:6px">${m.ico}</div>
+      <div style="color:${m.cor};margin-bottom:8px">${m.svg}</div>
       <div style="font-size:24px;font-weight:800;color:${m.cor}">${m.val}</div>
       <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:2px">${m.lbl}</div>
       <div style="font-size:10px;color:var(--muted2)">${m.sub}</div>
@@ -78,7 +82,7 @@ function renderApiLogs(){
     const sc = l.status_code||0;
     const statusCor = sc>=500?'#F87171':sc>=400?'#F87171':sc>=200?'#4ADE80':'var(--muted)';
     const statusBg  = sc>=400?'rgba(248,113,113,.1)':'rgba(74,222,128,.1)';
-    const statusIco = sc===429?'⚠️':sc>=500?'🔴':sc>=400?'🔴':'✅';
+    const statusIco = sc===429?'429':sc>=500?'5xx':sc>=400?'4xx':sc>=200?'2xx':'—';
 
     const dur = l.duration_ms ? `${l.duration_ms}ms` : '—';
 
