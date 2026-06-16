@@ -1490,8 +1490,9 @@ async function sendMsg(){
   inp.value = '';
   try{
     await evoSendText(telefone, textoFinal);
-    // NÃO salvar no banco aqui — o bridge já salva quando processa o envio.
-    // Salvar aqui causaria duplicata no banco e consequentemente visual.
+    // Salva no banco diretamente — webhook do Evolution não dispara para mensagens enviadas pelo sistema
+    const c = allClientes?.find(x=>x.id===activeChatId);
+    await salvarMsgDB(c?.id||null, telefone, textoFinal, 'text', 'saida', null);
   }catch(e){
     notify('Erro ao enviar: '+e.message,'error');
   }
@@ -1574,7 +1575,10 @@ async function _enviarMidiaWpp(c){
       }
     }catch(_){}
     adicionarMsgLocal(activeChatId, fileName||'Arquivo', tipo, localUrl);
-    // bridge salva no banco — não duplicar aqui
+    // Salva no banco diretamente (webhook não dispara para mídia enviada pelo sistema)
+    const cm = allClientes?.find(x=>x.id===activeChatId);
+    const telMidia = cm?.telefone ? fmtPhone(cm.telefone) : activeChatId;
+    await salvarMsgDB(cm?.id||null, telMidia, fileName||'Arquivo', tipo, 'saida', storageUrl||localUrl||null);
     cancelarMidia();
     notify('Arquivo enviado ✓','success');
   }catch(err){
