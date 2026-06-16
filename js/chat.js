@@ -264,11 +264,17 @@ function receberMsgSSE(msg){
   const cidPorNumero = encontrarClientePorNumero(msg.numero);
   const cid          = cidPorId || cidPorNumero || msg.numero;
 
-  const isSara     = (msg.nomeCliente||'').includes('SARA') || (msg.nomeCliente||'').includes('🤖');
+  const isSara      = (msg.nomeCliente||'').includes('SARA') || (msg.nomeCliente||'').includes('🤖');
   const isAtendente = msg.atendente===true || (msg.nomeCliente||'').includes('Atendente');
   const fromMe = isSara || isAtendente
     || msg.fromMe===true || msg.fromMe==='true'
     || msg.from_me===true || msg.from_me==='true';
+
+  // Se é mensagem do atendente (não SARA) e está no set de recentes, é eco do bridge — ignora
+  if(isAtendente && !isSara){
+    const textoEco = (msg.texto||'').trim().slice(0,100);
+    if(_msgEnviadasRecentes.has(textoEco)) return; // eco do próprio envio via bridge
+  }
 
   const msgObj = {
     texto:      msg.texto||'',
