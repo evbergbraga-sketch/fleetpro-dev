@@ -8,6 +8,7 @@ const PAGE_CFG = {
   historico:   {title:'Histórico & Manutenção',  action:'+ Manutenção',        modal:'manutencao',roles:['admin','atendente']},
   clientes:    {title:'Clientes',                action:'+ Novo cliente',      modal:'cliente',   roles:['admin','atendente']},
   pipeline:    {title:'Pipeline CRM',            action:'',                    modal:null,        roles:['admin','atendente']},
+  apilogs:     {title:'Logs da API',             action:'',                    modal:null,        roles:['admin']},
   reservas:    {title:'Reservas',                action:'+ Nova reserva',      modal:'reserva',   roles:['admin','atendente']},
   locacoes:    {title:'Locações em andamento',   action:'',                    modal:null,        roles:['admin','atendente']},
   contratos:   {title:'Contratos',               action:'',                    modal:null,        roles:['admin','atendente']},
@@ -60,7 +61,8 @@ function goPage(id, navEl){
     btn.onclick = ()=>{ if(typeof finAbrirNovoLancamento==='function') finAbrirNovoLancamento(); };
   }
   if(id==='ajuda' && typeof renderAjudaAcordeon==='function') renderAjudaAcordeon();
-  if(id==='pipeline' && typeof iniciarPipeline==='function') iniciarPipeline();
+  if(id==='pipeline'  && typeof iniciarPipeline==='function')  iniciarPipeline();
+  if(id==='apilogs'   && typeof iniciarApiLogs==='function')   iniciarApiLogs();
   if(id==='calendario'){renderCal();}
   if(id==='chat'){
     renderChatContacts();
