@@ -301,7 +301,8 @@ function receberMsgSSE(msg){
       // Deduplicação: se foi enviada por nós via FleetPro (eco do SSE), ignora.
       // Se chegou via SSE com created_at idêntico, também ignora.
       const textoSSE = (msgObj.texto||'').trim().slice(0,100);
-      const ehEco = (msgObj.direcao==='saida' || msgObj.out) && _msgEnviadasRecentes.has(textoSSE);
+      const isSaida  = msgObj.direcao==='saida' || msgObj.out===true || msgObj.fromMe===true || msgObj.atendente===true;
+      const ehEco    = isSaida && _msgEnviadasRecentes.has(textoSSE);
       const jaTemBalao = ehEco || !!area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
       if(!jaTemBalao){
         area.insertAdjacentHTML('beforeend', renderMsgItem(msgObj));
