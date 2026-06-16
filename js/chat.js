@@ -1180,17 +1180,24 @@ async function _dashCarregarFollowups(){
     const hoje = new Date().toISOString().slice(0,10);
     const {data} = await sb.from('clientes')
       .select('id,nome,telefone,status_crm,followup_em,responsavel_id,perfis(nome)')
-      .eq('followup_em', hoje)
+      .lte('followup_em', hoje)  // hoje E atrasados
+      .not('followup_em','is',null)
       .limit(10);
     const card = document.getElementById('dash-followup-card');
     const list = document.getElementById('dash-followup-list');
     if(!card||!list) return;
     if(!data?.length){ card.style.display='none'; return; }
     card.style.display = '';
+    const cfg_map = _getCrmStatusCfg();
     list.innerHTML = data.map(c=>{
-      const cfg = _CRM_STATUS_CFG?.[c.status_crm]||null;
+      const cfg = cfg_map[c.status_crm]||null;
       const badgeCrm = cfg ? `<span style="font-size:10px;padding:2px 8px;border-radius:999px;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.border};font-weight:600">${cfg.label}</span>` : '';
       const resp = c.perfis?.nome ? `<span style="font-size:11px;color:var(--muted)">👤 ${c.perfis.nome.split(' ')[0]}</span>` : '';
+      const fu = (c.followup_em||'').slice(0,10);
+      const atrasado = fu < hoje;
+      const fuBadge = atrasado
+        ? `<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600">⚠️ Atrasado</span>`
+        : `<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(245,185,66,.15);color:#f5b942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Hoje</span>`;
       return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2);border-radius:8px;gap:10px;cursor:pointer" onclick="goPage('chat');setTimeout(()=>abrirChat('${c.id}'),300)">
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nome}</div>
@@ -1199,7 +1206,7 @@ async function _dashCarregarFollowups(){
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
           ${badgeCrm}
           ${resp}
-          <span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(245,185,66,.15);color:#f5b942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Hoje</span>
+          ${fuBadge}
         </div>
       </div>`;
     }).join('');
