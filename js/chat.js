@@ -614,10 +614,11 @@ async function renderChatMsgs(cid){
     // O banco é a fonte da verdade — descarta cache e usa só o banco
     // Mantém apenas msgs do SSE que ainda não chegaram no banco (sem id, recentes)
     const memMsgs = chatMsgs[cid]||[];
-    const vistosDb = new Set(dbMsgs.map(m=>_msgKey(m)));
+    // Compara por texto+direção para detectar msgs locais que já estão no banco
+    const vistosDbTexto = new Set(dbMsgs.map(m=>(m.direcao||'')+'|'+(m.texto||'').slice(0,80).trim()));
     const apenasSSE = memMsgs.filter(m=>
-      !m.id && // só msgs sem id (vieram do SSE, não do banco)
-      !vistosDb.has(_msgKey(m)) &&
+      !m.id && // só msgs sem id (vieram do SSE/local, não do banco)
+      !vistosDbTexto.has((m.direcao||'')+'|'+(m.texto||'').slice(0,80).trim()) &&
       new Date(m.created_at||0) > Date.now() - 60000 // só das últimas 60s
     );
     const todas = [...dbMsgs, ...apenasSSE]
