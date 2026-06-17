@@ -91,7 +91,7 @@ async function loadLocacoesCompletas(){
 // ══ HISTÓRICO DE PAGAMENTOS E ADITIVOS ══
 function _extrairFormaDescricao(desc){
   if(!desc) return null;
-  const formas = ['PIX','Cartão de Crédito','Cartão de Débito','Dinheiro','Transferência','Boleto'];
+  const formas = ['PIX','Cartão Crédito','Cartão Débito','Dinheiro','Transferência','Boleto'];
   for(const f of formas){ if(desc.includes(f)) return f; }
   return null;
 }
@@ -100,7 +100,7 @@ function _descSemForma(desc){
   if(!desc) return desc;
   const partes = desc.split(' — ');
   const last = partes[partes.length-1];
-  const formas = ['PIX','Cartão de Crédito','Cartão de Débito','Dinheiro','Transferência','Boleto'];
+  const formas = ['PIX','Cartão Crédito','Cartão Débito','Dinheiro','Transferência','Boleto'];
   const semForma = formas.includes(last) ? partes.slice(0,-1) : partes;
   return semForma.slice(-1)[0];
 }
@@ -227,7 +227,7 @@ function _abrirFormPagarSemana(cobrancaId, valorPrevisto){
       <input type="number" id="cobr-valor-${cobrancaId}" value="${Number(valorPrevisto).toFixed(2)}" step="0.01" style="width:100px;font-size:12px;padding:4px 8px">
       <span style="font-size:12px;color:var(--muted)">Forma</span>
       <select id="cobr-forma-${cobrancaId}" style="font-size:12px;padding:4px 8px">
-        <option>Dinheiro</option><option>PIX</option><option>Cartão de Débito</option><option>Cartão de Crédito</option><option>Boleto</option>
+        <option>Dinheiro</option><option>PIX</option><option>Cartão Débito</option><option>Cartão Crédito</option><option>Boleto</option>
       </select>
       <button onclick="_confirmarPagamentoSemana('${cobrancaId}')" style="font-size:12px;padding:5px 12px;background:var(--green);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">✓ Confirmar</button>
       <button onclick="abrirModalLocacao(window._locDetalheAtualId)" style="font-size:12px;padding:5px 12px;background:var(--bg3);color:var(--text);border:none;border-radius:6px;cursor:pointer">Cancelar</button>
@@ -630,8 +630,8 @@ function _renderFormEstender(locId, loc){
         <label>Forma de pagamento</label>
         <select id="est-forma-pgto" style="width:100%">
           <option value="PIX">PIX</option>
-          <option value="Cartão de Crédito">Cartão de Crédito</option>
-          <option value="Cartão de Débito">Cartão de Débito</option>
+          <option value="Cartão Crédito">Cartão Crédito</option>
+          <option value="Cartão Débito">Cartão Débito</option>
           <option value="Dinheiro">Dinheiro</option>
           <option value="Transferência">Transferência</option>
           <option value="Boleto">Boleto</option>
@@ -1039,8 +1039,8 @@ function _renderFormChecklist(tipo, locId, loc){
               <label>Forma de pagamento</label>
               <select id="pgr-forma1" style="width:100%">
                 <option value="PIX">PIX</option>
-                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                <option value="Cartão de Débito">Cartão de Débito</option>
+                <option value="Cartão Crédito">Cartão Crédito</option>
+                <option value="Cartão Débito">Cartão Débito</option>
                 <option value="Dinheiro">Dinheiro</option>
                 <option value="Transferência">Transferência</option>
                 <option value="Boleto">Boleto</option>
@@ -1060,8 +1060,8 @@ function _renderFormChecklist(tipo, locId, loc){
               <label>Forma 2</label>
               <select id="pgr-forma2" style="width:100%">
                 <option value="PIX">PIX</option>
-                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                <option value="Cartão de Débito">Cartão de Débito</option>
+                <option value="Cartão Crédito">Cartão Crédito</option>
+                <option value="Cartão Débito">Cartão Débito</option>
                 <option value="Dinheiro">Dinheiro</option>
                 <option value="Transferência">Transferência</option>
                 <option value="Boleto">Boleto</option>
