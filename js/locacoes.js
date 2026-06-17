@@ -1309,22 +1309,28 @@ async function salvarChecklist(tipo, locId){
     if(tipo==='entrada'){
       const loc = (await sb.from('locacoes').select('*, veiculos(*), clientes(*)').eq('id', locId).single()).data;
 
-      if(pgrInfo && pgrInfo.totalAReceber>0){
+      if(pgrInfo && pgrInfo.restanteContrato > 0){
         const descBase = `Contrato #${loc?.num_contrato||locId.slice(0,8)} — ${loc?.clientes?.nome||''} — ${loc?.veiculos?.placa||''} — Saldo final`;
-        if(pgrInfo.valor1>0){
+        // Lança apenas o restante do contrato (custos extras são lançados separadamente)
+        // Se pagou em 2 formas, distribui proporcionalmente ao restante do contrato
+        const proporcao = pgrInfo.totalAReceber > 0 ? pgrInfo.restanteContrato / pgrInfo.totalAReceber : 1;
+        const v1 = pgrInfo.custosTotal > 0 ? Math.round(pgrInfo.valor1 * proporcao * 100) / 100 : pgrInfo.valor1;
+        const v2 = pgrInfo.custosTotal > 0 ? Math.round(pgrInfo.valor2 * proporcao * 100) / 100 : pgrInfo.valor2;
+
+        if(v1 > 0){
           await sb.from('lancamentos').insert({
             tipo:'receita', categoria:'Aluguel', descricao: descBase+` — ${pgrInfo.forma1}`,
-            valor: pgrInfo.valor1, data: new Date().toISOString().slice(0,10),
+            valor: v1, data: new Date().toISOString().slice(0,10),
             veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
             origem:'checklist_entrada', criado_por: currentUser?.id,
             forma_pgto: pgrInfo.forma1||null,
             num_contrato: loc?.num_contrato ? String(loc.num_contrato) : null,
           });
         }
-        if(pgrInfo.valor2>0){
+        if(v2 > 0){
           await sb.from('lancamentos').insert({
             tipo:'receita', categoria:'Aluguel', descricao: descBase+` (2ª forma) — ${pgrInfo.forma2}`,
-            valor: pgrInfo.valor2, data: new Date().toISOString().slice(0,10),
+            valor: v2, data: new Date().toISOString().slice(0,10),
             veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
             origem:'checklist_entrada', criado_por: currentUser?.id,
             forma_pgto: pgrInfo.forma2||null,
