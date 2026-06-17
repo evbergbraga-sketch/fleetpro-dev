@@ -626,6 +626,8 @@ async function finRegistrarLancamentoLocacao(locacao){
           locacao_id:  locacao.id||null,
           origem:      'automatico',
           criado_por:  currentUser?.id,
+          forma_pgto:  locacao.forma_pgto_caucao||locacao.forma_pgto||null,
+          num_contrato: locacao.num_contrato ? String(locacao.num_contrato) : null,
         });
       }
 
@@ -659,6 +661,8 @@ async function finRegistrarLancamentoLocacao(locacao){
           locacao_id:  locacao.id||null,
           origem:      'automatico',
           criado_por:  currentUser?.id,
+          forma_pgto:  locacao.forma_pgto||null,
+          num_contrato: locacao.num_contrato ? String(locacao.num_contrato) : null,
         }).select().single();
 
         const semana1 = (cobrancasInseridas||[]).find(c=>c.numero_semana===1);
@@ -678,6 +682,8 @@ async function finRegistrarLancamentoLocacao(locacao){
       data:        dataBase,
       veiculo_id:  locacao.veiculo_id||null,
       locacao_id:  locacao.id||null,
+      forma_pgto:  locacao.forma_pgto||null,
+      num_contrato: locacao.num_contrato ? String(locacao.num_contrato) : null,
       origem:      'automatico',
       criado_por:  currentUser?.id,
     });

@@ -902,6 +902,8 @@ async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
         valor: total, data: new Date().toISOString().slice(0,10),
         veiculo_id: loc.veiculo_id||null, locacao_id: locId,
         origem:'extensao', criado_por: currentUser?.id,
+        forma_pgto: forma||null,
+        num_contrato: loc.num_contrato ? String(loc.num_contrato) : null,
       });
     }
 
@@ -1294,6 +1296,8 @@ async function salvarChecklist(tipo, locId){
           locacao_id:   locId,
           origem:       'checklist_entrada',
           criado_por:   currentUser?.id,
+          forma_pgto:   custo.forma_pgto||null,
+          num_contrato: loc?.num_contrato ? String(loc.num_contrato) : null,
         });
       }
       _custosDevolucao = []; // limpa após salvar
@@ -1312,6 +1316,8 @@ async function salvarChecklist(tipo, locId){
             valor: pgrInfo.valor1, data: new Date().toISOString().slice(0,10),
             veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
             origem:'checklist_entrada', criado_por: currentUser?.id,
+            forma_pgto: pgrInfo.forma1||null,
+            num_contrato: loc?.num_contrato ? String(loc.num_contrato) : null,
           });
         }
         if(pgrInfo.valor2>0){
@@ -1320,6 +1326,8 @@ async function salvarChecklist(tipo, locId){
             valor: pgrInfo.valor2, data: new Date().toISOString().slice(0,10),
             veiculo_id: loc?.veiculo_id||null, locacao_id: locId,
             origem:'checklist_entrada', criado_por: currentUser?.id,
+            forma_pgto: pgrInfo.forma2||null,
+            num_contrato: loc?.num_contrato ? String(loc.num_contrato) : null,
           });
         }
       }
@@ -1394,7 +1402,7 @@ function _renderCustosDevolucao(){
   }
 
   wrap.innerHTML = _custosDevolucao.map(c=>`
-    <div id="custo-row-${c.id}" style="display:grid;grid-template-columns:28px 1fr 100px 1fr 28px;gap:8px;align-items:center;padding:10px 12px;margin-bottom:6px;background:var(--bg3,var(--bg));border-radius:10px;border:1px solid var(--border2)">
+    <div id="custo-row-${c.id}" style="display:grid;grid-template-columns:28px 1fr 100px 1fr 130px 28px;gap:8px;align-items:center;padding:10px 12px;margin-bottom:6px;background:var(--bg3,var(--bg));border-radius:10px;border:1px solid var(--border2)">
       <span style="font-size:18px;text-align:center">${c.categoria==='Tag / Pedágio'?'🛣️':c.categoria==='Reparo'?'🔧':c.categoria==='Lavagem'?'🫧':'⚠️'}</span>
       <div>
         <div style="font-size:9px;color:var(--muted2);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">${c.categoria}</div>
@@ -1413,6 +1421,20 @@ function _renderCustosDevolucao(){
         <input type="text" placeholder="Opcional" value="${c.observacao}"
           oninput="_custosDevolucao.find(x=>x.id===${c.id}).observacao=this.value"
           style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--muted2);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Forma Pgto</div>
+        <select onchange="_custosDevolucao.find(x=>x.id===${c.id}).forma_pgto=this.value"
+          style="width:100%;font-size:12px;padding:5px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
+          <option value="">—</option>
+          <option value="Dinheiro"${c.forma_pgto==='Dinheiro'?' selected':''}>Dinheiro</option>
+          <option value="PIX"${c.forma_pgto==='PIX'?' selected':''}>PIX</option>
+          <option value="Cartão Débito"${c.forma_pgto==='Cartão Débito'?' selected':''}>Cartão Débito</option>
+          <option value="Cartão Crédito"${c.forma_pgto==='Cartão Crédito'?' selected':''}>Cartão Crédito</option>
+          <option value="Transferência"${c.forma_pgto==='Transferência'?' selected':''}>Transferência</option>
+          <option value="Boleto"${c.forma_pgto==='Boleto'?' selected':''}>Boleto</option>
+          <option value="Asaas"${c.forma_pgto==='Asaas'?' selected':''}>Asaas</option>
+        </select>
       </div>
       <button onclick="_removeCusto(${c.id})" title="Remover" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--red,#dc2626);padding:0;line-height:1;align-self:center">×</button>
     </div>`).join('');
