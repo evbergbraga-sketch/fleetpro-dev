@@ -1437,33 +1437,57 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <!-- API LOGS -->
       <div class="page" id="page-apilogs">
         <div id="apilogs-metricas" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
-        <div class="card" style="padding:12px 16px;margin-bottom:16px">
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <select id="apl-metodo" onchange="renderApiLogs()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
-              <option value="">Todos métodos</option>
-              <option value="GET">GET</option>
-              <option value="POST">POST</option>
-              <option value="PATCH">PATCH</option>
-            </select>
-            <select id="apl-status" onchange="renderApiLogs()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
-              <option value="">Todos status</option>
-              <option value="200">✅ 200 Sucesso</option>
-              <option value="201">✅ 201 Criado</option>
-              <option value="401">🔴 401 Não autorizado</option>
-              <option value="429">⚠️ 429 Rate limit</option>
-              <option value="500">🔴 500 Erro</option>
-            </select>
-            <input type="date" id="apl-data" onchange="renderApiLogs()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
-            <button onclick="iniciarApiLogs()" class="btn btn-ghost" style="font-size:12px;display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Atualizar</button>
-            <span id="apl-total" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+
+        <!-- TABS -->
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:20px">
+          <button onclick="_aplTab('logs')" id="apl-tab-logs" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;border-bottom:2px solid var(--accent);color:var(--accent);margin-bottom:-2px">Logs de Acesso</button>
+          <button onclick="_aplTab('docs')" id="apl-tab-docs" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">Documentação</button>
+        </div>
+
+        <!-- LOGS -->
+        <div id="apl-section-logs">
+          <div class="card" style="padding:12px 16px;margin-bottom:16px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <select id="apl-metodo" onchange="renderApiLogs()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+                <option value="">Todos métodos</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PATCH">PATCH</option>
+              </select>
+              <select id="apl-status" onchange="renderApiLogs()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+                <option value="">Todos status</option>
+                <option value="200">200 Sucesso</option>
+                <option value="201">201 Criado</option>
+                <option value="401">401 Não autorizado</option>
+                <option value="429">429 Rate limit</option>
+                <option value="500">500 Erro</option>
+              </select>
+              <input type="date" id="apl-data" onchange="renderApiLogs()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+              <button onclick="iniciarApiLogs()" class="btn btn-ghost" style="font-size:12px;display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Atualizar</button>
+              <span id="apl-total" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+            </div>
+          </div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <table>
+              <thead><tr><th>Data/Hora</th><th>Método</th><th>Endpoint</th><th>IP</th><th>Token</th><th>Status</th><th>Duração</th></tr></thead>
+              <tbody id="apl-tbody"></tbody>
+            </table>
           </div>
         </div>
-        <div class="card" style="padding:0;overflow:hidden">
-          <table>
-            <thead><tr><th>Data/Hora</th><th>Método</th><th>Endpoint</th><th>IP</th><th>Token</th><th>Status</th><th>Duração</th></tr></thead>
-            <tbody id="apl-tbody"></tbody>
-          </table>
+
+        <!-- DOCUMENTAÇÃO -->
+        <div id="apl-section-docs" style="display:none">
+          <div class="card" style="padding:24px">
+            <div style="margin-bottom:20px">
+              <div style="font-size:18px;font-weight:800;color:var(--text)">FleetPro API v1</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:6px">Base URL: <code style="background:var(--bg2);padding:3px 10px;border-radius:6px;font-size:12px">https://bridge.ruahsystems.com.br/api/v1</code></div>
+              <div style="font-size:13px;color:var(--muted);margin-top:4px">Autenticação: <code style="background:var(--bg2);padding:3px 10px;border-radius:6px;font-size:12px">Authorization: Bearer &lt;token&gt;</code></div>
+            </div>
+
+            <div id="apl-docs-endpoints"></div>
+          </div>
         </div>
+
       </div>
 
       <div class="page" id="page-pipeline">

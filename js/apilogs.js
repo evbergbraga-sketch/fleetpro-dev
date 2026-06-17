@@ -97,3 +97,96 @@ function renderApiLogs(){
     </tr>`;
   }).join('');
 }
+
+// ── TABS ──
+function _aplTab(tab){
+  const logs = document.getElementById('apl-section-logs');
+  const docs = document.getElementById('apl-section-docs');
+  const btnLogs = document.getElementById('apl-tab-logs');
+  const btnDocs = document.getElementById('apl-tab-docs');
+  if(tab==='logs'){
+    logs.style.display=''; docs.style.display='none';
+    btnLogs.style.borderBottomColor='var(--accent)'; btnLogs.style.color='var(--accent)';
+    btnDocs.style.borderBottomColor='transparent';   btnDocs.style.color='var(--muted)';
+  } else {
+    logs.style.display='none'; docs.style.display='';
+    btnDocs.style.borderBottomColor='var(--accent)'; btnDocs.style.color='var(--accent)';
+    btnLogs.style.borderBottomColor='transparent';   btnLogs.style.color='var(--muted)';
+    _aplRenderDocs();
+  }
+}
+
+// ── DOCUMENTAÇÃO ──
+function _aplRenderDocs(){
+  const el = document.getElementById('apl-docs-endpoints');
+  if(!el || el.innerHTML) return; // já renderizou
+
+  const endpoints = [
+    { method:'POST', path:'/crm/leads', cor:'#4ADE80', bg:'rgba(74,222,128,.08)',
+      desc:'Adiciona um novo lead no Pipeline CRM',
+      params:[['nome','string','Sim','Nome ou apelido do lead'],['telefone','string','Sim','DDD + número (ex: 21999991234)'],['interesse','string','Não','carro | moto | ambos | indefinido'],['status_crm','string','Não','Label do status (ex: Interesse)'],['observacoes','string','Não','Nota inicial sobre o lead'],['origem','string','Não','Ex: Instagram, WhatsApp, Indicação']],
+      req:'{"nome":"João Silva","telefone":"21999991234","interesse":"moto","status_crm":"Interesse","origem":"Instagram"}',
+      res:'{"ok":true,"lead":{"id":"uuid","nome":"João Silva","tipo":"lead","status_crm":"Interesse"}}' },
+    { method:'PATCH', path:'/crm/leads/:id/status', cor:'#60A5FA', bg:'rgba(96,165,250,.08)',
+      desc:'Move um lead para outro status no pipeline',
+      params:[['status','string','Sim','Label do status (ex: Potencial, Ativo)'],['nota','string','Não','Registra nota interna junto com a mudança']],
+      req:'{"status":"Potencial","nota":"Demonstrou interesse forte"}',
+      res:'{"ok":true,"nome":"João Silva","status_anterior":"Interesse","status_novo":"Potencial"}' },
+    { method:'GET', path:'/veiculos/disponibilidade', cor:'#F5B942', bg:'rgba(245,185,66,.08)',
+      desc:'Verifica quais veículos estão disponíveis',
+      params:[['tipo','query','Não','carro | moto — filtra por tipo'],['data','query','Não','YYYY-MM-DD — considera buffer de 4h após devolução']],
+      req:'GET /veiculos/disponibilidade?tipo=moto&data=2026-06-20',
+      res:'{"ok":true,"resumo":{"disponiveis":4,"alugados":1,"manutencao":0},"disponiveis":[...]}' },
+    { method:'GET', path:'/clientes/verificar', cor:'#F5B942', bg:'rgba(245,185,66,.08)',
+      desc:'Verifica se um número ou CPF é cliente ativo',
+      params:[['telefone','query','Sim*','DDD + número (ex: 21999991234)'],['cpf','query','Sim*','CPF sem pontuação (* um dos dois)']],
+      req:'GET /clientes/verificar?telefone=21990331398',
+      res:'{"encontrado":true,"tipo":"cliente","cliente_ativo":false,"locacao_ativa":null,"mensagem":"..."}' },
+    { method:'GET', path:'/crm/status', cor:'#F5B942', bg:'rgba(245,185,66,.08)',
+      desc:'Lista os status disponíveis no pipeline',
+      params:[],
+      req:'GET /crm/status',
+      res:'{"ok":true,"status":[{"label":"Interesse","cor":"#F5B942","ordem":1},...]}' },
+  ];
+
+  const methCor = {GET:'#d97706',POST:'#16a34a',PATCH:'#2563eb'};
+  const methBg  = {GET:'rgba(217,119,6,.1)',POST:'rgba(22,163,74,.1)',PATCH:'rgba(37,99,235,.1)'};
+
+  el.innerHTML = endpoints.map(ep=>`
+    <div style="border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:${ep.bg}">
+        <span style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;background:${methBg[ep.method]||'var(--bg2)'};color:${methCor[ep.method]||ep.cor};min-width:52px;text-align:center">${ep.method}</span>
+        <code style="font-size:13px;font-weight:600;color:var(--text)">https://bridge.ruahsystems.com.br/api/v1${ep.path}</code>
+      </div>
+      <div style="padding:14px 16px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px">${ep.desc}</div>
+        ${ep.params.length ? `
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Parâmetros</div>
+        <table style="width:100%;margin-bottom:12px;font-size:12px;border-collapse:collapse">
+          <thead><tr style="background:var(--bg2)">
+            <th style="padding:6px 10px;text-align:left;font-weight:600">Campo</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600">Tipo</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600">Obrig.</th>
+            <th style="padding:6px 10px;text-align:left;font-weight:600">Descrição</th>
+          </tr></thead>
+          <tbody>${ep.params.map(p=>`
+            <tr style="border-top:1px solid var(--border2)">
+              <td style="padding:6px 10px"><code style="font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:4px">${p[0]}</code></td>
+              <td style="padding:6px 10px;color:var(--muted);font-size:11px">${p[1]}</td>
+              <td style="padding:6px 10px;color:${p[2].startsWith('Sim')?'#4ADE80':'var(--muted2)'};font-size:11px;font-weight:600">${p[2]}</td>
+              <td style="padding:6px 10px;color:var(--muted);font-size:12px">${p[3]}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Exemplo</div>
+            <code style="display:block;background:var(--bg2);padding:10px;border-radius:8px;font-size:11px;color:var(--text);word-break:break-all;line-height:1.5">${ep.req}</code>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Resposta (200)</div>
+            <code style="display:block;background:var(--bg2);padding:10px;border-radius:8px;font-size:11px;color:var(--text);word-break:break-all;line-height:1.5">${ep.res}</code>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
