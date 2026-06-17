@@ -363,9 +363,10 @@ async function abrirModalLocacao(locId){
       <div style="background:var(--bg2);border-radius:10px;padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:8px">💰 Financeiro</div>
         <div style="font-size:12px"><strong>Diária:</strong> R$ ${(loc.diaria||0).toFixed(2).replace('.',',')}</div>
-        <div style="font-size:12px"><strong>Total:</strong> <span style="color:var(--accent);font-weight:700">R$ ${(loc.total||0).toFixed(2).replace('.',',')}</span></div>
-        <div style="font-size:12px"><strong>Pagamento:</strong> ${loc.forma_pgto||'—'}</div>
-        ${loc.caucao>0?`<div style="font-size:12px"><strong>Caução:</strong> R$ ${(loc.caucao||0).toFixed(2).replace('.',',')}</div>`:''}
+        <div style="font-size:12px"><strong>Total contrato:</strong> <span style="color:var(--accent);font-weight:700">R$ ${(loc.total||0).toFixed(2).replace('.',',')}</span></div>
+        ${loc.caucao>0?`<div style="font-size:12px"><strong>Caução:</strong> R$ ${(loc.caucao||0).toFixed(2).replace('.',',')} (${loc.forma_pgto_caucao||'—'})</div>`:''}
+        ${(loc.valor_pago_ato||0)>0?`<div style="font-size:12px"><strong>Pago no ato:</strong> <span style="color:var(--green,#16a34a);font-weight:600">R$ ${(loc.valor_pago_ato||0).toFixed(2).replace('.',',')}</span> (${loc.forma_pgto||'—'})</div>`:'<div style="font-size:12px;color:var(--muted)">Nenhum pagamento no ato</div>'}
+        ${(loc.valor_restante||0)>0?`<div style="font-size:12px"><strong>Saldo restante:</strong> <span style="color:var(--red,#dc2626);font-weight:600">R$ ${(loc.valor_restante||0).toFixed(2).replace('.',',')}</span></div>`:'<div style="font-size:12px;color:var(--green,#16a34a)"><strong>✓ Quitado</strong></div>'}
       </div>
       <div style="background:var(--bg2);border-radius:10px;padding:14px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:8px">Veículo</div>

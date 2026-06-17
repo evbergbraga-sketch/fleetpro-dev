@@ -673,20 +673,50 @@ async function finRegistrarLancamentoLocacao(locacao){
       return;
     }
 
-    // ── LOCAÇÃO PADRÃO (carro / diária) — comportamento original ──
-    await sb.from('lancamentos').insert({
-      tipo:        'receita',
-      categoria:   'Aluguel',
-      descricao:   descBase,
-      valor:       locacao.total||0,
-      data:        dataBase,
-      veiculo_id:  locacao.veiculo_id||null,
-      locacao_id:  locacao.id||null,
-      forma_pgto:  locacao.forma_pgto||null,
-      num_contrato: locacao.num_contrato ? String(locacao.num_contrato) : null,
-      origem:      'automatico',
-      criado_por:  currentUser?.id,
-    });
+    // ── LOCAÇÃO PADRÃO (carro / diária) ──
+    const valorPagoAto = parseFloat(locacao.valor_pago_ato)||0;
+
+    // Só lança se pagou algo no ato — o restante será lançado na devolução
+    if(valorPagoAto <= 0) return;
+
+    // Se dividiu em 2 formas de pagamento no ato
+    const valorPgto2 = parseFloat(locacao.valor_pgto_2)||0;
+    const formaPgto2 = locacao.forma_pgto_2||null;
+
+    // 1ª forma — valor principal
+    const valor1 = valorPgto2 > 0 ? (valorPagoAto - valorPgto2) : valorPagoAto;
+    if(valor1 > 0){
+      await sb.from('lancamentos').insert({
+        tipo:        'receita',
+        categoria:   'Aluguel',
+        descricao:   descBase + (valorPgto2>0 ? ' — Pag. no ato (1ª forma)' : ' — Pagamento no ato'),
+        valor:       valor1,
+        data:        dataBase,
+        veiculo_id:  locacao.veiculo_id||null,
+        locacao_id:  locacao.id||null,
+        forma_pgto:  locacao.forma_pgto||null,
+        num_contrato: locacao.num_contrato ? String(locacao.num_contrato) : null,
+        origem:      'automatico',
+        criado_por:  currentUser?.id,
+      });
+    }
+
+    // 2ª forma (se dividiu)
+    if(valorPgto2 > 0 && formaPgto2){
+      await sb.from('lancamentos').insert({
+        tipo:        'receita',
+        categoria:   'Aluguel',
+        descricao:   descBase + ' — Pag. no ato (2ª forma)',
+        valor:       valorPgto2,
+        data:        dataBase,
+        veiculo_id:  locacao.veiculo_id||null,
+        locacao_id:  locacao.id||null,
+        forma_pgto:  formaPgto2,
+        num_contrato: locacao.num_contrato ? String(locacao.num_contrato) : null,
+        origem:      'automatico',
+        criado_por:  currentUser?.id,
+      });
+    }
   }catch(e){ console.warn('[fin] lancamento auto:', e.message); }
 }
 
