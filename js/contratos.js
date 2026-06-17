@@ -1171,7 +1171,8 @@ try{
   doc.text('FORMA DE PAGAMENTO', M+cellPad, y+5);
   doc.setFont('helvetica','bold'); doc.setTextColor('#111');
   doc.setFontSize(8);
-  doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: R$ ${(d.totalBruto||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`, M+cellPad, y+9);
+  const _valorPgtoLabel = isMoto ? `R$ ${(d.dia||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}/semana` : `R$ ${(d.totalBruto||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  doc.text(`Contrato: ${d.pgtoLabel||d.pgto}  —  Valor: ${_valorPgtoLabel}`, M+cellPad, y+9);
   doc.setFontSize(7.5); doc.setFont('helvetica','normal');
   doc.text(`Caução/Garantia: R$ ${(d.caucao||0).toFixed(2).replace('.',',')}  —  Pagamento: ${d.pgtoCaucao||d.pgto}`, M+cellPad, y+12);
   let pgtoLinhaExtra = 12;
