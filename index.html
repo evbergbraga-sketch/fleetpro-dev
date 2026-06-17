@@ -1295,15 +1295,26 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <select id="fin-filtro-veiculo" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
                 <option value="">Todos os veículos</option>
               </select>
+              <select id="fin-filtro-forma" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Todas as formas</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="PIX">PIX</option>
+                <option value="Cartão Débito">Cartão Débito</option>
+                <option value="Cartão Crédito">Cartão Crédito</option>
+                <option value="Transferência">Transferência</option>
+                <option value="Boleto">Boleto</option>
+                <option value="Asaas">Asaas</option>
+              </select>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarPdf()">⬇️ Exportar PDF</button>
+              <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarCsvFluxo()">Fluxo de Caixa CSV</button>
+              <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarPdf()">Exportar PDF</button>
               <button class="btn btn-primary" style="font-size:12px" onclick="finAbrirNovoLancamento()">+ Lançamento</button>
             </div>
           </div>
           <div class="card">
             <table class="table">
-              <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Veículo</th><th>Valor</th><th></th></tr></thead>
+              <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Forma Pgto</th><th>Nota</th><th>Veículo</th><th>Valor</th><th></th></tr></thead>
               <tbody id="tb-lancamentos"></tbody>
             </table>
           </div>
@@ -1384,6 +1395,23 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <select id="mlc-vei" style="width:100%">
                 <option value="">— Nenhum —</option>
               </select>
+            </div>
+            <div class="form-group">
+              <label>Forma de pagamento</label>
+              <select id="mlc-forma" style="width:100%">
+                <option value="">— Selecione —</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="PIX">PIX</option>
+                <option value="Cartão Débito">Cartão Débito</option>
+                <option value="Cartão Crédito">Cartão Crédito</option>
+                <option value="Transferência">Transferência</option>
+                <option value="Boleto">Boleto</option>
+                <option value="Asaas">Asaas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Número da Nota (opcional)</label>
+              <input type="text" id="mlc-nota" placeholder="Ex: NF-001" style="width:100%">
             </div>
           </div>
           <div class="modal-footer">

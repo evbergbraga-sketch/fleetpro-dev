@@ -71,6 +71,7 @@ async function finCarregarLancamentos(){
   const tipo    = document.getElementById('fin-filtro-tipo')?.value||'';
   const cat     = document.getElementById('fin-filtro-cat')?.value||'';
   const veiId   = document.getElementById('fin-filtro-veiculo')?.value||'';
+  const forma   = document.getElementById('fin-filtro-forma')?.value||'';
 
   const {dataInicio, dataFim} = _finCalcPeriodo(periodo);
 
@@ -84,6 +85,7 @@ async function finCarregarLancamentos(){
   if(tipo)       query = query.eq('tipo', tipo);
   if(cat)        query = query.eq('categoria', cat);
   if(veiId)      query = query.eq('veiculo_id', veiId);
+  if(forma)      query = query.eq('forma_pgto', forma);
 
   const {data, error} = await query;
   if(error){ console.warn('[fin]', error.message); return; }
@@ -229,7 +231,7 @@ function finRenderLancamentos(){
   const tb = document.getElementById('tb-lancamentos');
   if(!tb) return;
   if(!_finLancamentos.length){
-    tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum lançamento encontrado</td></tr>';
+    tb.innerHTML='<tr class="empty-row"><td colspan="9">Nenhum lançamento encontrado</td></tr>';
     return;
   }
   tb.innerHTML = _finLancamentos.map(l=>{
@@ -237,11 +239,15 @@ function finRenderLancamentos(){
     const icon = FIN_CAT_ICONES[l.categoria]||'📎';
     const vei  = l.veiculos ? `${l.veiculos.tipo==='moto'?'🏍️':'🚗'} ${l.veiculos.placa}` : '—';
     const val  = Number(l.valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+    const forma = l.forma_pgto ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">${l.forma_pgto}</span>` : '—';
+    const nota  = l.num_nota ? `<span style="font-size:11px;color:var(--muted)">${l.num_nota}</span>` : '—';
     return `<tr>
       <td style="font-size:12px;color:var(--muted)">${l.data?.split('-').reverse().join('/')}</td>
-      <td><span style="font-size:11px;padding:3px 8px;border-radius:99px;background:${cor.bg};color:${cor.text};border:1px solid ${cor.border};font-weight:700">${l.tipo==='receita'?'💚 Receita':'🔴 Despesa'}</span></td>
+      <td><span style="font-size:11px;padding:3px 8px;border-radius:99px;background:${cor.bg};color:${cor.text};border:1px solid ${cor.border};font-weight:700">${l.tipo==='receita'?'Receita':'Despesa'}</span></td>
       <td style="font-size:12px">${icon} ${l.categoria}</td>
       <td style="font-size:12px">${l.descricao||'—'}</td>
+      <td>${forma}</td>
+      <td style="font-size:12px">${nota}</td>
       <td style="font-size:12px">${vei}</td>
       <td style="font-weight:700;color:${cor.text}">${l.tipo==='receita'?'+':'−'} ${val}</td>
       <td>
@@ -494,6 +500,10 @@ async function finEditarLancamento(id){
   document.getElementById('mlc-valor').value = l.valor;
   document.getElementById('mlc-data').value  = l.data;
   document.getElementById('mlc-vei').value   = l.veiculo_id||'';
+  const elForma = document.getElementById('mlc-forma');
+  if(elForma) elForma.value = l.forma_pgto||'';
+  const elNota = document.getElementById('mlc-nota');
+  if(elNota) elNota.value = l.num_nota||'';
 }
 
 async function finSalvarLancamento(){
@@ -504,11 +514,14 @@ async function finSalvarLancamento(){
   const valor  = parseFloat(document.getElementById('mlc-valor')?.value)||0;
   const data   = document.getElementById('mlc-data')?.value;
   const veiId  = document.getElementById('mlc-vei')?.value||null;
+  const forma  = document.getElementById('mlc-forma')?.value||null;
+  const nota   = document.getElementById('mlc-nota')?.value?.trim()||null;
 
   if(!valor || !data){ notify('Preencha valor e data','error'); return; }
 
   const obj = { tipo, categoria:cat, descricao:desc||null, valor, data,
-    veiculo_id:veiId, origem:'manual', criado_por:currentUser?.id };
+    veiculo_id:veiId, origem:'manual', criado_por:currentUser?.id,
+    forma_pgto: forma||null, num_nota: nota||null };
 
   let error;
   if(id){
@@ -777,4 +790,67 @@ async function finRegistrarLancamentoSeguro(veiculoId, seguradora, valor, period
     });
     console.log('[fin] lançamento seguro criado:', valor, periodicidade);
   }catch(e){ console.warn('[fin] seguro:', e.message); }
+}
+
+// ══ EXPORTAR CSV FLUXO DE CAIXA ══
+async function finExportarCsvFluxo(){
+  // Pede mês e ano
+  const hoje = new Date();
+  const mesAno = prompt(
+    'Informe mês/ano para o fluxo de caixa (MM/AAAA):',
+    String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear()
+  );
+  if(!mesAno) return;
+  const [mes, ano] = mesAno.split('/');
+  if(!mes||!ano||isNaN(mes)||isNaN(ano)){ notify('Formato inválido. Use MM/AAAA','error'); return; }
+
+  const dataIni = `${ano}-${String(mes).padStart(2,'0')}-01`;
+  const dataFim = new Date(ano, mes, 0).toISOString().slice(0,10); // último dia do mês
+
+  const {data, error} = await sb.from('lancamentos')
+    .select('*,veiculos(placa)')
+    .gte('data', dataIni).lte('data', dataFim)
+    .order('data',{ascending:true}).order('created_at',{ascending:true});
+
+  if(error){ notify('Erro ao buscar dados: '+error.message,'error'); return; }
+  if(!data?.length){ notify('Nenhum lançamento no período','error'); return; }
+
+  // Monta CSV
+  const sep = ';';
+  const linhas = [];
+
+  // Cabeçalho
+  linhas.push(['Data','Número do Documento','Histórico','Entrada','Saída','Saldo Final'].join(sep));
+
+  let saldo = 0;
+  data.forEach(l=>{
+    const data_fmt = l.data?.split('-').reverse().join('/') || '';
+    const numDoc   = l.num_contrato || l.num_nota || '—';
+    const hist     = `${l.categoria}${l.descricao?' - '+l.descricao:''}`;
+    const valor    = Number(l.valor)||0;
+    const entrada  = l.tipo==='receita' ? valor : 0;
+    const saida    = l.tipo==='despesa' ? valor : 0;
+    saldo = saldo + entrada - saida;
+
+    const fmtBr = v => v > 0 ? v.toFixed(2).replace('.',',') : '';
+    linhas.push([
+      data_fmt,
+      numDoc,
+      `"${hist.replace(/"/g,'""')}"`,
+      fmtBr(entrada),
+      fmtBr(saida),
+      saldo.toFixed(2).replace('.',',')
+    ].join(sep));
+  });
+
+  // Download
+  const csv     = '\uFEFF' + linhas.join('\r\n'); // BOM para Excel reconhecer UTF-8
+  const blob    = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url     = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = `FluxoCaixa_${String(mes).padStart(2,'0')}_${ano}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  notify('CSV exportado!','success');
 }
