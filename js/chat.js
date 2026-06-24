@@ -312,6 +312,12 @@ function receberMsgSSE(msg){
       const jaTemBalao = ehEco || !!area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
       if(!jaTemBalao){
         area.insertAdjacentHTML('beforeend', renderMsgItem(msgObj));
+        // Reordena balões por created_at para corrigir dessincronização SSE
+        const baloes = Array.from(area.querySelectorAll('.msg[data-created-at]'));
+        if(baloes.length > 1){
+          baloes.sort((a,b)=>new Date(a.dataset.createdAt||0)-new Date(b.dataset.createdAt||0));
+          baloes.forEach(b=>area.appendChild(b));
+        }
       }
       area.scrollTop = area.scrollHeight;
     }
