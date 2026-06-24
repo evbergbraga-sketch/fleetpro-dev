@@ -569,6 +569,7 @@ async function criarAssinaturaAsaas(locacao){
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         locacao_id: locacao.id,
+        num_contrato: locacao.num_contrato||null,
         cliente: {
           nome:     c.nome,
           cpf:      c.cpf,
