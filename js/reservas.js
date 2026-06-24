@@ -31,6 +31,7 @@ function renderReservas(){
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${r.status==='ativa' ? `
           <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="converterReservaContrato('${r.id}')">📄 Contrato</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="editarReserva('${r.id}')">✏️ Editar</button>
           <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="cancelarReserva('${r.id}')">✕ Cancelar</button>
         ` : ''}
         <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red);border-color:var(--red)" onclick="excluirReserva('${r.id}')">🗑️</button>
@@ -101,6 +102,13 @@ function abrirModalReserva(){
   const inp = document.getElementById('res-anexo-input');
   if(inp) inp.value = '';
   window._resAnexoFile = null;
+  window._editandoReservaId = null;
+
+  // Restaura título e botão para modo criação
+  const titulo = document.querySelector('#m-reserva .modal-title, #m-reserva h2');
+  if(titulo) titulo.textContent = 'Nova Reserva';
+  const btn = document.querySelector('#m-reserva .btn-primary');
+  if(btn) btn.textContent = '✓ Confirmar reserva';
 
   document.getElementById('m-reserva').classList.add('show');
 }
@@ -128,19 +136,37 @@ async function salvarReserva(){
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
 
   try{
-    const {data: resData, error:errRes} = await sb.from('reservas').insert({
-      cliente_id: cid,
-      veiculo_id: vid,
-      data_inicio: ini,
-      data_fim: fim,
-      valor_pago: valor,
-      valor_cotado: valorCotado||null,
-      local_retirada: localRetirada||null,
-      observacoes: obs,
-      status: 'ativa',
-      criado_por: currentUser?.id
-    }).select().single();
-    if(errRes) throw errRes;
+    const editId = window._editandoReservaId || null;
+    let resData;
+    if(editId){
+      const {data:upd, error:errRes} = await sb.from('reservas').update({
+        cliente_id: cid,
+        veiculo_id: vid,
+        data_inicio: ini,
+        data_fim: fim,
+        valor_pago: valor,
+        valor_cotado: valorCotado||null,
+        local_retirada: localRetirada||null,
+        observacoes: obs,
+      }).eq('id', editId).select().single();
+      if(errRes) throw errRes;
+      resData = upd;
+    } else {
+      const {data:ins, error:errRes} = await sb.from('reservas').insert({
+        cliente_id: cid,
+        veiculo_id: vid,
+        data_inicio: ini,
+        data_fim: fim,
+        valor_pago: valor,
+        valor_cotado: valorCotado||null,
+        local_retirada: localRetirada||null,
+        observacoes: obs,
+        status: 'ativa',
+        criado_por: currentUser?.id
+      }).select().single();
+      if(errRes) throw errRes;
+      resData = ins;
+    }
     // Upload comprovante se houver
     if(window._resAnexoFile && resData?.id){
       const f = window._resAnexoFile;
@@ -157,13 +183,15 @@ async function salvarReserva(){
     // Marca veículo como reservado
     await sb.from('veiculos').update({status:'reservado'}).eq('id',vid);
 
-    notify('Reserva criada! Veículo marcado como reservado.','success');
+    notify(editId ? 'Reserva atualizada!' : 'Reserva criada! Veículo marcado como reservado.','success');
+    window._editandoReservaId = null;
     closeModal('reserva');
     await carregarTudo();
     renderReservas();
   }catch(e){
     notify('Erro: '+e.message,'error');
   }finally{
+    window._editandoReservaId = null;
     if(btn){btn.disabled=false;btn.textContent='✓ Confirmar reserva';}
   }
 }
@@ -378,4 +406,86 @@ function _verificarMotoReserva(){
   const v = allVeiculos?.find(x=>x.id===veiId);
   const wrap = document.getElementById('res-planos-wrap');
   if(wrap) wrap.style.display = v?.tipo==='moto' ? '' : 'none';
+}
+
+// ══ EDITAR RESERVA ══
+function editarReserva(id){
+  const r = allReservas.find(x=>x.id===id);
+  if(!r){ notify('Reserva não encontrada','error'); return; }
+
+  // Marca modo edição
+  window._editandoReservaId = id;
+
+  // Preenche clientes
+  const selCli = document.getElementById('res-cli');
+  if(selCli){
+    const aprovados = allClientes.filter(c=>c.status_analise==='aprovado');
+    selCli.innerHTML = aprovados.length
+      ? aprovados.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')
+      : '<option value="">Nenhum cliente aprovado</option>';
+    selCli.value = r.cliente_id;
+  }
+
+  // Preenche veículos
+  const selVei = document.getElementById('res-vei');
+  if(selVei){
+    const disponiveis = allVeiculos.filter(v=>v.status==='disponivel'||v.status==='reservado');
+    selVei.innerHTML = disponiveis.map(v=>`<option value="${v.id}">${v.marca} ${v.modelo} — ${v.placa}</option>`).join('');
+    // Garante que o veículo atual aparece
+    if(!selVei.querySelector(`option[value="${r.veiculo_id}"]`)){
+      const veic = allVeiculos.find(v=>v.id===r.veiculo_id);
+      if(veic){
+        const opt = document.createElement('option');
+        opt.value = veic.id;
+        opt.textContent = `${veic.marca} ${veic.modelo} — ${veic.placa}`;
+        selVei.insertBefore(opt, selVei.firstChild);
+      }
+    }
+    selVei.value = r.veiculo_id;
+    if(typeof _verificarMotoReserva === 'function') _verificarMotoReserva();
+  }
+
+  // Preenche datas
+  const _toLocal = s => s ? s.slice(0,16) : '';
+  const elIni = document.getElementById('res-ini');
+  const elFim = document.getElementById('res-fim');
+  if(elIni) elIni.value = _toLocal(r.data_inicio);
+  if(elFim) elFim.value = _toLocal(r.data_fim);
+
+  // Preenche valores
+  const elValor = document.getElementById('res-valor');
+  if(elValor) elValor.value = r.valor_pago || '';
+  const elCotado = document.getElementById('res-valor-cotado');
+  if(elCotado) elCotado.value = r.valor_cotado || '';
+
+  // Preenche observações
+  const elObs = document.getElementById('res-obs');
+  if(elObs) elObs.value = r.observacoes || '';
+
+  // Local de retirada
+  const localTipo = r.local_retirada === 'Loja' ? 'loja' : 'outro';
+  const radios = document.querySelectorAll('input[name="res-local-tipo"]');
+  radios.forEach(rb => { rb.checked = rb.value === localTipo; });
+  _toggleLocalRetirada(localTipo);
+  if(localTipo === 'outro'){
+    const elCustom = document.getElementById('res-local-custom');
+    if(elCustom) elCustom.value = r.local_retirada || '';
+  }
+
+  // Plano moto se aplicável
+  if(r.valor_cotado){
+    const radioPlano = document.querySelector(`input[name="res-plano-moto"][value="${parseFloat(r.valor_cotado).toFixed(2)}"]`);
+    if(radioPlano && typeof _selecionarPlanoReserva === 'function'){
+      radioPlano.checked = true;
+      _selecionarPlanoReserva(radioPlano);
+    }
+  }
+
+  // Ajusta título e botão do modal
+  const titulo = document.querySelector('#m-reserva .modal-title, #m-reserva h2');
+  if(titulo) titulo.textContent = 'Editar Reserva';
+  const btn = document.querySelector('#m-reserva .btn-primary');
+  if(btn) btn.textContent = '✓ Salvar alterações';
+
+  document.getElementById('m-reserva').classList.add('show');
 }

@@ -400,6 +400,10 @@ async function abrirModalLocacao(locId){
       <button id="tab-estender" class="loc-tab" onclick="showLocTab('estender')"
         style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">
         📅 Estender
+      </button>
+      <button id="tab-cancelar" class="loc-tab" onclick="showLocTab('cancelar')"
+        style="padding:8px 20px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--red);border-bottom:2px solid transparent;margin-bottom:-2px">
+        ✕ Cancelar
       </button>` : ''}
     </div>
 
@@ -417,6 +421,22 @@ async function abrirModalLocacao(locId){
     ${loc.status==='ativa' ? `
     <div id="painel-estender" style="display:none">
       ${_renderFormEstender(locId, loc)}
+    </div>` : ''}
+
+    <!-- PAINEL CANCELAR -->
+    ${loc.status==='ativa' ? `
+    <div id="painel-cancelar" style="display:none">
+      <div style="background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.2);border-radius:12px;padding:20px;margin-top:8px">
+        <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px">⚠️ Cancelar Locação</div>
+        <div style="font-size:13px;color:var(--text);margin-bottom:16px">
+          O veículo voltará ao status <strong>disponível</strong>. Esta ação não pode ser desfeita.
+        </div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Motivo do cancelamento</label>
+        <textarea id="loc-cancel-motivo" rows="3" placeholder="Descreva o motivo..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;resize:vertical"></textarea>
+        <button onclick="cancelarLocacao('${locId}')" style="margin-top:14px;padding:10px 24px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+          Confirmar Cancelamento
+        </button>
+      </div>
     </div>` : ''}
 
     <!-- ANEXOS -->
@@ -484,15 +504,17 @@ function showLocTab(tab){
   document.getElementById('painel-entrada').style.display = tab==='entrada' ? '' : 'none';
   const painelEstender = document.getElementById('painel-estender');
   if(painelEstender) painelEstender.style.display = tab==='estender' ? '' : 'none';
+  const painelCancelar = document.getElementById('painel-cancelar');
+  if(painelCancelar) painelCancelar.style.display = tab==='cancelar' ? '' : 'none';
   // Mostrar bloco de custos somente na aba entrada
   const bCustos = document.getElementById('bloco-custos-devolucao');
   if(bCustos){ bCustos.style.display = tab==='entrada' ? '' : 'none'; }
   if(tab==='entrada'){ _custosDevolucao=[]; _renderCustosDevolucao(); _atualizarTotalPagamentoRestante(); }
   document.querySelectorAll('.loc-tab').forEach(t=>{
-    const map = {'tab-saida':'saida','tab-entrada':'entrada','tab-estender':'estender'};
+    const map = {'tab-saida':'saida','tab-entrada':'entrada','tab-estender':'estender','tab-cancelar':'cancelar'};
     const active = map[t.id]===tab;
-    t.style.color = active?'var(--accent)':'var(--muted)';
-    t.style.borderBottomColor = active?'var(--accent)':'transparent';
+    t.style.color = active ? (t.id==='tab-cancelar' ? 'var(--red)' : 'var(--accent)') : (t.id==='tab-cancelar' ? 'var(--red)' : 'var(--muted)');
+    t.style.borderBottomColor = active ? (t.id==='tab-cancelar' ? 'var(--red)' : 'var(--accent)') : 'transparent';
     t.style.fontWeight = active?'700':'600';
   });
 }
@@ -1690,4 +1712,40 @@ async function _locExcluirAnexo(id, url, locId){
     notify('Arquivo removido','success');
     _locCarregarAnexos(locId);
   }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+// ══ CANCELAR LOCAÇÃO ══
+async function cancelarLocacao(id){
+  const motivo = document.getElementById('loc-cancel-motivo')?.value?.trim() || '';
+  if(!motivo){ notify('Informe o motivo do cancelamento','error'); return; }
+  if(!confirm('Confirmar cancelamento desta locação? O veículo voltará a ficar disponível.')) return;
+
+  const loc = allLocacoesCompletas?.find(l=>l.id===id);
+  if(!loc){ notify('Locação não encontrada','error'); return; }
+
+  const btn = document.querySelector('#painel-cancelar button');
+  if(btn){ btn.disabled=true; btn.textContent='Cancelando...'; }
+
+  try{
+    const obsAtual = loc.observacoes || '';
+    const novaObs  = obsAtual
+      ? `${obsAtual}\n[CANCELADO] ${motivo}`
+      : `[CANCELADO] ${motivo}`;
+
+    const {error} = await sb.from('locacoes')
+      .update({ status:'cancelada', observacoes: novaObs })
+      .eq('id', id);
+    if(error) throw error;
+
+    // Libera veículo
+    await sb.from('veiculos').update({status:'disponivel'}).eq('id', loc.veiculo_id);
+
+    notify('Locação cancelada com sucesso.','success');
+    closeModal('locacao-detalhe');
+    await carregarTudo();
+    renderLocacoes();
+  }catch(e){
+    notify('Erro: '+e.message,'error');
+    if(btn){ btn.disabled=false; btn.textContent='Confirmar Cancelamento'; }
+  }
 }
