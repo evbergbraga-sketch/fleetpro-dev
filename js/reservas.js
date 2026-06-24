@@ -28,13 +28,13 @@ function renderReservas(){
       : '<span style="color:var(--muted2)">—</span>';
 
     const acoes = canEdit ? `
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap">
         ${r.status==='ativa' ? `
-          <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="converterReservaContrato('${r.id}')">📄 Contrato</button>
-          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="editarReserva('${r.id}')">✏️ Editar</button>
-          <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="cancelarReserva('${r.id}')">✕ Cancelar</button>
+          <button class="btn btn-primary" style="font-size:10px;padding:4px 8px;white-space:nowrap" onclick="converterReservaContrato('${r.id}')">📄 Contrato</button>
+          <button class="btn btn-ghost" style="font-size:10px;padding:4px 8px;white-space:nowrap" onclick="editarReserva('${r.id}')">✏️ Editar</button>
+          <button class="btn btn-ghost" style="font-size:10px;padding:4px 8px;white-space:nowrap" onclick="cancelarReserva('${r.id}')">✕ Cancelar</button>
         ` : ''}
-        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red);border-color:var(--red)" onclick="excluirReserva('${r.id}')">🗑️</button>
+        <button class="btn btn-ghost" style="font-size:10px;padding:4px 8px;color:var(--red);border-color:var(--red)" onclick="excluirReserva('${r.id}')">🗑️</button>
       </div>` : '—';
 
     return `<tr>
