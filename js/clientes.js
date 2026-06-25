@@ -932,7 +932,7 @@ async function togglePortalAtivo(clienteId, novoStatus){
       .eq('id', clienteId);
     if(error) throw error;
     notify(novoStatus ? 'Portal ativado!' : 'Portal desativado.', 'success');
-    await carregarClientes();
+    await loadClientes();
     // Reabre o perfil atualizado
     const c = allClientes.find(x=>x.id===clienteId);
     if(c) abrirPerfilCliente(clienteId);
@@ -950,7 +950,7 @@ async function salvarSenhaPortal(clienteId){
       .eq('id', clienteId);
     if(error) throw error;
     notify('Senha do portal salva!','success');
-    await carregarClientes();
+    await loadClientes();
     const c = allClientes.find(x=>x.id===clienteId);
     if(c) abrirPerfilCliente(clienteId);
   }catch(e){ notify('Erro: '+e.message,'error'); }
