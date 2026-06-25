@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1628">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Royal">
+<link rel="manifest" href="/manifest-portal.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<title>Royal — Meu Portal</title>
+<style>
+/* ══ TOKENS ══════════════════════════════════════════════ */
+:root {
+  --bg:        #0a1628;
+  --bg2:       #0f1e35;
+  --card:      #142240;
+  --card2:     #1a2d50;
+  --green:     #00c46a;
+  --green2:    #00a857;
+  --gold:      #f5c842;
+  --red:       #e05252;
+  --text:      #f0f4ff;
+  --muted:     #8899bb;
+  --muted2:    #4a5c7a;
+  --border:    rgba(255,255,255,0.07);
+  --radius:    16px;
+  --radius-sm: 10px;
+  --safe-top:  env(safe-area-inset-top, 0px);
+  --safe-bot:  env(safe-area-inset-bottom, 0px);
+}
+
+/* ══ RESET ═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; background: var(--bg); }
+body {
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  padding-bottom: calc(72px + var(--safe-bot));
+  -webkit-font-smoothing: antialiased;
+}
+button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+input { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ══ TELA DE LOGIN ════════════════════════════════════════ */
+#tela-login {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  padding-top: calc(32px + var(--safe-top));
+}
+.login-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin-bottom: 24px;
+}
+.login-titulo {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  text-align: center;
+}
+.login-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 36px;
+  text-align: center;
+}
+.login-form {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.login-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+  display: block;
+}
+.login-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s;
+}
+.login-input:focus { border-color: var(--green); }
+.login-input::placeholder { color: var(--muted2); }
+.btn-login {
+  width: 100%;
+  padding: 15px;
+  background: var(--green);
+  color: #0a1628;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  transition: background .2s, opacity .2s;
+  margin-top: 4px;
+}
+.btn-login:active { background: var(--green2); }
+.btn-login:disabled { opacity: .5; }
+.login-erro {
+  font-size: 13px;
+  color: var(--red);
+  text-align: center;
+  min-height: 20px;
+}
+
+/* ══ APP PRINCIPAL ════════════════════════════════════════ */
+#app { display: none; }
+
+/* ══ HEADER ══════════════════════════════════════════════ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: calc(var(--safe-top) + 12px) 20px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.header-info { flex: 1; min-width: 0; }
+.header-nome {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-contrato {
+  font-size: 12px;
+  color: var(--muted);
+}
+.badge-ativo {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(0,196,106,.15);
+  color: var(--green);
+  border: 1px solid rgba(0,196,106,.25);
+  white-space: nowrap;
+}
+
+/* ══ NAV BOTTOM ══════════════════════════════════════════ */
+.nav-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  z-index: 100;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding-bottom: var(--safe-bot);
+}
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  transition: color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-btn.ativo { color: var(--green); }
+.nav-btn svg { width: 22px; height: 22px; }
+
+/* ══ PÁGINAS ═════════════════════════════════════════════ */
+.page { display: none; padding: 20px 16px 8px; }
+.page.ativa { display: block; }
+
+/* ══ CARDS ═══════════════════════════════════════════════ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+.card-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-bottom: 10px;
+}
+.card-valor {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+}
+.card-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ══ BOTÃO PRIMÁRIO ══════════════════════════════════════ */
+.btn-green {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--green);
+  color: #0a1628;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  margin-top: 12px;
+  transition: background .2s;
+}
+.btn-green:active { background: var(--green2); }
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  width: 100%;
+  margin-top: 8px;
+  transition: background .2s;
+}
+.btn-ghost:active { background: var(--card2); }
+
+/* ══ INÍCIO ══════════════════════════════════════════════ */
+.inicio-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.inicio-card-venc {
+  flex: 1;
+  background: linear-gradient(135deg, #1a3a5c, #0f2540);
+  border: 1px solid rgba(0,196,106,.2);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.inicio-card-sorteio {
+  width: 140px;
+  background: linear-gradient(135deg, #2a2200, #1a1500);
+  border: 1px solid rgba(245,200,66,.2);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.sorteio-emoji { font-size: 24px; margin-bottom: 6px; }
+.sorteio-label { font-size: 11px; font-weight: 700; color: var(--gold); }
+.sorteio-status { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ══ PARCELAS ════════════════════════════════════════════ */
+.parcela-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.parcela-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  width: 50px;
+  flex-shrink: 0;
+}
+.parcela-info { flex: 1; min-width: 0; }
+.parcela-data { font-size: 13px; color: var(--text); font-weight: 600; }
+.parcela-valor { font-size: 12px; color: var(--muted); }
+.badge-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge-pago { background: rgba(0,196,106,.12); color: var(--green); }
+.badge-pendente { background: rgba(245,200,66,.12); color: var(--gold); }
+.badge-vencido { background: rgba(224,82,82,.12); color: var(--red); }
+.btn-pagar {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  background: var(--green);
+  color: #0a1628;
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.btn-pagar:active { background: var(--green2); }
+
+/* ══ SECAO TITULO ════════════════════════════════════════ */
+.sec-titulo {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+/* ══ CONTRATO ════════════════════════════════════════════ */
+.veiculo-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+.veiculo-nome { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.veiculo-placa {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  letter-spacing: .1em;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.info-row-label { color: var(--muted); }
+.info-row-val { font-weight: 600; }
+
+/* ══ COMUNICADOS ═════════════════════════════════════════ */
+.comunicado-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 10px;
+}
+.comunicado-tipo {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.tipo-geral { background: rgba(136,153,187,.15); color: var(--muted); }
+.tipo-manutencao { background: rgba(245,200,66,.12); color: var(--gold); }
+.tipo-sorteio { background: rgba(0,196,106,.12); color: var(--green); }
+.tipo-urgente { background: rgba(224,82,82,.12); color: var(--red); }
+.comunicado-titulo { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.comunicado-corpo { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.comunicado-data { font-size: 11px; color: var(--muted2); margin-top: 8px; }
+
+/* ══ SORTEIOS ════════════════════════════════════════════ */
+.sorteio-card {
+  background: linear-gradient(135deg, var(--card), #1a2d50);
+  border: 1px solid rgba(245,200,66,.15);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+.sorteio-mes { font-size: 12px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+.sorteio-premio { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+.sorteio-data-draw { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+.elegivel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(0,196,106,.12);
+  color: var(--green);
+  border: 1px solid rgba(0,196,106,.2);
+}
+.nao-elegivel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(224,82,82,.1);
+  color: var(--red);
+  border: 1px solid rgba(224,82,82,.2);
+}
+
+/* ══ EMPTY / LOADING ═════════════════════════════════════ */
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 40px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══ INSTALAR BANNER ═════════════════════════════════════ */
+#banner-instalar {
+  display: none;
+  position: fixed;
+  bottom: calc(72px + var(--safe-bot) + 8px);
+  left: 12px; right: 12px;
+  z-index: 200;
+  background: var(--card2);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+#banner-instalar.visivel { display: flex; }
+.banner-texto { flex: 1; font-size: 13px; line-height: 1.4; }
+.banner-texto strong { color: var(--green); }
+.btn-instalar {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  background: var(--green);
+  color: #0a1628;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.btn-fechar-banner {
+  font-size: 20px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════ -->
+<div id="tela-login">
+  <img src="/icons/logo-Royal.png" class="login-logo" alt="Royal">
+  <div class="login-titulo">Meu Portal Royal</div>
+  <div class="login-sub">Acompanhe seu contrato e parcelas</div>
+  <div class="login-form">
+    <div>
+      <label class="login-label">CPF</label>
+      <input id="inp-cpf" class="login-input" type="text" inputmode="numeric"
+        placeholder="000.000.000-00" maxlength="14" autocomplete="off">
+    </div>
+    <div>
+      <label class="login-label">Senha</label>
+      <input id="inp-senha" class="login-input" type="password"
+        placeholder="Senha fornecida pela Royal" autocomplete="current-password">
+    </div>
+    <div class="login-erro" id="login-erro"></div>
+    <button class="btn-login" id="btn-login" onclick="fazerLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ══ APP ════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <img src="/icons/logo-Royal.png" class="header-logo" alt="Royal">
+    <div class="header-info">
+      <div class="header-nome" id="hdr-nome">—</div>
+      <div class="header-contrato" id="hdr-contrato">Carregando...</div>
+    </div>
+    <div class="badge-ativo" id="hdr-status">Ativo</div>
+  </div>
+
+  <!-- Páginas -->
+  <div id="pg-inicio" class="page ativa">
+    <div class="inicio-header">
+      <div class="inicio-card-venc">
+        <div class="card-titulo">Próximo Vencimento</div>
+        <div class="card-valor" id="prox-valor">—</div>
+        <div class="card-sub" id="prox-data">—</div>
+        <button class="btn-green" id="btn-prox-pagar" style="display:none" onclick="pagarProxima()">
+          Pagar agora
+        </button>
+      </div>
+      <div class="inicio-card-sorteio" id="card-sorteio-home">
+        <div class="sorteio-emoji">🎯</div>
+        <div class="sorteio-label">Sorteio</div>
+        <div class="sorteio-status" id="sorteio-home-status">Carregando...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-titulo">Resumo do Contrato</div>
+      <div class="info-row">
+        <span class="info-row-label">Contrato</span>
+        <span class="info-row-val" id="res-num-contrato">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">Plano</span>
+        <span class="info-row-val" id="res-plano">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">Semanas pagas</span>
+        <span class="info-row-val" id="res-semanas">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">Início</span>
+        <span class="info-row-val" id="res-inicio">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="pg-parcelas" class="page">
+    <div class="sec-titulo">Minhas Parcelas</div>
+    <div id="lista-parcelas"><div class="loading-spinner"></div></div>
+  </div>
+
+  <div id="pg-contrato" class="page">
+    <div class="sec-titulo">Meu Contrato</div>
+    <div id="info-veiculo"></div>
+    <button class="btn-green" id="btn-pdf" onclick="baixarContrato()" style="display:none">
+      📄 Baixar Contrato PDF
+    </button>
+    <button class="btn-ghost" id="btn-crlv" onclick="abrirCrlv()" style="display:none">
+      📋 Ver CRLV do Veículo
+    </button>
+  </div>
+
+  <div id="pg-comunicados" class="page">
+    <div class="sec-titulo">Comunicados</div>
+    <div id="lista-comunicados"><div class="loading-spinner"></div></div>
+  </div>
+
+  <div id="pg-sorteios" class="page">
+    <div class="sec-titulo">Sorteios Royal</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">
+      Clientes com pagamentos em dia participam do sorteio mensal com prêmios exclusivos.
+    </div>
+    <div id="lista-sorteios"><div class="loading-spinner"></div></div>
+  </div>
+
+  <!-- Nav Bottom -->
+  <nav class="nav-bottom">
+    <button class="nav-btn ativo" data-pg="inicio" onclick="irPara('inicio')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      Início
+    </button>
+    <button class="nav-btn" data-pg="parcelas" onclick="irPara('parcelas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+      Parcelas
+    </button>
+    <button class="nav-btn" data-pg="contrato" onclick="irPara('contrato')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Contrato
+    </button>
+    <button class="nav-btn" data-pg="comunicados" onclick="irPara('comunicados')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+      </svg>
+      Avisos
+    </button>
+    <button class="nav-btn" data-pg="sorteios" onclick="irPara('sorteios')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
+      </svg>
+      Sorteios
+    </button>
+  </nav>
+</div>
+
+<!-- ══ BANNER INSTALAR ════════════════════════════════════ -->
+<div id="banner-instalar">
+  <div class="banner-texto">
+    <strong>Adicione à tela inicial</strong><br>
+    Acesse seu portal como um app
+  </div>
+  <button class="btn-instalar" id="btn-instalar-prompt">Instalar</button>
+  <button class="btn-fechar-banner" onclick="fecharBanner()">×</button>
+</div>
+
+<script>
+// ══ CONFIGURAÇÃO ══════════════════════════════════════════
+const BRIDGE = 'https://bridge.ruahsystems.com.br';
+const TOKEN_KEY = 'rp_token';
+const DADOS_KEY = 'rp_dados';
+
+// ══ ESTADO ════════════════════════════════════════════════
+let _dados = null;
+let _deferredPrompt = null;
+
+// ══ PWA — INSTALAR ════════════════════════════════════════
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredPrompt = e;
+  if (!localStorage.getItem('rp_banner_fechado')) {
+    document.getElementById('banner-instalar').classList.add('visivel');
+  }
+});
+
+document.getElementById('btn-instalar-prompt').onclick = async () => {
+  if (!_deferredPrompt) return;
+  _deferredPrompt.prompt();
+  const { outcome } = await _deferredPrompt.userChoice;
+  if (outcome === 'accepted') fecharBanner();
+  _deferredPrompt = null;
+};
+
+function fecharBanner() {
+  document.getElementById('banner-instalar').classList.remove('visivel');
+  localStorage.setItem('rp_banner_fechado', '1');
+}
+
+// ══ SERVICE WORKER ════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw-portal.js').catch(() => {});
+}
+
+// ══ INIT ══════════════════════════════════════════════════
+(function init() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    // Tenta usar dados em cache enquanto recarrega
+    const cache = localStorage.getItem(DADOS_KEY);
+    if (cache) {
+      try { _dados = JSON.parse(cache); renderApp(); } catch(e) {}
+    }
+    carregarDados(token);
+  }
+})();
+
+// ══ LOGIN ═════════════════════════════════════════════════
+function _formatarCpf(v) {
+  v = v.replace(/\D/g, '').slice(0, 11);
+  if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3');
+  else if (v.length > 3) v = v.replace(/(\d{3})(\d{3})/, '$1.$2');
+  return v;
+}
+
+document.getElementById('inp-cpf').addEventListener('input', function() {
+  this.value = _formatarCpf(this.value);
+});
+
+document.getElementById('inp-senha').addEventListener('keydown', e => {
+  if (e.key === 'Enter') fazerLogin();
+});
+
+async function fazerLogin() {
+  const cpf = document.getElementById('inp-cpf').value.replace(/\D/g, '');
+  const senha = document.getElementById('inp-senha').value;
+  const erro = document.getElementById('login-erro');
+  const btn = document.getElementById('btn-login');
+
+  erro.textContent = '';
+  if (cpf.length !== 11) { erro.textContent = 'CPF inválido.'; return; }
+  if (!senha) { erro.textContent = 'Informe a senha.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+
+  try {
+    const r = await fetch(`${BRIDGE}/portal/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpf, senha })
+    });
+    const json = await r.json();
+    if (!r.ok || !json.token) throw new Error(json.erro || 'CPF ou senha incorretos.');
+    localStorage.setItem(TOKEN_KEY, json.token);
+    await carregarDados(json.token);
+  } catch(e) {
+    erro.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+}
+
+// ══ CARREGAR DADOS ════════════════════════════════════════
+async function carregarDados(token) {
+  try {
+    const r = await fetch(`${BRIDGE}/portal/dados`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (r.status === 401) { logout(); return; }
+    const json = await r.json();
+    if (!json.cliente) throw new Error('Sem dados');
+    _dados = json;
+    localStorage.setItem(DADOS_KEY, JSON.stringify(json));
+    renderApp();
+  } catch(e) {
+    if (!_dados) {
+      document.getElementById('login-erro').textContent = 'Erro ao carregar dados. Tente novamente.';
+    }
+  }
+}
+
+function logout() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(DADOS_KEY);
+  _dados = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('tela-login').style.display = 'flex';
+}
+
+// ══ RENDER PRINCIPAL ══════════════════════════════════════
+function renderApp() {
+  document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const { cliente, locacao, veiculo, parcelas, comunicados, sorteios } = _dados;
+
+  // Header
+  document.getElementById('hdr-nome').textContent = _primeiroNome(cliente.nome);
+  document.getElementById('hdr-contrato').textContent = locacao
+    ? `Contrato #${locacao.num_contrato}`
+    : 'Sem contrato ativo';
+  document.getElementById('hdr-status').textContent = locacao?.status === 'ativa' ? 'Ativo' : 'Inativo';
+
+  renderInicio(locacao, parcelas, sorteios);
+  renderParcelas(parcelas);
+  renderContrato(locacao, veiculo);
+  renderComunicados(comunicados);
+  renderSorteios(sorteios, locacao);
+}
+
+function _primeiroNome(nome) {
+  return (nome || '').split(' ')[0];
+}
+
+function _fmtData(s) {
+  if (!s) return '—';
+  const d = new Date(s + (s.length === 10 ? 'T00:00:00' : ''));
+  return d.toLocaleDateString('pt-BR');
+}
+
+function _fmtValor(v) {
+  return 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+}
+
+// ══ INÍCIO ════════════════════════════════════════════════
+function renderInicio(loc, parcelas, sorteios) {
+  if (!loc) return;
+
+  // Próxima parcela pendente
+  const prox = (parcelas || []).find(p => p.status === 'pendente' || p.status === 'vencido');
+  if (prox) {
+    document.getElementById('prox-valor').textContent = _fmtValor(prox.valor);
+    document.getElementById('prox-data').textContent = 'Vence ' + _fmtData(prox.data_vencimento);
+    if (prox.asaas_link) {
+      document.getElementById('btn-prox-pagar').style.display = '';
+      document.getElementById('btn-prox-pagar').dataset.link = prox.asaas_link;
+    }
+  } else {
+    document.getElementById('prox-valor').textContent = 'Em dia';
+    document.getElementById('prox-data').textContent = 'Nenhuma parcela pendente';
+  }
+
+  // Resumo
+  document.getElementById('res-num-contrato').textContent = '#' + loc.num_contrato;
+  document.getElementById('res-plano').textContent = loc.plano_moto === 399.90 ? 'Conquista 36m' : 'Plano 12m';
+  const pagas = (parcelas || []).filter(p => p.status === 'pago').length;
+  const total = (parcelas || []).length;
+  document.getElementById('res-semanas').textContent = `${pagas} de ${total}`;
+  document.getElementById('res-inicio').textContent = _fmtData(loc.data_inicio);
+
+  // Sorteio home
+  const sorteioAtivo = (sorteios || []).find(s => s.status === 'aberto');
+  const el = document.getElementById('sorteio-home-status');
+  if (sorteioAtivo) {
+    const elegivel = _isElegivel(parcelas);
+    el.textContent = elegivel ? '✅ Elegível' : '⚠️ Pendências';
+  } else {
+    el.textContent = 'Sem sorteio aberto';
+  }
+}
+
+function pagarProxima() {
+  const link = document.getElementById('btn-prox-pagar').dataset.link;
+  if (link) window.open(link, '_blank');
+}
+
+// ══ PARCELAS ══════════════════════════════════════════════
+function renderParcelas(parcelas) {
+  const el = document.getElementById('lista-parcelas');
+  if (!parcelas?.length) { el.innerHTML = '<div class="empty">Nenhuma parcela encontrada.</div>'; return; }
+
+  el.innerHTML = parcelas.map(p => {
+    const statusClass = p.status === 'pago' ? 'badge-pago' : p.status === 'vencido' ? 'badge-vencido' : 'badge-pendente';
+    const statusTxt = p.status === 'pago' ? 'Pago' : p.status === 'vencido' ? 'Vencido' : 'Pendente';
+    const btnPagar = (p.status !== 'pago' && p.asaas_link)
+      ? `<button class="btn-pagar" onclick="window.open('${p.asaas_link}','_blank')">Pagar</button>`
+      : '';
+    return `
+      <div class="parcela-item">
+        <div class="parcela-num">Sem. ${p.numero_semana}</div>
+        <div class="parcela-info">
+          <div class="parcela-data">${_fmtData(p.data_vencimento)}</div>
+          <div class="parcela-valor">${_fmtValor(p.valor)}</div>
+        </div>
+        <span class="badge-status ${statusClass}">${statusTxt}</span>
+        ${btnPagar}
+      </div>`;
+  }).join('');
+}
+
+// ══ CONTRATO ══════════════════════════════════════════════
+function renderContrato(loc, vei) {
+  const el = document.getElementById('info-veiculo');
+  if (!loc || !vei) { el.innerHTML = '<div class="empty">Sem contrato ativo.</div>'; return; }
+
+  el.innerHTML = `
+    <div class="veiculo-card">
+      <div class="veiculo-nome">${vei.marca} ${vei.modelo}</div>
+      <div class="veiculo-placa">${vei.placa}</div>
+      <div class="info-row"><span class="info-row-label">Ano</span><span class="info-row-val">${vei.ano || '—'}</span></div>
+      <div class="info-row"><span class="info-row-label">Cor</span><span class="info-row-val">${vei.cor || '—'}</span></div>
+      <div class="info-row"><span class="info-row-label">RENAVAM</span><span class="info-row-val">${vei.renavam || '—'}</span></div>
+      <div class="info-row"><span class="info-row-label">Chassi</span><span class="info-row-val">${(vei.chassi||'—').slice(-8)}...</span></div>
+      <div class="info-row"><span class="info-row-label">Início</span><span class="info-row-val">${_fmtData(loc.data_inicio)}</span></div>
+      <div class="info-row"><span class="info-row-label">Término</span><span class="info-row-val">${_fmtData(loc.data_fim)}</span></div>
+    </div>`;
+
+  if (loc.contrato_pdf_url) {
+    document.getElementById('btn-pdf').style.display = '';
+    document.getElementById('btn-pdf').dataset.url = loc.contrato_pdf_url;
+  }
+  if (vei.crlv_url) {
+    document.getElementById('btn-crlv').style.display = '';
+    document.getElementById('btn-crlv').dataset.url = vei.crlv_url;
+  }
+}
+
+function baixarContrato() {
+  const url = document.getElementById('btn-pdf').dataset.url;
+  if (url) window.open(url, '_blank');
+}
+function abrirCrlv() {
+  const url = document.getElementById('btn-crlv').dataset.url;
+  if (url) window.open(url, '_blank');
+}
+
+// ══ COMUNICADOS ═══════════════════════════════════════════
+function renderComunicados(comunicados) {
+  const el = document.getElementById('lista-comunicados');
+  if (!comunicados?.length) { el.innerHTML = '<div class="empty">Nenhum comunicado no momento.</div>'; return; }
+
+  el.innerHTML = comunicados.map(c => `
+    <div class="comunicado-item">
+      <span class="comunicado-tipo tipo-${c.tipo}">${c.tipo}</span>
+      <div class="comunicado-titulo">${c.titulo}</div>
+      <div class="comunicado-corpo">${c.corpo}</div>
+      <div class="comunicado-data">${_fmtData(c.criado_em?.slice(0,10))}</div>
+    </div>`).join('');
+}
+
+// ══ SORTEIOS ══════════════════════════════════════════════
+function _isElegivel(parcelas) {
+  const hoje = new Date();
+  const mes = hoje.getMonth();
+  const ano = hoje.getFullYear();
+  return !(parcelas || []).some(p => {
+    if (p.status === 'pago') return false;
+    const d = new Date(p.data_vencimento + 'T00:00:00');
+    return d.getMonth() === mes && d.getFullYear() === ano && d < hoje;
+  });
+}
+
+function renderSorteios(sorteios, loc) {
+  const el = document.getElementById('lista-sorteios');
+  if (!sorteios?.length) { el.innerHTML = '<div class="empty">Nenhum sorteio cadastrado ainda.</div>'; return; }
+
+  const elegivel = _isElegivel(_dados?.parcelas);
+
+  el.innerHTML = sorteios.map(s => {
+    const [ano, mes] = s.mes_referencia.split('-');
+    const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const mesNome = meses[parseInt(mes) - 1];
+
+    const badgeElegivel = s.status === 'aberto'
+      ? (elegivel
+          ? '<span class="elegivel-badge">✅ Você está elegível</span>'
+          : '<span class="nao-elegivel-badge">⚠️ Parcelas em atraso</span>')
+      : '';
+
+    const vencedor = s.status === 'realizado' && s.vencedor_locacao_id === loc?.id
+      ? '<div style="margin-top:12px;padding:12px;background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:10px;font-size:14px;font-weight:700;color:var(--gold)">🏆 Você foi o vencedor deste sorteio!</div>'
+      : (s.status === 'realizado' ? '<div style="margin-top:8px;font-size:13px;color:var(--muted)">Sorteio realizado.</div>' : '');
+
+    return `
+      <div class="sorteio-card">
+        <div class="sorteio-mes">${mesNome} ${ano}</div>
+        <div class="sorteio-premio">${s.premio}</div>
+        ${s.descricao ? `<div class="sorteio-data-draw">${s.descricao}</div>` : ''}
+        ${s.data_sorteio ? `<div class="sorteio-data-draw">Sorteio em ${_fmtData(s.data_sorteio)}</div>` : ''}
+        ${badgeElegivel}
+        ${vencedor}
+      </div>`;
+  }).join('');
+}
+
+// ══ NAVEGAÇÃO ══════════════════════════════════════════════
+function irPara(pg) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('ativa'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('ativo'));
+  document.getElementById('pg-' + pg).classList.add('ativa');
+  document.querySelector(`.nav-btn[data-pg="${pg}"]`).classList.add('ativo');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
