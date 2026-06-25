@@ -636,7 +636,6 @@ a { color: inherit; text-decoration: none; }
 <script>
 // ══ CONFIGURAÇÃO ══════════════════════════════════════════
 const BRIDGE = 'https://bridge.ruahsystems.com.br';
-const TOKEN_KEY = 'rp_token';
 const DADOS_KEY = 'rp_dados';
 
 // ══ ESTADO ════════════════════════════════════════════════
@@ -672,14 +671,9 @@ if ('serviceWorker' in navigator) {
 
 // ══ INIT ══════════════════════════════════════════════════
 (function init() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) {
-    // Tenta usar dados em cache enquanto recarrega
-    const cache = localStorage.getItem(DADOS_KEY);
-    if (cache) {
-      try { _dados = JSON.parse(cache); renderApp(); } catch(e) {}
-    }
-    carregarDados(token);
+  const cache = localStorage.getItem(DADOS_KEY);
+  if (cache) {
+    try { _dados = JSON.parse(cache); renderApp(); } catch(e) {}
   }
 })();
 
@@ -720,9 +714,10 @@ async function fazerLogin() {
       body: JSON.stringify({ cpf, senha })
     });
     const json = await r.json();
-    if (!r.ok || !json.token) throw new Error(json.erro || 'CPF ou senha incorretos.');
-    localStorage.setItem(TOKEN_KEY, json.token);
-    await carregarDados(json.token);
+    if (!r.ok || !json.cliente) throw new Error(json.erro || 'CPF ou senha incorretos.');
+    _dados = json;
+    localStorage.setItem(DADOS_KEY, JSON.stringify(json));
+    renderApp();
   } catch(e) {
     erro.textContent = e.message;
     btn.disabled = false;
@@ -730,27 +725,7 @@ async function fazerLogin() {
   }
 }
 
-// ══ CARREGAR DADOS ════════════════════════════════════════
-async function carregarDados(token) {
-  try {
-    const r = await fetch(`${BRIDGE}/portal/dados`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (r.status === 401) { logout(); return; }
-    const json = await r.json();
-    if (!json.cliente) throw new Error('Sem dados');
-    _dados = json;
-    localStorage.setItem(DADOS_KEY, JSON.stringify(json));
-    renderApp();
-  } catch(e) {
-    if (!_dados) {
-      document.getElementById('login-erro').textContent = 'Erro ao carregar dados. Tente novamente.';
-    }
-  }
-}
-
 function logout() {
-  localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(DADOS_KEY);
   _dados = null;
   document.getElementById('app').style.display = 'none';
