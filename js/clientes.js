@@ -935,7 +935,7 @@ async function togglePortalAtivo(clienteId, novoStatus){
     await loadClientes();
     // Reabre o perfil atualizado
     const c = allClientes.find(x=>x.id===clienteId);
-    if(c) abrirPerfilCliente(clienteId);
+    if(c) verPerfilClienteById(clienteId);
   }catch(e){ notify('Erro: '+e.message,'error'); }
 }
 
@@ -952,6 +952,6 @@ async function salvarSenhaPortal(clienteId){
     notify('Senha do portal salva!','success');
     await loadClientes();
     const c = allClientes.find(x=>x.id===clienteId);
-    if(c) abrirPerfilCliente(clienteId);
+    if(c) verPerfilClienteById(clienteId);
   }catch(e){ notify('Erro: '+e.message,'error'); }
 }
