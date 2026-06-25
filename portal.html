@@ -776,9 +776,12 @@ function renderInicio(loc, parcelas, sorteios) {
   if (prox) {
     document.getElementById('prox-valor').textContent = _fmtValor(prox.valor);
     document.getElementById('prox-data').textContent = 'Vence ' + _fmtData(prox.data_vencimento);
-    if (prox.asaas_link) {
+    if (prox && prox.status !== 'pago') {
       document.getElementById('btn-prox-pagar').style.display = '';
-      document.getElementById('btn-prox-pagar').dataset.link = prox.asaas_link;
+      document.getElementById('btn-prox-pagar').dataset.id = prox.id;
+      document.getElementById('btn-prox-pagar').dataset.semana = prox.numero_semana;
+      document.getElementById('btn-prox-pagar').dataset.valor = prox.valor;
+      document.getElementById('btn-prox-pagar').dataset.venc = prox.data_vencimento;
     }
   } else {
     document.getElementById('prox-valor').textContent = 'Em dia';
@@ -805,8 +808,38 @@ function renderInicio(loc, parcelas, sorteios) {
 }
 
 function pagarProxima() {
-  const link = document.getElementById('btn-prox-pagar').dataset.link;
-  if (link) window.open(link, '_blank');
+  const btn = document.getElementById('btn-prox-pagar');
+  buscarLinkPagar(btn.dataset.id, btn.dataset.semana, btn.dataset.valor, btn.dataset.venc, btn);
+}
+
+async function buscarLinkPagar(parcelaId, numeroSemana, valor, dataVenc, btn) {
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Buscando...';
+
+  try {
+    const { cliente } = _dados;
+    const r = await fetch(`${BRIDGE}/portal/pagar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        parcela_id: parcelaId,
+        cliente_nome: cliente.nome,
+        cliente_cpf: cliente.cpf,
+        numero_semana: numeroSemana,
+        valor: valor,
+        data_vencimento: dataVenc
+      })
+    });
+    const json = await r.json();
+    if (!json.link) throw new Error(json.erro || 'Link não encontrado.');
+    window.open(json.link, '_blank');
+  } catch(e) {
+    alert('Não foi possível gerar o link de pagamento: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
 }
 
 // ══ PARCELAS ══════════════════════════════════════════════
@@ -817,8 +850,8 @@ function renderParcelas(parcelas) {
   el.innerHTML = parcelas.map(p => {
     const statusClass = p.status === 'pago' ? 'badge-pago' : p.status === 'vencido' ? 'badge-vencido' : 'badge-pendente';
     const statusTxt = p.status === 'pago' ? 'Pago' : p.status === 'vencido' ? 'Vencido' : 'Pendente';
-    const btnPagar = (p.status !== 'pago' && p.asaas_link)
-      ? `<button class="btn-pagar" onclick="window.open('${p.asaas_link}','_blank')">Pagar</button>`
+    const btnPagar = p.status !== 'pago'
+      ? `<button class="btn-pagar" id="btn-pagar-${p.id}" onclick="buscarLinkPagar('${p.id}','${p.numero_semana}','${p.valor}','${p.data_vencimento}',this)">Pagar</button>`
       : '';
     return `
       <div class="parcela-item">
