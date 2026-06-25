@@ -708,7 +708,10 @@ async function _recarregarDados() {
     if (!json.cliente) return;
     _dados = json;
     localStorage.setItem(DADOS_KEY, JSON.stringify(json));
-    renderApp();
+    // Re-renderiza só os blocos dinâmicos sem piscar a tela
+    renderComunicados(_dados.comunicados);
+    renderSorteios(_dados.sorteios, _dados.locacao);
+    renderInicio(_dados.locacao, _dados.parcelas, _dados.sorteios);
   } catch(e) { /* silencioso — não quebra o app */ }
 }
 
