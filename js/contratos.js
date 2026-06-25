@@ -826,6 +826,7 @@ async function registrarContrato(retornarId=false){
     _servicosLista   = [];
 
     notify('Contrato #'+numContrato+' registrado!','success');
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Carregando...'; }
 
     // Se retornarId (chamado por registrarComChecklist), retorna IMEDIATAMENTE
     // para preservar o DOM do checklist (carregarTudo é chamado depois pelo caller)
