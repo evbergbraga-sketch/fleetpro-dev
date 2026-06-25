@@ -2313,6 +2313,94 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
   </div>
 </div>
 
+<!-- MODAL COMUNICADO PORTAL -->
+<div class="modal-overlay" id="m-comunicado">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title" id="m-comunicado-titulo">Novo Comunicado</div>
+      <button class="modal-close" onclick="closeModal('comunicado')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="com-id">
+      <div class="form-group full">
+        <label>Título</label>
+        <input id="com-titulo" class="" type="text" placeholder="Título do comunicado" style="width:100%">
+      </div>
+      <div class="form-group full">
+        <label>Tipo</label>
+        <select id="com-tipo" style="width:100%">
+          <option value="geral">Geral</option>
+          <option value="manutencao">Manutenção</option>
+          <option value="sorteio">Sorteio</option>
+          <option value="urgente">Urgente</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Destinatário</label>
+        <select id="com-destinatario" style="width:100%" onchange="_portalToggleDestinatario()">
+          <option value="todos">Todos os clientes de moto</option>
+          <option value="especifico">Cliente específico</option>
+        </select>
+      </div>
+      <div id="com-cliente-especifico" style="display:none" class="form-group full">
+        <label>Selecionar cliente</label>
+        <select id="com-cliente-id" style="width:100%"></select>
+      </div>
+      <div class="form-group full">
+        <label>Mensagem</label>
+        <textarea id="com-corpo" rows="4" placeholder="Texto do comunicado..." style="width:100%;resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('comunicado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="_portalSalvarComunicado()">Publicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SORTEIO PORTAL -->
+<div class="modal-overlay" id="m-sorteio">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Novo Sorteio</div>
+      <button class="modal-close" onclick="closeModal('sorteio')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group full">
+        <label>Mês de referência</label>
+        <input id="sor-mes" type="month" style="width:100%">
+      </div>
+      <div class="form-group full">
+        <label>Prêmio</label>
+        <input id="sor-premio" type="text" placeholder="Ex: 4 semanas grátis, Capacete..." style="width:100%">
+      </div>
+      <div class="form-group full">
+        <label>Descrição (opcional)</label>
+        <input id="sor-desc" type="text" placeholder="Detalhes do prêmio..." style="width:100%">
+      </div>
+      <div class="form-group full">
+        <label>Data do sorteio (opcional)</label>
+        <input id="sor-data" type="date" style="width:100%">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('sorteio')">Cancelar</button>
+      <button class="btn btn-primary" onclick="_portalSalvarSorteio()">Criar sorteio</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ELEGÍVEIS PORTAL -->
+<div class="modal-overlay" id="m-elegiveis">
+  <div class="modal" style="max-width:500px;max-height:70vh;overflow-y:auto">
+    <div class="modal-header">
+      <div class="modal-title">Clientes Elegíveis</div>
+      <button class="modal-close" onclick="closeModal('elegiveis')">×</button>
+    </div>
+    <div class="modal-body" id="m-elegiveis-body"></div>
+  </div>
+</div>
+
 <!-- MODAL TROCA OBRIGATÓRIA DE SENHA (primeiro acesso) -->
 <div class="modal-overlay" id="m-primeiro-acesso" style="z-index:9999">
   <div class="modal" style="max-width:440px">
