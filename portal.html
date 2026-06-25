@@ -790,7 +790,7 @@ function renderInicio(loc, parcelas, sorteios) {
 
   // Resumo
   document.getElementById('res-num-contrato').textContent = '#' + loc.num_contrato;
-  document.getElementById('res-plano').textContent = loc.plano_moto === 399.90 ? 'Conquista 36m' : 'Plano 12m';
+  document.getElementById('res-plano').textContent = parseFloat(loc.plano_moto) >= 399 ? 'Conquista 36m' : 'Plano 12m';
   const pagas = (parcelas || []).filter(p => p.status === 'pago').length;
   const total = (parcelas || []).length;
   document.getElementById('res-semanas').textContent = `${pagas} de ${total}`;
