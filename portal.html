@@ -558,6 +558,14 @@ a { color: inherit; text-decoration: none; }
       </div>
     </div>
 
+    <!-- CARD PARABÉNS VENCEDOR -->
+    <div id="card-vencedor" style="display:none;background:linear-gradient(135deg,#1a3a1a,#0a2a0a);border:2px solid var(--green);border-radius:var(--radius);padding:20px;margin-bottom:12px;text-align:center">
+      <div style="font-size:32px;margin-bottom:8px">🏆</div>
+      <div style="font-size:16px;font-weight:800;color:var(--green);margin-bottom:6px">Parabéns! Você ganhou!</div>
+      <div style="font-size:14px;color:var(--text)" id="card-vencedor-premio"></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">Entre em contato com a Royal para resgatar seu prêmio.</div>
+    </div>
+
     <!-- COMUNICADOS NO INÍCIO -->
     <div id="inicio-comunicados"></div>
   </div>
@@ -676,9 +684,33 @@ if ('serviceWorker' in navigator) {
 (function init() {
   const cache = localStorage.getItem(DADOS_KEY);
   if (cache) {
-    try { _dados = JSON.parse(cache); renderApp(); } catch(e) {}
+    try {
+      _dados = JSON.parse(cache);
+      renderApp();
+      // Busca dados frescos em background sem precisar de senha
+      _recarregarDados();
+    } catch(e) {}
   }
 })();
+
+async function _recarregarDados() {
+  try {
+    const dados = JSON.parse(localStorage.getItem(DADOS_KEY) || '{}');
+    const clienteId = dados?.cliente?.id;
+    if (!clienteId) return;
+    const r = await fetch(`${BRIDGE}/portal/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clienteId })
+    });
+    if (!r.ok) return;
+    const json = await r.json();
+    if (!json.cliente) return;
+    _dados = json;
+    localStorage.setItem(DADOS_KEY, JSON.stringify(json));
+    renderApp();
+  } catch(e) { /* silencioso — não quebra o app */ }
+}
 
 // ══ LOGIN ═════════════════════════════════════════════════
 function _formatarCpf(v) {
@@ -807,6 +839,17 @@ function renderInicio(loc, parcelas, sorteios) {
     el.textContent = elegivel ? '✅ Elegível' : '⚠️ Pendências';
   } else {
     el.textContent = 'Sem sorteio aberto';
+  }
+
+  // Card parabéns vencedor
+  const cardVenc = document.getElementById('card-vencedor');
+  const sorteiosGanhos = (sorteios||[]).filter(s => s.status==='realizado' && s.vencedor_locacao_id === loc?.id);
+  if (cardVenc && sorteiosGanhos.length) {
+    cardVenc.style.display = '';
+    const ultimo = sorteiosGanhos[0];
+    document.getElementById('card-vencedor-premio').textContent = `Prêmio: ${ultimo.premio}`;
+  } else if (cardVenc) {
+    cardVenc.style.display = 'none';
   }
 
   // Comunicados no início (máx 3)
