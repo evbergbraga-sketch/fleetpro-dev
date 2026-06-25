@@ -643,6 +643,37 @@ async function _renderPerfilCliente(c){
       }).join('')}
     </div>` : ''}
 
+    ${currentPerfil?.perfil==='admin' ? `
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Portal do Cliente</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">Acesso ao Portal</div>
+          <div style="font-size:12px;color:var(--muted)">${c.portal_ativo ? 'Ativado' : 'Desativado'}</div>
+        </div>
+        <button onclick="togglePortalAtivo('${c.id}',${!c.portal_ativo})"
+          style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:${c.portal_ativo ? 'rgba(224,82,82,.15)' : 'rgba(0,196,106,.15)'};color:${c.portal_ativo ? 'var(--red)' : 'var(--green)'};transition:.15s">
+          ${c.portal_ativo ? 'Desativar' : 'Ativar'}
+        </button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">Senha do Portal</div>
+          <input id="inp-portal-senha-${c.id}" type="text" value="${c.portal_senha||''}"
+            placeholder="Definir senha..."
+            style="width:100%;padding:8px 10px;background:var(--bg3,var(--bg));border:1px solid var(--border2);border-radius:8px;font-size:13px;color:var(--text);outline:none">
+        </div>
+        <button onclick="salvarSenhaPortal('${c.id}')"
+          style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">
+          Salvar
+        </button>
+      </div>
+      ${c.portal_ativo && c.portal_senha ? `
+      <div style="margin-top:10px;padding:8px 12px;background:rgba(0,196,106,.08);border:1px solid rgba(0,196,106,.2);border-radius:8px;font-size:12px;color:var(--green)">
+        ✅ Portal ativo — cliente pode acessar em <strong>fleetpro.ruahsystems.com.br/portal.html</strong>
+      </div>` : ''}
+    </div>` : ''}
+
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost" style="flex:1" onclick="irParaChat('${c.id}');closeModal('perfil-cliente')">💬 Chat</button>
       <button class="btn btn-ghost" style="color:var(--red);border-color:var(--red)" onclick="excluirCliente('${c.id}','${c.nome}');closeModal('perfil-cliente')">🗑️ Excluir</button>
@@ -891,4 +922,36 @@ function _coletarRedesSociais(prefix){
     return rede && usuario ? {rede, usuario} : null;
   }).filter(Boolean);
   return lista.length ? lista : null;
+}
+
+// ══ PORTAL DO CLIENTE ══
+async function togglePortalAtivo(clienteId, novoStatus){
+  try{
+    const {error} = await sb.from('clientes')
+      .update({portal_ativo: novoStatus})
+      .eq('id', clienteId);
+    if(error) throw error;
+    notify(novoStatus ? 'Portal ativado!' : 'Portal desativado.', 'success');
+    await carregarClientes();
+    // Reabre o perfil atualizado
+    const c = allClientes.find(x=>x.id===clienteId);
+    if(c) abrirPerfilCliente(clienteId);
+  }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+async function salvarSenhaPortal(clienteId){
+  const inp = document.getElementById('inp-portal-senha-'+clienteId);
+  if(!inp) return;
+  const senha = inp.value.trim();
+  if(!senha){ notify('Informe a senha','error'); return; }
+  try{
+    const {error} = await sb.from('clientes')
+      .update({portal_senha: senha})
+      .eq('id', clienteId);
+    if(error) throw error;
+    notify('Senha do portal salva!','success');
+    await carregarClientes();
+    const c = allClientes.find(x=>x.id===clienteId);
+    if(c) abrirPerfilCliente(clienteId);
+  }catch(e){ notify('Erro: '+e.message,'error'); }
 }
