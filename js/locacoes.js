@@ -439,6 +439,21 @@ async function abrirModalLocacao(locId){
       </div>
     </div>` : ''}
 
+    <!-- CONTRATO PDF PORTAL -->
+    <div style="margin-top:16px;padding:14px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📄 Contrato PDF — Portal do Cliente</div>
+      ${loc.contrato_pdf_url ? `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <a href="${loc.contrato_pdf_url}" target="_blank" style="font-size:13px;color:var(--accent);font-weight:600">📄 Ver contrato atual</a>
+          <button onclick="_locRemoverContratoPdf('${locId}')" style="font-size:11px;color:var(--red);background:none;border:none;cursor:pointer">Remover</button>
+        </div>
+      ` : '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Nenhum PDF enviado ainda.</div>'}
+      <label style="cursor:pointer;padding:6px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-weight:600;display:inline-block">
+        📎 Upload do PDF do Contrato
+        <input type="file" accept=".pdf" style="display:none" onchange="_locUploadContratoPdf(this,'${locId}')">
+      </label>
+    </div>
+
     <!-- ANEXOS -->
     <div style="margin-top:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -1748,4 +1763,36 @@ async function cancelarLocacao(id){
     notify('Erro: '+e.message,'error');
     if(btn){ btn.disabled=false; btn.textContent='Confirmar Cancelamento'; }
   }
+}
+
+// ══ UPLOAD CONTRATO PDF — PORTAL ══
+async function _locUploadContratoPdf(input, locId) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf') { notify('Apenas PDF é aceito.', 'error'); return; }
+  if (file.size > 15 * 1024 * 1024) { notify('Arquivo muito grande (máx 15MB).', 'error'); return; }
+
+  notify('Enviando PDF...', 'info');
+  try {
+    const path = `${locId}/contrato_${Date.now()}.pdf`;
+    const { error: upErr } = await sb.storage.from('locacoes-docs').upload(path, file, { upsert: true });
+    if (upErr) throw upErr;
+
+    const { data: { publicUrl } } = sb.storage.from('locacoes-docs').getPublicUrl(path);
+    const { error } = await sb.from('locacoes').update({ contrato_pdf_url: publicUrl }).eq('id', locId);
+    if (error) throw error;
+
+    notify('Contrato PDF salvo! Disponível no portal do cliente.', 'success');
+    await carregarTudo();
+    abrirDetalhesLocacao(locId);
+  } catch(e) { notify('Erro: ' + e.message, 'error'); }
+}
+
+async function _locRemoverContratoPdf(locId) {
+  if (!confirm('Remover o PDF do contrato do portal?')) return;
+  const { error } = await sb.from('locacoes').update({ contrato_pdf_url: null }).eq('id', locId);
+  if (error) { notify('Erro: ' + error.message, 'error'); return; }
+  notify('PDF removido.', 'success');
+  await carregarTudo();
+  abrirDetalhesLocacao(locId);
 }

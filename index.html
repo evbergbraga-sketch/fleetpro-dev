@@ -2292,6 +2292,17 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <input type="file" id="ev-anexos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" style="display:none" onchange="_previewAnexos('ev', this.files)">
         <div id="ev-anexos-lista" style="margin-top:8px"></div>
       </div>
+      <div class="form-section-title">📋 CRLV — Portal do Cliente</div>
+      <div class="form-group full">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label style="cursor:pointer;padding:8px 16px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-weight:600">
+            📎 Fazer upload do CRLV
+            <input type="file" id="ev-crlv-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="_uploadCrlv(this)">
+          </label>
+          <span id="ev-crlv-nome" style="font-size:12px;color:var(--muted)">Nenhum arquivo selecionado</span>
+        </div>
+        <div id="ev-crlv-preview" style="margin-top:8px"></div>
+      </div>
       <div class="form-section-title">💬 Observações</div>
       <div class="form-group full"><textarea id="ev-obs" rows="2" style="width:100%;resize:none"></textarea></div>
     </div>

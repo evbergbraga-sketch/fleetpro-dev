@@ -494,6 +494,11 @@ function editarVeiculo(id){
   document.getElementById('ev-status').value = v.status||'disponivel';
   _preencherCamposExtras('ev', v);
   document.getElementById('ev-obs').value   = v.observacoes||'';
+  // Mostrar CRLV atual
+  const crlvNome = document.getElementById('ev-crlv-nome');
+  const crlvPreview = document.getElementById('ev-crlv-preview');
+  if(crlvNome) crlvNome.textContent = v.crlv_url ? '✅ CRLV enviado' : 'Nenhum arquivo enviado';
+  if(crlvPreview) crlvPreview.innerHTML = v.crlv_url ? `<a href="${v.crlv_url}" target="_blank" style="font-size:12px;color:var(--accent)">📋 Ver CRLV atual</a>` : '';
   preencherSelectInvestidores('ev-investidor').then(()=>{
     const sel = document.getElementById('ev-investidor');
     if(sel) sel.value = v.investidor_id||'';
@@ -600,5 +605,33 @@ async function salvarVeiculo(){
     notify('Erro ao salvar: '+e.message,'error');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='✓ Salvar';}
+  }
+}
+
+// ══ UPLOAD CRLV — PORTAL ══
+async function _uploadCrlv(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const veiculoId = document.getElementById('ev-id')?.value;
+  if (!veiculoId) { notify('Salve o veículo antes de enviar o CRLV.', 'error'); return; }
+
+  document.getElementById('ev-crlv-nome').textContent = '⏳ Enviando...';
+  try {
+    const path = `${veiculoId}/crlv_${Date.now()}.${file.name.split('.').pop()}`;
+    const { error: upErr } = await sb.storage.from('veiculos-docs').upload(path, file, { upsert: true });
+    if (upErr) throw upErr;
+
+    const { data: { publicUrl } } = sb.storage.from('veiculos-docs').getPublicUrl(path);
+    const { error } = await sb.from('veiculos').update({ crlv_url: publicUrl }).eq('id', veiculoId);
+    if (error) throw error;
+
+    document.getElementById('ev-crlv-nome').textContent = '✅ ' + file.name;
+    document.getElementById('ev-crlv-preview').innerHTML = `
+      <a href="${publicUrl}" target="_blank" style="font-size:12px;color:var(--accent)">📋 Ver CRLV enviado</a>`;
+    notify('CRLV salvo! Disponível no portal do cliente.', 'success');
+  } catch(e) {
+    document.getElementById('ev-crlv-nome').textContent = 'Erro ao enviar';
+    notify('Erro: ' + e.message, 'error');
   }
 }
