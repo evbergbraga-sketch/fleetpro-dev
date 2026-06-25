@@ -17,6 +17,7 @@ const PAGE_CFG = {
   usuarios:    {title:'Usuários & Acessos',      action:'',                    modal:null,        roles:['admin']},
   investidores:{title:'Minha Carteira',          action:'',                    modal:null,        roles:['admin','investidor']},
   financeiro:  {title:'Financeiro',               action:'+ Lançamento',        modal:null,        roles:['admin']},
+  portal:      {title:'Portal do Cliente',         action:'',                    modal:null,        roles:['admin']},
   ajuda:       {title:'Como Funciona',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
   denied:      {title:'Acesso negado',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
 };
@@ -82,6 +83,7 @@ function goPage(id, navEl){
   if(id==='reservas'){renderReservas();}
   if(id==='locacoes'){renderLocacoes();}
   if(id==='financeiro'){ if(typeof iniciarFinanceiro==='function') iniciarFinanceiro(); }
+  if(id==='portal'){ if(typeof iniciarPortalAdmin==='function') iniciarPortalAdmin(); }
 }
 
 // ══ DATA LOADING ══

@@ -1490,6 +1490,30 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
       </div>
 
+      <div class="page" id="page-portal">
+        <!-- TABS -->
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:20px">
+          <button onclick="_portalTab('comunicados')" id="portal-tab-comunicados" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;border-bottom:2px solid var(--accent);color:var(--accent);margin-bottom:-2px">📢 Comunicados</button>
+          <button onclick="_portalTab('sorteios')" id="portal-tab-sorteios" style="padding:10px 20px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-2px">🎯 Sorteios</button>
+        </div>
+
+        <!-- COMUNICADOS -->
+        <div id="portal-painel-comunicados">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+            <button class="btn btn-primary" onclick="_portalNovoComunicado()">+ Novo Comunicado</button>
+          </div>
+          <div id="portal-lista-comunicados"></div>
+        </div>
+
+        <!-- SORTEIOS -->
+        <div id="portal-painel-sorteios" style="display:none">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+            <button class="btn btn-primary" onclick="_portalNovoSorteio()">+ Novo Sorteio</button>
+          </div>
+          <div id="portal-lista-sorteios"></div>
+        </div>
+      </div>
+
       <div class="page" id="page-pipeline">
 
         <!-- MÉTRICAS (Fase 5) -->
@@ -2480,6 +2504,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/historico.js"></script>
 <script src="js/contratos.js"></script>
 <script src="js/financeiro.js"></script>
+<script src="js/portal-admin.js"></script>
 <script src="js/reservas.js"></script>
 <script src="js/locacoes.js"></script>
 <script src="js/chat.js"></script>
