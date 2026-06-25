@@ -557,6 +557,9 @@ a { color: inherit; text-decoration: none; }
         <span class="info-row-val" id="res-inicio">—</span>
       </div>
     </div>
+
+    <!-- COMUNICADOS NO INÍCIO -->
+    <div id="inicio-comunicados"></div>
   </div>
 
   <div id="pg-parcelas" class="page">
@@ -804,6 +807,25 @@ function renderInicio(loc, parcelas, sorteios) {
     el.textContent = elegivel ? '✅ Elegível' : '⚠️ Pendências';
   } else {
     el.textContent = 'Sem sorteio aberto';
+  }
+
+  // Comunicados no início (máx 3)
+  const comunicadosHome = _dados?.comunicados || [];
+  const elCom = document.getElementById('inicio-comunicados');
+  if (elCom && comunicadosHome.length) {
+    const tipoCor = { geral:'var(--muted)', manutencao:'var(--gold)', sorteio:'var(--green)', urgente:'var(--red)' };
+    elCom.innerHTML = comunicadosHome.slice(0,3).map(com => `
+      <div style="background:var(--card);border:1px solid var(--border);border-left:3px solid ${tipoCor[com.tipo]||'var(--accent)'};border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:pointer" onclick="irPara('comunicados')">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${tipoCor[com.tipo]||'var(--accent)'}">${com.tipo}</span>
+          <span style="font-size:11px;color:var(--muted2)">${_fmtData(com.criado_em?.slice(0,10))}</span>
+        </div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">${com.titulo}</div>
+        <div style="font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${com.corpo}</div>
+      </div>`).join('');
+    if (comunicadosHome.length > 3) {
+      elCom.innerHTML += `<div style="text-align:center;padding:8px"><button onclick="irPara('comunicados')" style="background:none;border:none;color:var(--green);font-size:13px;font-weight:600;cursor:pointer">Ver todos →</button></div>`;
+    }
   }
 }
 
