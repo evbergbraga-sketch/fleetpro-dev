@@ -274,7 +274,7 @@ function renderDashboard(){
     if(alertSub) alertSub.textContent = atrasados.length === 0 ? 'Tudo em dia ✓' : `veículo${atrasados.length>1?'s':''} com devolução atrasada`;
     if(alertCard){
       if(atrasados.length > 0){ alertCard.classList.add('stat-alert'); alertVal.style.color=''; }
-      else { alertCard.classList.remove('stat-alert'); alertVal.style.color='#4ade80'; }
+      else { alertCard.classList.remove('stat-alert'); alertVal.style.color='#22c55e'; }
     }
   }
 
@@ -521,7 +521,7 @@ function _agendaAbrirDia(dStr, el){
     locsNoDia.forEach(l=>{
       const diff = Math.ceil((new Date(l.data_fim)-new Date())/86400000);
       const isAtraso = diff < 0;
-      const cor = isAtraso ? '#F87171' : '#4ade80';
+      const cor = isAtraso ? '#F87171' : '#22c55e';
       const status = isAtraso ? `${Math.abs(diff)}d atrasado` : diff === 0 ? 'Devolução hoje' : `Devolve em ${diff}d`;
 
       // Horário de devolução e disponibilidade real (devolução + 4h de buffer p/ limpeza/inspeção)
@@ -603,7 +603,7 @@ function _renderFrotaStatus(veiculos, locacoes){
   const todos = relevantes.length ? relevantes : veiculos.slice(0, 5);
 
   const STATUS_CFG = {
-    disponivel:  { label:'Disponível', bg:'rgba(22,163,74,0.10)',  border:'rgba(22,163,74,0.25)',  cor:'#4ade80' },
+    disponivel:  { label:'Disponível', bg:'rgba(21,128,61,0.10)',  border:'rgba(21,128,61,0.28)',  cor:'#22c55e' },
     alugado:     { label:'Locado',     bg:'rgba(79,70,229,0.12)',  border:'rgba(79,70,229,0.3)',   cor:'#818CF8' },
     reservado:   { label:'Reservado',  bg:'rgba(217,119,6,0.12)',  border:'rgba(217,119,6,0.25)',  cor:'#FCD34D' },
     manutencao:  { label:'Manutenção', bg:'rgba(220,38,38,0.10)',  border:'rgba(220,38,38,0.25)',  cor:'#F87171' },

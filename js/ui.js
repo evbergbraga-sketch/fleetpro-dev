@@ -136,7 +136,7 @@ function setMsg(txt){
 
     const TAG_CFG = {
       cliente:  { bg:'rgba(79,70,229,.15)',  cor:'#818CF8' },
-      carro:    { bg:'rgba(22,163,74,.12)',  cor:'#4ade80' },
+      carro:    { bg:'rgba(21,128,61,.12)',  cor:'#22c55e' },
       moto:     { bg:'rgba(217,119,6,.12)',  cor:'#FCD34D' },
       locacao:  { bg:'rgba(220,38,38,.12)',  cor:'#F87171' },
     };
