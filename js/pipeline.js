@@ -46,7 +46,7 @@ async function iniciarPipeline(){
 
 async function _plCarregarDados(){
   const {data,error} = await sb.from('clientes')
-    .select('id,nome,telefone,cpf,email,origem,observacoes,status_crm,responsavel_id,followup_em,motivo_perda,interesse_veiculo,created_at,updated_at,perfis(nome)')
+    .select('id,nome,telefone,cpf,email,origem,observacoes,status_crm,responsavel_id,followup_em,motivo_perda,interesse_veiculo,created_at,perfis(nome)')
     .neq('status_crm','sem_status')
     .not('status_crm','is',null)
     .order('nome');
@@ -79,8 +79,8 @@ function renderPipeline(){
   // Ordenação
   const ordem = document.getElementById('pl-ordem')?.value || 'recente';
   const dados = _plFiltrar().sort((a,b)=>{
-    const da = new Date(a.updated_at||a.created_at||0);
-    const db = new Date(b.updated_at||b.created_at||0);
+    const da = new Date(a.created_at||0);
+    const db = new Date(b.created_at||0);
     return ordem==='antigo' ? da-db : db-da;
   });
   if(_plVisuAtual==='kanban') _plRenderKanban(dados);
