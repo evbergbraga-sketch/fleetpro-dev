@@ -128,8 +128,9 @@ function _renderHistoricoPagamentos(lancamentos, loc){
     asaas: '🔄',
   };
 
+  const podeEditar = ['admin','gerente'].includes(currentPerfil?.perfil);
   const linhas = lancamentos.map(l=>`
-    <div style="display:grid;grid-template-columns:90px 1fr 110px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
+    <div style="display:grid;grid-template-columns:90px 1fr 110px 100px ${podeEditar && l.origem==='checklist_entrada' ? '60px' : ''};align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
       <div style="font-size:11px;color:var(--muted)">${fmtDataHora(l.data||l.created_at)}</div>
       <div style="font-size:12px">
         <span style="margin-right:4px">${origemIcon[l.origem]||'💰'}</span>${_descSemForma(l.descricao)||l.categoria||'—'}
@@ -139,6 +140,9 @@ function _renderHistoricoPagamentos(lancamentos, loc){
       <div style="font-size:12px;font-weight:600;text-align:right;color:${l.tipo==='despesa'?'var(--red)':'var(--green)'}">
         ${l.tipo==='despesa'?'−':'+'} R$ ${Number(l.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}
       </div>
+      ${podeEditar && l.origem==='checklist_entrada' ? `
+        <button onclick="_editarValorLancamento('${l.id}',${l.valor})" style="font-size:11px;padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap">Editar</button>
+      ` : ''}
     </div>`).join('');
 
   // Detecta aditivos (extensões) registradas
@@ -433,7 +437,11 @@ async function abrirModalLocacao(locId){
         </div>
         <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Motivo do cancelamento</label>
         <textarea id="loc-cancel-motivo" rows="3" placeholder="Descreva o motivo..." style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;resize:vertical"></textarea>
-        <button onclick="cancelarLocacao('${locId}')" style="margin-top:14px;padding:10px 24px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="loc-cancel-remover-lanc" style="width:16px;height:16px;cursor:pointer">
+          Remover lançamentos financeiros deste contrato
+        </label>
+        <button onclick="cancelarLocacao('${locId}')" style="margin-top:12px;padding:10px 24px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
           Confirmar Cancelamento
         </button>
       </div>
@@ -1755,6 +1763,13 @@ async function cancelarLocacao(id){
     // Libera veículo
     await sb.from('veiculos').update({status:'disponivel'}).eq('id', loc.veiculo_id);
 
+    // Remove lançamentos financeiros se solicitado
+    const removerLanc = document.getElementById('loc-cancel-remover-lanc')?.checked;
+    if(removerLanc){
+      await sb.from('lancamentos').delete().eq('locacao_id', id);
+      await sb.from('cobrancas_semanais').delete().eq('locacao_id', id);
+    }
+
     notify('Locação cancelada com sucesso.','success');
     closeModal('locacao-detalhe');
     await carregarTudo();
@@ -1795,4 +1810,26 @@ async function _locRemoverContratoPdf(locId) {
   notify('PDF removido.', 'success');
   await carregarTudo();
   abrirDetalhesLocacao(locId);
+}
+
+// ══ EDITAR VALOR DE LANÇAMENTO (admin/gerente) ══
+async function _editarValorLancamento(lancId, valorAtual){
+  if(!['admin','gerente'].includes(currentPerfil?.perfil)){
+    notify('Sem permissão para editar lançamentos.','error'); return;
+  }
+  const novoValorStr = prompt(`Editar valor do lançamento\nValor atual: R$ ${Number(valorAtual).toFixed(2).replace('.',',')}\n\nNovo valor (apenas números):`, Number(valorAtual).toFixed(2));
+  if(novoValorStr === null) return; // cancelou
+  const novoValor = parseFloat(novoValorStr.replace(',','.'));
+  if(isNaN(novoValor) || novoValor < 0){ notify('Valor inválido.','error'); return; }
+  if(!confirm(`Confirmar alteração para R$ ${novoValor.toFixed(2).replace('.',',')}?`)) return;
+  try{
+    const {error} = await sb.from('lancamentos').update({valor: novoValor}).eq('id', lancId);
+    if(error) throw error;
+    notify('Valor atualizado com sucesso!','success');
+    // Recarrega o modal da locação ativa
+    const locId = document.querySelector('#modal-locacao-detalhe [data-loc-id]')?.dataset?.locId
+      || document.querySelector('.modal-overlay.show')?.querySelector('[data-loc-id]')?.dataset?.locId;
+    await carregarTudo();
+    if(locId) abrirDetalhesLocacao(locId);
+  }catch(e){ notify('Erro: '+e.message,'error'); }
 }
