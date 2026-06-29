@@ -46,7 +46,7 @@ async function iniciarPipeline(){
 
 async function _plCarregarDados(){
   const {data,error} = await sb.from('clientes')
-    .select('id,nome,telefone,cpf,email,origem,observacoes,status_crm,responsavel_id,followup_em,motivo_perda,interesse_veiculo,created_at,perfis(nome)')
+    .select('id,nome,telefone,cpf,email,origem,observacoes,status_crm,responsavel_id,followup_em,motivo_perda,interesse_veiculo,created_at,updated_at,perfis(nome)')
     .neq('status_crm','sem_status')
     .not('status_crm','is',null)
     .order('nome');
