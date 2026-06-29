@@ -1532,10 +1532,47 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <option value="atrasado">⚠️ Follow-up atrasado</option>
               <option value="pendente">📅 Com follow-up</option>
             </select>
-            <div style="margin-left:auto;display:flex;gap:6px">
+            <select id="pl-ordem" onchange="renderPipeline()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
+              <option value="recente">Mais recente primeiro</option>
+              <option value="antigo">Mais antigo primeiro</option>
+            </select>
+            <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+              <button onclick="_plFollowupMassa()" class="btn btn-ghost" style="font-size:12px;padding:6px 14px">📨 Follow-up em massa</button>
               <button onclick="_plVisu('kanban')" id="pl-btn-kanban" class="btn btn-primary" style="font-size:12px;padding:6px 14px">⬛ Kanban</button>
               <button onclick="_plVisu('lista')"  id="pl-btn-lista"  class="btn btn-ghost"   style="font-size:12px;padding:6px 14px">☰ Lista</button>
               <button onclick="_plAbrirConfig()" id="pl-btn-config" class="btn btn-ghost" style="font-size:12px;padding:6px 14px;display:none">⚙️ Configurar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL FOLLOW-UP EM MASSA -->
+        <div class="modal-overlay" id="m-followup-massa">
+          <div class="modal" style="max-width:520px">
+            <div class="modal-header">
+              <div class="modal-title">📨 Follow-up em massa</div>
+              <button class="modal-close" onclick="closeModal('followup-massa')">×</button>
+            </div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+              <div>
+                <label style="font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Filtrar por status</label>
+                <select id="fu-massa-status" style="width:100%;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px" onchange="_fuMassaAtualizar()">
+                  <option value="">Todos os status</option>
+                </select>
+              </div>
+              <div id="fu-massa-preview" style="font-size:12px;color:var(--muted);padding:8px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border2)">
+                Selecione um status para ver quantos leads serão impactados.
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Mensagem <span style="color:var(--muted);font-weight:400;text-transform:none">(use {nome} para personalizar)</span></label>
+                <textarea id="fu-massa-msg" rows="5" style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;resize:vertical;line-height:1.5" placeholder="Ex: Olá {nome}, tudo bem? Ainda tem interesse em alugar uma moto? 🏍️">Olá {nome}, tudo bem? Passando para saber se ainda tem interesse em alugar uma moto. Posso te ajudar? 😊</textarea>
+              </div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.5;padding:8px 12px;background:rgba(245,185,66,.06);border:1px solid rgba(245,185,66,.2);border-radius:8px">
+                ⚠️ As mensagens serão enviadas via WhatsApp para todos os leads selecionados que possuem número de telefone cadastrado.
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-ghost" onclick="closeModal('followup-massa')">Cancelar</button>
+              <button class="btn btn-primary" id="fu-massa-btn" onclick="_fuMassaEnviar()">📨 Enviar follow-up</button>
             </div>
           </div>
         </div>

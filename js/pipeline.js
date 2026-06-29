@@ -76,7 +76,13 @@ function _plFiltrar(){
 }
 
 function renderPipeline(){
-  const dados = _plFiltrar();
+  // Ordenação
+  const ordem = document.getElementById('pl-ordem')?.value || 'recente';
+  const dados = _plFiltrar().sort((a,b)=>{
+    const da = new Date(a.updated_at||a.created_at||0);
+    const db = new Date(b.updated_at||b.created_at||0);
+    return ordem==='antigo' ? da-db : db-da;
+  });
   if(_plVisuAtual==='kanban') _plRenderKanban(dados);
   else                        _plRenderLista(dados);
 }
@@ -134,12 +140,12 @@ function _plRenderKanban(dados){
           <div style="width:34px;height:34px;border-radius:50%;background:${bgIni};color:${s.cor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;border:1.5px solid ${s.border}">${ini}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</div>
-            <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
+            <div style="font-size:11px;color:var(--text);opacity:.65">${c.telefone||'—'}</div>
           </div>
           ${veiSvg ? `<div style="display:flex;gap:3px;flex-shrink:0">${veiSvg}</div>` : ''}
         </div>
 
-        ${resumo ? `<div style="font-size:11px;color:var(--muted);line-height:1.4;margin-bottom:8px;padding:6px 8px;background:rgba(0,0,0,.04);border-radius:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${resumo}</div>` : ''}
+        ${resumo ? `<div style="font-size:11px;color:var(--text);opacity:.72;line-height:1.5;margin-bottom:8px;padding:6px 8px;background:rgba(0,0,0,.05);border-radius:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${resumo}</div>` : ''}
 
         <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:${(fuHtml||resp||c.origem)?'6px':'0'}">
           ${fuHtml}
@@ -147,7 +153,7 @@ function _plRenderKanban(dados){
           ${c.origem ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg> ${c.origem}</span>` : ''}
         </div>
 
-        ${dtFmt ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted2);margin-top:4px;padding-top:6px;border-top:1px solid ${s.border}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${dtFmt}</div>` : ''}
+        ${dtFmt ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text);opacity:.55;margin-top:4px;padding-top:6px;border-top:1px solid ${s.border}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${dtFmt}</div>` : ''}
       </div>`;
     }).join('') || `<div class="pl-drop-empty" data-col="${s.label}" style="font-size:12px;color:var(--muted2);text-align:center;padding:24px 0;opacity:.6;border-radius:8px;border:2px dashed transparent;transition:.15s">Nenhum lead</div>`;
 
@@ -302,8 +308,8 @@ function _plRenderMetricas(){
   if(!el) return;
   const hoje  = new Date().toISOString().slice(0,10);
   const total = _plDados.length;
-  const ativos    = _plDados.filter(c=>{ const k=c.status_crm||''; return k==='ativo'||k==='em-locação'||k==='em locação'||k.toLowerCase().includes('loca'); }).length;
-  const interesse = _plDados.filter(c=>c.status_crm==='interesse').length;
+  const ativos    = _plDados.filter(c=>{ const k=(c.status_crm||'').toLowerCase(); return k==='ativo'||k.includes('loca'); }).length;
+  const interesse = _plDados.filter(c=>(c.status_crm||'').toLowerCase()==='interesse').length;
   const fuHoje    = _plDados.filter(c=>(c.followup_em||'').slice(0,10)===hoje).length;
   const fuAtraso  = _plDados.filter(c=>{ const d=(c.followup_em||'').slice(0,10); return d&&d<hoje; }).length;
   const conversao = total ? Math.round(ativos/total*100) : 0;
