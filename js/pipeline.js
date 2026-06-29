@@ -734,3 +734,66 @@ async function _plConfigNovoStatus(){
   _plRenderConfigLista();
   notify(`Status "${label.trim()}" criado!`,'success');
 }
+
+// ══ FOLLOW-UP EM MASSA ══════════════════════════════════════
+function _plFollowupMassa(){
+  // Popula o select de status com os status ativos
+  const sel = document.getElementById('fu-massa-status');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">Todos os status</option>' +
+    _PL_STATUS.map(s=>`<option value="${s.key}">${s.label} (${_plDados.filter(c=>c.status_crm===s.key||c.status_crm===s.label).length})</option>`).join('');
+  _fuMassaAtualizar();
+  document.getElementById('m-followup-massa').classList.add('show');
+}
+
+function _fuMassaAtualizar(){
+  const statusSel = document.getElementById('fu-massa-status')?.value || '';
+  const leads = statusSel
+    ? _plDados.filter(c=>c.status_crm===statusSel||c.status_crm===_PL_STATUS.find(s=>s.key===statusSel)?.label)
+    : _plDados;
+  const comTel = leads.filter(c=>c.telefone);
+  const semTel = leads.length - comTel.length;
+  const el = document.getElementById('fu-massa-preview');
+  if(!el) return;
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">
+      ${comTel.length} lead${comTel.length!==1?'s':''} serão impactados
+    </div>
+    <div style="font-size:11px;color:var(--muted)">
+      ${semTel>0 ? `⚠️ ${semTel} lead${semTel!==1?'s':''} sem telefone serão ignorados.` : '✅ Todos têm telefone cadastrado.'}
+    </div>`;
+}
+
+async function _fuMassaEnviar(){
+  const statusSel = document.getElementById('fu-massa-status')?.value || '';
+  const msg       = document.getElementById('fu-massa-msg')?.value?.trim() || '';
+  const btn       = document.getElementById('fu-massa-btn');
+
+  if(!msg){ notify('Digite a mensagem antes de enviar.','error'); return; }
+
+  const leads = (statusSel
+    ? _plDados.filter(c=>c.status_crm===statusSel||c.status_crm===_PL_STATUS.find(s=>s.key===statusSel)?.label)
+    : _plDados).filter(c=>c.telefone);
+
+  if(!leads.length){ notify('Nenhum lead com telefone para este status.','error'); return; }
+  if(!confirm(`Enviar mensagem para ${leads.length} lead${leads.length!==1?'s':''}?`)) return;
+
+  btn.disabled=true; btn.textContent='⏳ Enviando...';
+
+  let ok=0, err=0;
+  for(const c of leads){
+    const texto = msg.replace(/\{nome\}/gi, c.nome?.split(' ')[0]||c.nome||'');
+    try{
+      await evoSendText(c.telefone, texto);
+      ok++;
+    }catch(e){
+      err++;
+    }
+    // Pequena pausa para não sobrecarregar a API
+    await new Promise(r=>setTimeout(r,400));
+  }
+
+  btn.disabled=false; btn.textContent='📨 Enviar follow-up';
+  notify(`✅ ${ok} mensagem${ok!==1?'s':''} enviada${ok!==1?'s':''}${err>0?` · ⚠️ ${err} falha${err!==1?'s':''}`:''}.`,'success');
+  closeModal('followup-massa');
+}
