@@ -302,7 +302,7 @@ function _plRenderMetricas(){
   if(!el) return;
   const hoje  = new Date().toISOString().slice(0,10);
   const total = _plDados.length;
-  const ativos    = _plDados.filter(c=>c.status_crm==='ativo').length;
+  const ativos    = _plDados.filter(c=>{ const k=c.status_crm||''; return k==='ativo'||k==='em-locação'||k==='em locação'||k.toLowerCase().includes('loca'); }).length;
   const interesse = _plDados.filter(c=>c.status_crm==='interesse').length;
   const fuHoje    = _plDados.filter(c=>(c.followup_em||'').slice(0,10)===hoje).length;
   const fuAtraso  = _plDados.filter(c=>{ const d=(c.followup_em||'').slice(0,10); return d&&d<hoje; }).length;
@@ -311,7 +311,7 @@ function _plRenderMetricas(){
   el.innerHTML = [
     { val:total,          lbl:'Total de leads',      cor:'var(--accent)',  ico:'🎯', sub:'no pipeline' },
     { val:interesse,      lbl:'Em interesse',         cor:'#F5B942',        ico:'🟡', sub:'aguardando' },
-    { val:ativos,         lbl:'Leads ativos',         cor:'#4ADE80',        ico:'🟢', sub:'com contrato' },
+    { val:ativos,         lbl:'Em Locação',            cor:'#16a34a',        ico:'🟢', sub:'com contrato' },
     { val:conversao+'%',  lbl:'Taxa de conversão',    cor:'#60A5FA',        ico:'📈', sub:'interesse→ativo' },
     { val:fuHoje+fuAtraso,lbl:'Follow-ups pendentes', cor:fuHoje+fuAtraso>0?'#F87171':'var(--muted2)', ico:'🔔', sub:`${fuHoje} hoje · ${fuAtraso} atrasado${fuAtraso!==1?'s':''}` },
   ].map(m=>`
