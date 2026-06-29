@@ -8,7 +8,7 @@ let _plModalData = null; // cliente aberto no modal
 const _PL_STATUS = [
   { key:'interesse', label:'Interesse', emoji:'🟡', cor:'#F5B942', bg:'rgba(245,185,66,.12)',  border:'rgba(245,185,66,.3)'  },
   { key:'potencial', label:'Potencial', emoji:'🔵', cor:'#60A5FA', bg:'rgba(96,165,250,.12)',  border:'rgba(96,165,250,.3)'  },
-  { key:'ativo',     label:'Ativo',     emoji:'🟢', cor:'#4ADE80', bg:'rgba(74,222,128,.12)',  border:'rgba(74,222,128,.3)'  },
+  { key:'ativo',     label:'Ativo',     emoji:'🟢', cor:'#16a34a', bg:'rgba(22,163,74,.12)',   border:'rgba(22,163,74,.3)'   },
   { key:'reprovado', label:'Reprovado', emoji:'🔴', cor:'#F87171', bg:'rgba(248,113,113,.12)', border:'rgba(248,113,113,.3)' },
   { key:'inativo',   label:'Inativo',   emoji:'⚫', cor:'#9CA3AF', bg:'rgba(156,163,175,.12)', border:'rgba(156,163,175,.3)' },
 ];
@@ -97,10 +97,27 @@ function _plRenderKanban(dados){
       const ini   = c.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const bgIni = s.cor+'33'; // cor do status com transparência para o avatar
 
+      // Data formatada do card
+      const dtCard = c.updated_at||c.created_at||'';
+      const dtFmt = dtCard ? (() => {
+        const d = new Date(dtCard);
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      })() : '';
+      // Resumo (observações truncadas)
+      const resumo = c.observacoes ? c.observacoes.slice(0,60)+(c.observacoes.length>60?'...':'') : '';
+
+      // SVG veículo
+      const SVG_MOTO = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17L9 7h5l3 4h3"/><path d="M9 7l2 4"/></svg>`;
+      const SVG_CARRO = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="11" width="22" height="9" rx="2"/><path d="M5 11V7a2 2 0 012-2h10a2 2 0 012 2v4"/><circle cx="7" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>`;
+      const veiSvg = c.interesse_veiculo==='moto' ? `<span style="color:${s.cor};opacity:.9" title="Moto">${SVG_MOTO}</span>`
+                   : c.interesse_veiculo==='carro' ? `<span style="color:${s.cor};opacity:.9" title="Carro">${SVG_CARRO}</span>`
+                   : c.interesse_veiculo==='ambos' ? `<span style="color:${s.cor};opacity:.9" title="Ambos">${SVG_CARRO}${SVG_MOTO}</span>`
+                   : '';
+
       let fuHtml = '';
-      if(fu===hoje)        fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(245,185,66,.15);color:#F5B942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Follow-up hoje</span>`;
-      else if(fu&&fu<hoje) fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600">⚠️ Atrasado</span>`;
-      else if(fu)          fuHtml = `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3,rgba(0,0,0,.15));color:var(--muted2)">📅 ${fu.split('-').reverse().join('/')}</span>`;
+      if(fu===hoje)        fuHtml = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(245,185,66,.15);color:#F5B942;border:1px solid rgba(245,185,66,.3);font-weight:600"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> Follow-up hoje</span>`;
+      else if(fu&&fu<hoje) fuHtml = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Atrasado</span>`;
+      else if(fu)          fuHtml = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3,rgba(0,0,0,.15));color:var(--muted2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${fu.split('-').reverse().join('/')}</span>`;
 
       return `<div
         draggable="true"
@@ -109,24 +126,28 @@ function _plRenderKanban(dados){
         onclick="_plAbrirModal('${c.id}')"
         ondragstart="_plDragStart(event,'${c.id}')"
         ondragend="_plDragEnd(event)"
-        style="background:${s.bg};border:1px solid ${s.border};border-left:3px solid ${s.cor};border-radius:10px;padding:14px;margin-bottom:8px;cursor:grab;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.04);user-select:none"
-        onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)'"
-        onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.04)'">
+        style="background:${s.bg};border:1px solid ${s.border};border-left:3px solid ${s.cor};border-radius:10px;padding:12px;margin-bottom:8px;cursor:grab;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.06);user-select:none"
+        onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.14)'"
+        onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.06)'">
 
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div style="width:36px;height:36px;border-radius:50%;background:${bgIni};color:${s.cor};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;border:1.5px solid ${s.border}">${ini}</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="width:34px;height:34px;border-radius:50%;background:${bgIni};color:${s.cor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;border:1.5px solid ${s.border}">${ini}</div>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</div>
             <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
           </div>
-          ${vei.icon ? `<div style="font-size:16px;flex-shrink:0" title="Interesse: ${vei.label}">${vei.icon}</div>` : ''}
+          ${veiSvg ? `<div style="display:flex;gap:3px;flex-shrink:0">${veiSvg}</div>` : ''}
         </div>
 
-        <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+        ${resumo ? `<div style="font-size:11px;color:var(--muted);line-height:1.4;margin-bottom:8px;padding:6px 8px;background:rgba(0,0,0,.04);border-radius:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${resumo}</div>` : ''}
+
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:${(fuHtml||resp||c.origem)?'6px':'0'}">
           ${fuHtml}
-          ${resp ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)">👤 ${resp.nome.split(' ')[0]}</span>` : ''}
-          ${c.origem ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)">${c.origem}</span>` : ''}
+          ${resp ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${resp.nome.split(' ')[0]}</span>` : ''}
+          ${c.origem ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg> ${c.origem}</span>` : ''}
         </div>
+
+        ${dtFmt ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted2);margin-top:4px;padding-top:6px;border-top:1px solid ${s.border}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${dtFmt}</div>` : ''}
       </div>`;
     }).join('') || `<div class="pl-drop-empty" data-col="${s.label}" style="font-size:12px;color:var(--muted2);text-align:center;padding:24px 0;opacity:.6;border-radius:8px;border:2px dashed transparent;transition:.15s">Nenhum lead</div>`;
 
@@ -137,7 +158,7 @@ function _plRenderKanban(dados){
       ondragenter="_plDragEnter(event,'${s.label}')"
       ondragleave="_plDragLeave(event)"
       ondrop="_plDrop(event,'${s.label}')"
-      style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border2);transition:border-color .15s,background .15s;min-height:100px">
+      style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border2);transition:border-color .15s,background .15s;min-height:100px;min-width:280px;max-width:280px;flex-shrink:0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border2)">
         <span style="font-size:13px;font-weight:700;color:${s.cor}">${s.label}</span>
         <span style="font-size:11px;font-weight:700;color:${s.cor};background:${s.bg};border:1px solid ${s.border};padding:2px 9px;border-radius:999px">${itens.length}</span>
