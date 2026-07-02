@@ -99,8 +99,12 @@ function goPage(id, navEl){
 // ══ DATA LOADING ══
 async function loadContasPagar(){
   if(!sb) return;
-  const {data} = await sb.from('contas_pagar').select('id,status,vencimento,valor').limit(2000);
+  const {data} = await sb.from('contas_pagar').select('id,status,vencimento,valor,descricao,categoria').limit(2000);
   allContasPagar = data||[];
+  if(typeof cpRenderAvencer==='function'){
+    cpRenderAvencer('dash-cp-avencer');
+    cpRenderAvencer('cp-alertas');
+  }
 }
 
 async function loadCategoriasFinanceiras(){
@@ -318,6 +322,10 @@ function renderDashboard(){
       if(cpSub) cpSub.textContent = cpAtrasadas.length === 0 ? 'Tudo em dia ✓' : `conta${cpAtrasadas.length>1?'s':''} em atraso`;
       if(cpAtrasadas.length > 0){ cpCard.classList.add('stat-alert'); if(cpVal) cpVal.style.color=''; }
       else { cpCard.classList.remove('stat-alert'); if(cpVal) cpVal.style.color='#166534'; }
+      if(typeof cpRenderAvencer==='function') cpRenderAvencer('dash-cp-avencer');
+    } else {
+      const elAvencer = document.getElementById('dash-cp-avencer');
+      if(elAvencer) elAvencer.innerHTML = '';
     }
   }
 

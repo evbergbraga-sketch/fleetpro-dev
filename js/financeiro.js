@@ -25,7 +25,6 @@ async function iniciarFinanceiro(){
   finPopularSelectVeiculos();
   await finRenderSeguros();
   await finRenderIpva();
-  await finVerificarAlertas();
   document.getElementById('fin-chart-btn-tempo')?.classList.add('btn-primary');
   _finTab('fluxo');
 }
@@ -436,46 +435,6 @@ async function finRenderIpva(){
     : '<tr class="empty-row"><td colspan="7">Nenhum IPVA cadastrado</td></tr>';
 }
 
-// ══ ALERTAS TOPO ══
-async function finVerificarAlertas(){
-  const alertasEl = document.getElementById('fin-alertas');
-  if(!alertasEl) return;
-  const hoje = new Date();
-  const alertas = [];
-
-  (allVeiculos||[]).forEach(v=>{
-    // Seguro
-    if(v.seguro_vencimento){
-      const venc = new Date(v.seguro_vencimento);
-      const dias = Math.ceil((venc-hoje)/86400000);
-      if(dias < 0)
-        alertas.push({tipo:'danger', msg:`🛡️ Seguro de <b>${v.marca} ${v.modelo} (${v.placa})</b> está <b>vencido</b>!`});
-      else if(dias <= 30)
-        alertas.push({tipo:'warning', msg:`🛡️ Seguro de <b>${v.marca} ${v.modelo} (${v.placa})</b> vence em <b>${dias} dias</b>`});
-    }
-    // IPVA
-    let ipvas = [];
-    try{ ipvas = v.ipvas ? JSON.parse(v.ipvas) : []; }catch(_){}
-    ipvas.filter(ip=>!ip.pago).forEach(ip=>{
-      if(!ip.vencimento) return;
-      const venc = new Date(ip.vencimento);
-      const dias = Math.ceil((venc-hoje)/86400000);
-      if(dias < 0)
-        alertas.push({tipo:'danger', msg:`📋 IPVA ${ip.ano||''} de <b>${v.marca} ${v.modelo} (${v.placa})</b> está <b>vencido</b>!`});
-      else if(dias <= 30)
-        alertas.push({tipo:'warning', msg:`📋 IPVA ${ip.ano||''} de <b>${v.marca} ${v.modelo} (${v.placa})</b> vence em <b>${dias} dias</b>`});
-    });
-  });
-
-  alertasEl.innerHTML = alertas.map(a=>`
-    <div style="padding:10px 14px;border-radius:8px;margin-bottom:6px;font-size:13px;
-      background:${a.tipo==='danger'?'rgba(220,38,38,.1)':'rgba(245,158,11,.1)'};
-      border:1px solid ${a.tipo==='danger'?'rgba(220,38,38,.3)':'rgba(245,158,11,.3)'};
-      color:${a.tipo==='danger'?'#dc2626':'#92400e'}">
-      ${a.msg}
-    </div>`).join('');
-}
-
 // ══ MODAL NOVO LANÇAMENTO ══
 function finAbrirNovoLancamento(){
   document.getElementById('mlc-id').value = '';
@@ -810,26 +769,6 @@ async function finExportarPdf(){
 
   doc.save(`FleetPro_Financeiro_${new Date().toISOString().slice(0,10)}.pdf`);
   notify('PDF exportado!','success');
-}
-
-// ══ LANÇAMENTO AUTOMÁTICO — SEGURO ══
-async function finRegistrarLancamentoSeguro(veiculoId, seguradora, valor, periodicidade, vencimento){
-  if(!sb || !valor || valor <= 0) return;
-  try{
-    const v = allVeiculos?.find(x=>x.id===veiculoId);
-    const perLabels = { mensal:'Mensal', trimestral:'Trimestral', semestral:'Semestral', anual:'Anual' };
-    await sb.from('lancamentos').insert({
-      tipo:         'despesa',
-      categoria:    'Seguro',
-      descricao:    `Seguro ${perLabels[periodicidade]||''} — ${seguradora||'Seguradora'} — ${v?.placa||''}`,
-      valor:        valor,
-      data:         vencimento || new Date().toISOString().slice(0,10),
-      veiculo_id:   veiculoId||null,
-      origem:       'automatico',
-      criado_por:   currentUser?.id,
-    });
-    console.log('[fin] lançamento seguro criado:', valor, periodicidade);
-  }catch(e){ console.warn('[fin] seguro:', e.message); }
 }
 
 // ══ EXPORTAR CSV FLUXO DE CAIXA ══

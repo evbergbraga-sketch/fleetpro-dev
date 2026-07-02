@@ -17,6 +17,38 @@ async function iniciarContasPagar(){
   if(typeof catPopularSelects==='function') await catPopularSelects();
   cpPopularSelectVeiculo();
   await cpCarregarContas();
+  cpRenderAvencer('cp-alertas');
+}
+
+// ══ CONTAS A VENCER (Dashboard + topo da aba Contas a Pagar) ══
+// Usa allContasPagar (cache global, sem filtro) — o lembrete sempre mostra
+// tudo, independente do filtro que a pessoa aplicou na tela.
+function cpContasAVencer(dias=7){
+  const hoje = new Date().toISOString().slice(0,10);
+  const limite = new Date(); limite.setDate(limite.getDate()+dias);
+  const limiteIso = limite.toISOString().slice(0,10);
+  return (allContasPagar||[])
+    .filter(c=>c.status==='pendente' && c.vencimento>=hoje && c.vencimento<=limiteIso)
+    .sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+}
+
+function cpRenderAvencer(containerId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  const lista = cpContasAVencer(7);
+  if(!lista.length){ el.innerHTML = ''; return; }
+  const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  el.innerHTML = `
+    <div style="background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.25);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">📅 Contas a vencer nos próximos 7 dias (${lista.length})</div>
+      ${lista.map(c=>{
+        const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone || CP_CAT_ICONES[c.categoria]||'📎';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
+          <span style="color:var(--text)">${icon} ${c.descricao} <span style="color:var(--muted2)">— vence ${fmtData(c.vencimento)}</span></span>
+          <span style="font-weight:700;color:#92400e">${fmt(c.valor)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 // ══ HELPER — está atrasada? ══

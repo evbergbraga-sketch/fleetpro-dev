@@ -413,6 +413,55 @@ function _preencherCamposExtras(prefix, v){
   _renderManutencoes(prefix);
 }
 
+// ══ SINCRONIZA IPVA/SEGURO COM CONTAS A PAGAR ══
+// Cria uma conta a pagar por ano de IPVA / pelo seguro do veículo. Nunca duplica:
+// se já existe um vínculo (conta_pagar_id) e a conta ainda não foi paga, apenas
+// atualiza os dados; se já foi paga, não mexe (histórico de pagamento preservado).
+async function _cpSincronizarIpvas(veiculoId, veicInfo){
+  if(!sb || !veiculoId || !_veicIpvas.length) return;
+  for(const ip of _veicIpvas){
+    const valor = parseFloat(ip.valor)||0;
+    if(valor<=0 || !ip.vencimento) continue;
+    const descricao = `IPVA ${ip.ano||''} — ${veicInfo.marca||''} ${veicInfo.modelo||''} — ${veicInfo.placa||''}`.replace(/\s+/g,' ').trim();
+
+    if(ip.conta_pagar_id){
+      const {data: existente} = await sb.from('contas_pagar').select('status').eq('id', ip.conta_pagar_id).maybeSingle();
+      if(existente && existente.status!=='pago'){
+        await sb.from('contas_pagar').update({
+          descricao, categoria:'IPVA', valor, vencimento: ip.vencimento, veiculo_id: veiculoId,
+        }).eq('id', ip.conta_pagar_id);
+      }
+    } else {
+      const {data: nova} = await sb.from('contas_pagar').insert({
+        descricao, categoria:'IPVA', valor, vencimento: ip.vencimento, veiculo_id: veiculoId,
+        criado_por: currentUser?.id,
+      }).select().single();
+      if(nova?.id) ip.conta_pagar_id = nova.id;
+    }
+  }
+}
+
+async function _cpSincronizarSeguro(veiculoId, veicInfo, seguradora, valor, periodicidade, vencimento, contaPagarIdAtual){
+  if(!sb || !veiculoId || !valor || valor<=0 || !vencimento) return contaPagarIdAtual||null;
+  const perLabels = { mensal:'Mensal', trimestral:'Trimestral', semestral:'Semestral', anual:'Anual' };
+  const descricao = `Seguro ${perLabels[periodicidade]||''} — ${seguradora||'Seguradora'} — ${veicInfo.placa||''}`.replace(/\s+/g,' ').trim();
+
+  if(contaPagarIdAtual){
+    const {data: existente} = await sb.from('contas_pagar').select('status').eq('id', contaPagarIdAtual).maybeSingle();
+    if(existente && existente.status!=='pago'){
+      await sb.from('contas_pagar').update({
+        descricao, categoria:'Seguro', valor, vencimento, veiculo_id: veiculoId,
+      }).eq('id', contaPagarIdAtual);
+    }
+    return contaPagarIdAtual;
+  }
+  const {data: nova} = await sb.from('contas_pagar').insert({
+    descricao, categoria:'Seguro', valor, vencimento, veiculo_id: veiculoId,
+    criado_por: currentUser?.id,
+  }).select().single();
+  return nova?.id||null;
+}
+
 // veiculos.js — Gestão de veículos
 
 function statusBadge(s){
@@ -509,11 +558,27 @@ function editarVeiculo(id){
 async function atualizarVeiculo(){
   const id = document.getElementById('ev-id').value;
   if(!id) return;
+  const marca  = document.getElementById('ev-marca').value.trim();
+  const modelo = document.getElementById('ev-modelo').value.trim();
+  const placa  = document.getElementById('ev-placa').value.trim().toUpperCase();
+
+  // Sincroniza IPVA/Seguro com Contas a Pagar ANTES de montar o objeto de update,
+  // assim os vínculos (conta_pagar_id) entram no mesmo update, sem round-trip extra.
+  const veicInfo = {marca, modelo, placa};
+  await _cpSincronizarIpvas(id, veicInfo);
+  const {data: veicAtual} = await sb.from('veiculos').select('seguro_conta_pagar_id').eq('id', id).maybeSingle();
+  const seguroContaId = await _cpSincronizarSeguro(
+    id, veicInfo,
+    document.getElementById('ev-seguradora')?.value||null,
+    parseFloat(document.getElementById('ev-seguro-valor')?.value)||0,
+    document.getElementById('ev-seguro-periodicidade')?.value||'anual',
+    document.getElementById('ev-seguro-vencimento')?.value||null,
+    veicAtual?.seguro_conta_pagar_id||null
+  );
+
   const obj = {
     tipo:         document.getElementById('ev-tipo').value,
-    marca:        document.getElementById('ev-marca').value.trim(),
-    modelo:       document.getElementById('ev-modelo').value.trim(),
-    placa:        document.getElementById('ev-placa').value.trim().toUpperCase(),
+    marca, modelo, placa,
     ano:          parseInt(document.getElementById('ev-ano').value)||null,
     cor:          document.getElementById('ev-cor').value.trim(),
     cambio:       document.getElementById('ev-cambio').value,
@@ -521,6 +586,7 @@ async function atualizarVeiculo(){
     diaria:       parseFloat(document.getElementById('ev-diaria').value)||0,
     status: document.getElementById('ev-status').value,
     ..._coletarCamposExtras('ev'),
+    seguro_conta_pagar_id: seguroContaId,
     observacoes:  document.getElementById('ev-obs').value.trim(),
     investidor_id:document.getElementById('ev-investidor')?.value||null,
   };
@@ -589,6 +655,23 @@ async function salvarVeiculo(){
     const novosUrls = await _uploadAnexos('mv', vInserido.id);
     if(novosUrls.length){
       await sb.from('veiculos').update({anexos_urls: JSON.stringify(novosUrls)}).eq('id', vInserido.id);
+    }
+    // Sincroniza IPVA/Seguro com Contas a Pagar (precisa do ID do veículo, que só existe após o insert)
+    const veicInfo = {marca, modelo, placa};
+    await _cpSincronizarIpvas(vInserido.id, veicInfo);
+    const seguroContaId = await _cpSincronizarSeguro(
+      vInserido.id, veicInfo,
+      document.getElementById('mv-seguradora')?.value||null,
+      parseFloat(document.getElementById('mv-seguro-valor')?.value)||0,
+      document.getElementById('mv-seguro-periodicidade')?.value||'anual',
+      document.getElementById('mv-seguro-vencimento')?.value||null,
+      null
+    );
+    const patchVinculos = {};
+    if(_veicIpvas.length) patchVinculos.ipvas = JSON.stringify(_veicIpvas);
+    if(seguroContaId) patchVinculos.seguro_conta_pagar_id = seguroContaId;
+    if(Object.keys(patchVinculos).length){
+      await sb.from('veiculos').update(patchVinculos).eq('id', vInserido.id);
     }
     notify('Veículo cadastrado com sucesso!','success');
     closeModal('veiculo');
