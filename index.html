@@ -1471,7 +1471,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <span style="font-size:12px;color:var(--muted)">até</span>
             <input type="date" id="cp-filtro-data-fim" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
           </div>
-          <button class="btn btn-ghost" style="font-size:12px" onclick="goPage('categorias')">⚙️ Categorias</button>
+          <button id="cp-btn-categorias" class="btn btn-ghost" style="font-size:12px" onclick="goPage('categorias')">⚙️ Categorias</button>
         </div>
 
         <div class="card">
@@ -1845,6 +1845,17 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           </select>
         </div>
       </div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:12px 0 10px;border-top:1px solid var(--border2);padding-top:14px">👤 Dados pessoais</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>E-mail (login)</label>
+          <input type="text" id="eu-email" disabled style="width:100%;opacity:.7;cursor:not-allowed">
+          <div style="font-size:11px;color:var(--muted2);margin-top:3px">Não pode ser alterado por aqui — é o e-mail de acesso ao sistema.</div>
+        </div>
+        <div class="form-group"><label>CPF</label><input type="text" id="eu-cpf" placeholder="000.000.000-00" style="width:100%"></div>
+        <div class="form-group" id="eu-tel-pessoal-wrap"><label>Telefone</label><input type="text" id="eu-tel-pessoal" placeholder="(21) 99999-9999" style="width:100%"></div>
+        <div class="form-group full"><label>Data de nascimento</label><input type="date" id="eu-nascimento" style="width:100%"></div>
+      </div>
       <div id="eu-campos-inv" style="display:none;margin-top:4px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:12px 0 10px;border-top:1px solid var(--border2);padding-top:14px">🏢 Dados da empresa</div>
         <div class="form-grid">
@@ -1874,11 +1885,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="motos"> 🏍️ Motos</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="historico"> 🔧 Histórico</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="clientes"> 👥 Clientes</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="pipeline"> 🧲 Pipeline CRM</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="reservas"> 📅 Reservas</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="locacoes"> ⏱️ Locações</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="contratos"> 📄 Contratos</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="calendario"> 📆 Calendário</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="chat"> 💬 Chat WhatsApp</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="apilogs"> 🔌 Logs da API</label>
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="contas-pagar"> 📄 Contas a Pagar</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="financeiro"> 💰 Financeiro</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="investidores"> 📈 Investidores</label>
         </div>
@@ -1895,6 +1909,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="origem"> Origem</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="redes_sociais"> 🌐 Redes Sociais</label>
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-cli" value="observacoes"> Observações</label>
+        </div>
+      </div>
+
+      <div id="eu-zona-risco" style="margin-top:14px;border-top:1px solid var(--border2);padding-top:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px">⚠️ Zona de risco</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" style="font-size:12px" onclick="adminResetarSenha()">🔑 Gerar nova senha</button>
+          <button class="btn btn-ghost" style="font-size:12px;color:var(--red);border-color:rgba(220,38,38,.3)" onclick="adminExcluirUsuario()">🗑️ Excluir usuário</button>
         </div>
       </div>
 

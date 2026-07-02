@@ -18,6 +18,8 @@ async function iniciarContasPagar(){
   cpPopularSelectVeiculo();
   await cpCarregarContas();
   cpRenderAvencer('cp-alertas');
+  const btnCat = document.getElementById('cp-btn-categorias');
+  if(btnCat) btnCat.style.display = currentPerfil?.perfil==='admin' ? '' : 'none';
 }
 
 // ══ CONTAS A VENCER (Dashboard + topo da aba Contas a Pagar) ══

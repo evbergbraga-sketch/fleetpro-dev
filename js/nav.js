@@ -8,7 +8,7 @@ const PAGE_CFG = {
   historico:   {title:'Histórico & Manutenção',  action:'+ Manutenção',        modal:'manutencao',roles:['admin','atendente']},
   clientes:    {title:'Clientes',                action:'+ Novo cliente',      modal:'cliente',   roles:['admin','atendente']},
   pipeline:    {title:'Pipeline CRM',            action:'',                    modal:null,        roles:['admin','atendente']},
-  apilogs:     {title:'Logs da API',             action:'',                    modal:null,        roles:['admin']},
+  apilogs:     {title:'Logs da API',             action:'',                    modal:null,        roles:['admin','atendente']},
   reservas:    {title:'Reservas',                action:'+ Nova reserva',      modal:'reserva',   roles:['admin','atendente']},
   locacoes:    {title:'Locações em andamento',   action:'',                    modal:null,        roles:['admin','atendente']},
   contratos:   {title:'Contratos',               action:'',                    modal:null,        roles:['admin','atendente']},
@@ -17,7 +17,7 @@ const PAGE_CFG = {
   usuarios:    {title:'Usuários & Acessos',      action:'',                    modal:null,        roles:['admin']},
   investidores:{title:'Minha Carteira',          action:'',                    modal:null,        roles:['admin','investidor']},
   financeiro:  {title:'Financeiro',               action:'+ Lançamento',        modal:null,        roles:['admin']},
-  'contas-pagar': {title:'Contas a Pagar',         action:'+ Nova conta',        modal:null,        roles:['admin']},
+  'contas-pagar': {title:'Contas a Pagar',         action:'+ Nova conta',        modal:null,        roles:['admin','atendente']},
   categorias:  {title:'Categorias',                action:'+ Nova categoria',    modal:null,        roles:['admin']},
   portal:      {title:'Portal do Cliente',         action:'',                    modal:null,        roles:['admin']},
   ajuda:       {title:'Como Funciona',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
@@ -123,7 +123,7 @@ async function carregarTudo(){
     loadReservas(),
     loadLocacoesCompletas(),
   ];
-  if(currentPerfil?.perfil==='admin') promises.push(loadContasPagar(), loadCategoriasFinanceiras());
+  if(currentPerfil?.perfil==='admin' || currentPerfil?.perfil==='atendente') promises.push(loadContasPagar(), loadCategoriasFinanceiras());
   await Promise.all(promises);
   expirarReservas();
   renderDashboard();
@@ -171,7 +171,6 @@ function renderUsuarios(){
 async function editarUsuario(id){
   const p = allPerfis.find(x=>x.id===id);
   if(!p) return;
-  const isInv = p.perfil==='investidor';
   document.getElementById('eu-id').value        = id;
   document.getElementById('eu-nome').value      = p.nome||'';
   document.getElementById('eu-perfil').value    = p.perfil||'atendente';
@@ -183,8 +182,19 @@ async function editarUsuario(id){
   document.getElementById('eu-email-emp').value = p.email_empresa||'';
   document.getElementById('eu-setor').value     = p.setor||'';
   document.getElementById('eu-desconto-max').value = p.desconto_max_pct ?? '';
-  const invEl = document.getElementById('eu-campos-inv');
-  if(invEl) invEl.style.display = isInv ? '' : 'none';
+
+  // Dados pessoais (visíveis para todos os perfis)
+  document.getElementById('eu-email').value       = p.email||'';
+  document.getElementById('eu-cpf').value          = p.cpf||'';
+  document.getElementById('eu-tel-pessoal').value  = p.telefone||'';
+  document.getElementById('eu-nascimento').value   = p.data_nascimento||'';
+
+  _toggleEuInvestidor();
+
+  // Zona de risco — esconde se o admin estiver editando o próprio usuário
+  const zonaRisco = document.getElementById('eu-zona-risco');
+  if(zonaRisco) zonaRisco.style.display = (id === currentUser?.id) ? 'none' : '';
+
   const errEl=document.getElementById('eu-err'); if(errEl) errEl.style.display='none';
   const okEl =document.getElementById('eu-ok');  if(okEl)  okEl.style.display='none';
 
@@ -209,8 +219,74 @@ function _toggleEuInvestidor(){
   const p = document.getElementById('eu-perfil')?.value;
   const elInv  = document.getElementById('eu-campos-inv');
   const elPerm = document.getElementById('eu-campos-perm');
+  const elTelPessoal = document.getElementById('eu-tel-pessoal-wrap');
   if(elInv)  elInv.style.display  = p==='investidor' ? '' : 'none';
   if(elPerm) elPerm.style.display = p==='atendente'  ? '' : 'none';
+  if(elTelPessoal) elTelPessoal.style.display = p==='investidor' ? 'none' : '';
+}
+
+// ══ ADMIN — RESETAR SENHA DE OUTRO USUÁRIO ══
+// Requer endpoint no bridge (service role) — não é possível fazer isso
+// direto do navegador com segurança.
+async function adminResetarSenha(){
+  const id = document.getElementById('eu-id')?.value;
+  const nome = document.getElementById('eu-nome')?.value||'este usuário';
+  if(!id) return;
+  if(id === currentUser?.id){ notify('Use "Meu Perfil" para trocar sua própria senha.','error'); return; }
+  if(!confirm(`Gerar uma nova senha provisória para ${nome}?\n\nA senha atual dele deixará de funcionar imediatamente.`)) return;
+
+  try{
+    const {data:sessionData} = await sb.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+    const bridge = (cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+
+    const resp = await fetch(bridge+'/api/admin/resetar-senha', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({user_id:id}),
+    });
+    const json = await resp.json();
+    if(!resp.ok) throw new Error(json.error||'Falha ao gerar nova senha');
+
+    alert(`Nova senha provisória para ${nome}:\n\n${json.senha}\n\nCopie e repasse ao usuário. Ele será obrigado a trocar no próximo acesso.`);
+    notify('Senha resetada com sucesso!','success');
+  }catch(e){
+    notify('Erro: '+e.message,'error');
+  }
+}
+
+// ══ ADMIN — EXCLUIR USUÁRIO ══
+// Requer endpoint no bridge (service role) — apaga de auth.users e perfis.
+async function adminExcluirUsuario(){
+  const id = document.getElementById('eu-id')?.value;
+  const nome = document.getElementById('eu-nome')?.value||'este usuário';
+  if(!id) return;
+  if(id === currentUser?.id){ notify('Você não pode excluir seu próprio usuário.','error'); return; }
+  if(!confirm(`Excluir ${nome} permanentemente?\n\nEle perderá o acesso ao sistema imediatamente. Essa ação não pode ser desfeita.`)) return;
+  if(!confirm(`Tem certeza mesmo? Digite OK para confirmar a exclusão de ${nome}.`)) return;
+
+  try{
+    const {data:sessionData} = await sb.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+    const bridge = (cfg.bridgeUrl||'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+
+    const resp = await fetch(bridge+'/api/admin/excluir-usuario', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({user_id:id}),
+    });
+    const json = await resp.json();
+    if(!resp.ok) throw new Error(json.error||'Falha ao excluir usuário');
+
+    notify('Usuário excluído.','success');
+    closeModal('editar-usuario');
+    await loadPerfis();
+    renderUsuarios();
+  }catch(e){
+    notify('Erro: '+e.message,'error');
+  }
 }
 
 async function salvarEdicaoUsuario(){
@@ -243,8 +319,14 @@ async function salvarEdicaoUsuario(){
     razao_social:  document.getElementById('eu-razao').value.trim()||null,
     cnpj_cpf:      document.getElementById('eu-cnpj').value.trim()||null,
     responsavel:   document.getElementById('eu-resp').value.trim()||null,
-    telefone:      document.getElementById('eu-tel').value.trim()||null,
+    // telefone é compartilhado: investidor usa o telefone da empresa (eu-tel),
+    // os demais perfis usam o telefone pessoal (eu-tel-pessoal)
+    telefone: (perfil === 'investidor'
+      ? document.getElementById('eu-tel').value.trim()
+      : document.getElementById('eu-tel-pessoal').value.trim()) || null,
     email_empresa: document.getElementById('eu-email-emp').value.trim()||null,
+    cpf:             document.getElementById('eu-cpf').value.trim()||null,
+    data_nascimento: document.getElementById('eu-nascimento').value||null,
     permissoes,
   };
   try{
