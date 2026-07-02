@@ -19,6 +19,7 @@ const FIN_CAT_ICONES = {
 
 // ══ INICIALIZAÇÃO ══
 async function iniciarFinanceiro(){
+  if(typeof catPopularSelects==='function') await catPopularSelects();
   await _finCarregarTotaisGerais();
   await finCarregarLancamentos();
   finPopularSelectVeiculos();
@@ -238,7 +239,7 @@ function finRenderLancamentos(){
   }
   tb.innerHTML = _finLancamentos.map(l=>{
     const cor  = FIN_CORES[l.tipo];
-    const icon = FIN_CAT_ICONES[l.categoria]||'📎';
+    const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===l.categoria)?.icone || FIN_CAT_ICONES[l.categoria]||'📎';
     const vei  = l.veiculos ? `${l.veiculos.tipo==='moto'?'🏍️':'🚗'} ${l.veiculos.placa}` : '—';
     const val  = Number(l.valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
     const forma = l.forma_pgto ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">${l.forma_pgto}</span>` : '—';

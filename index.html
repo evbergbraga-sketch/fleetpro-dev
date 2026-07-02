@@ -1295,9 +1295,6 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </select>
               <select id="fin-filtro-cat" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
                 <option value="">Todas as categorias</option>
-                <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
-                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option>
-                <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option><option>Impostos</option><option>Assinaturas/Software</option><option>Marketing</option><option>Outros</option>
               </select>
               <select id="fin-filtro-veiculo" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
                 <option value="">Todos os veículos</option>
@@ -1314,6 +1311,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </select>
             </div>
             <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="font-size:12px" onclick="goPage('categorias')">⚙️ Categorias</button>
               <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarCsvFluxo()">Fluxo de Caixa CSV</button>
               <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarPdf()">Exportar PDF</button>
               <button class="btn btn-primary" style="font-size:12px" onclick="finAbrirNovoLancamento()">+ Lançamento</button>
@@ -1380,11 +1378,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
             <div class="form-group">
               <label>Categoria</label>
-              <select id="mlc-cat" style="width:100%">
-                <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
-                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option>
-                <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option><option>Impostos</option><option>Assinaturas/Software</option><option>Marketing</option><option>Outros</option>
-              </select>
+              <select id="mlc-cat" style="width:100%"></select>
             </div>
             <div class="form-group full">
               <label>Descrição</label>
@@ -1462,9 +1456,6 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </select>
             <select id="cp-filtro-categoria" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
               <option value="">Todas as categorias</option>
-              <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option>
-              <option>Impostos</option><option>Assinaturas/Software</option><option>Manutenção</option>
-              <option>Combustível</option><option>Multa</option><option>Seguro</option><option>Marketing</option><option>Outros</option>
             </select>
             <select id="cp-filtro-veiculo" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
               <option value="">Todos os veículos</option>
@@ -1479,6 +1470,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <span style="font-size:12px;color:var(--muted)">até</span>
             <input type="date" id="cp-filtro-data-fim" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
           </div>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="goPage('categorias')">⚙️ Categorias</button>
         </div>
 
         <div class="card">
@@ -1504,11 +1496,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
             <div class="form-group">
               <label>Tipo de despesa</label>
-              <select id="mcp-cat" style="width:100%">
-                <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option>
-                <option>Impostos</option><option>Assinaturas/Software</option><option>Manutenção</option>
-                <option>Combustível</option><option>Multa</option><option>Seguro</option><option>Marketing</option><option>Outros</option>
-              </select>
+              <select id="mcp-cat" style="width:100%"></select>
             </div>
             <div class="form-group">
               <label>Valor (R$)</label>
@@ -1594,6 +1582,52 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('conta-pagar-confirmar')">Cancelar</button>
             <button class="btn btn-primary" onclick="cpConfirmarPagamento()" style="background:var(--green)">✓ Confirmar Pagamento</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CATEGORIAS -->
+      <div class="page" id="page-categorias">
+        <div style="font-size:12px;color:var(--muted2);margin-bottom:14px">
+          Categorias usadas no Financeiro e em Contas a Pagar. Renomear uma categoria atualiza automaticamente todos os lançamentos e contas que já usam ela.
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Ícone</th><th>Nome</th><th>Financeiro</th><th>Contas a Pagar</th><th>Status</th><th></th></tr></thead>
+            <tbody id="tb-categorias"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MODAL NOVA/EDITAR CATEGORIA -->
+      <div class="modal-overlay" id="m-categoria">
+        <div class="modal" style="max-width:400px">
+          <div class="modal-header">
+            <div class="modal-title" id="mcat-title">➕ Nova Categoria</div>
+            <button class="modal-close" onclick="closeModal('categoria')">✕</button>
+          </div>
+          <div class="form-grid" style="padding:16px 20px">
+            <input type="hidden" id="mcat-id">
+            <div class="form-group full">
+              <label>Nome</label>
+              <input type="text" id="mcat-nome" placeholder="Ex: Contabilidade" style="width:100%">
+            </div>
+            <div class="form-group full">
+              <label>Ícone (emoji)</label>
+              <input type="text" id="mcat-icone" placeholder="📎" maxlength="4" style="width:80px">
+            </div>
+            <div class="form-group full" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+              <input type="checkbox" id="mcat-fin" style="width:auto">
+              <label style="margin:0">Aparece no Financeiro</label>
+            </div>
+            <div class="form-group full" style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="mcat-cp" style="width:auto">
+              <label style="margin:0">Aparece em Contas a Pagar</label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('categoria')">Cancelar</button>
+            <button class="btn btn-primary" onclick="catSalvar()">✓ Salvar</button>
           </div>
         </div>
       </div>
@@ -2818,6 +2852,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/contratos.js"></script>
 <script src="js/financeiro.js"></script>
 <script src="js/contaspagar.js"></script>
+<script src="js/categorias.js"></script>
 <script src="js/portal-admin.js"></script>
 <script src="js/reservas.js"></script>
 <script src="js/locacoes.js"></script>

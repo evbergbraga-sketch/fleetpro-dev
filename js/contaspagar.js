@@ -14,6 +14,7 @@ const CP_RECORRENCIA_LABEL = { semanal:'Semanal', mensal:'Mensal', anual:'Anual'
 
 // ══ INICIALIZAÇÃO ══
 async function iniciarContasPagar(){
+  if(typeof catPopularSelects==='function') await catPopularSelects();
   cpPopularSelectVeiculo();
   await cpCarregarContas();
 }
@@ -98,7 +99,7 @@ function cpRenderContas(){
       : atrasada
       ? '<span class="badge badge-red">⚠️ Atrasado</span>'
       : '<span class="badge badge-yellow">Pendente</span>';
-    const icon = CP_CAT_ICONES[c.categoria]||'📎';
+    const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone || CP_CAT_ICONES[c.categoria]||'📎';
     const vei  = c.veiculos ? `${c.veiculos.tipo==='moto'?'🏍️':'🚗'} ${c.veiculos.placa}` : '—';
     const rec  = c.recorrente
       ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">🔁 ${CP_RECORRENCIA_LABEL[c.recorrencia_tipo]||''}</span>`
@@ -236,7 +237,7 @@ function cpMarcarPago(id){
 
   const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   document.getElementById('cpc-desc').textContent  = c.descricao;
-  document.getElementById('cpc-cat').textContent   = `${CP_CAT_ICONES[c.categoria]||'📎'} ${c.categoria}`;
+  document.getElementById('cpc-cat').textContent   = `${(allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone || CP_CAT_ICONES[c.categoria]||'📎'} ${c.categoria}`;
   document.getElementById('cpc-venc').textContent  = fmtData(c.vencimento);
   document.getElementById('cpc-forma').textContent = c.forma_pgto || '—';
   document.getElementById('cpc-valor').textContent = fmt(c.valor);

@@ -18,6 +18,7 @@ const PAGE_CFG = {
   investidores:{title:'Minha Carteira',          action:'',                    modal:null,        roles:['admin','investidor']},
   financeiro:  {title:'Financeiro',               action:'+ Lançamento',        modal:null,        roles:['admin']},
   'contas-pagar': {title:'Contas a Pagar',         action:'+ Nova conta',        modal:null,        roles:['admin']},
+  categorias:  {title:'Categorias',                action:'+ Nova categoria',    modal:null,        roles:['admin']},
   portal:      {title:'Portal do Cliente',         action:'',                    modal:null,        roles:['admin']},
   ajuda:       {title:'Como Funciona',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
   denied:      {title:'Acesso negado',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
@@ -66,6 +67,10 @@ function goPage(id, navEl){
     if(typeof iniciarContasPagar==='function') iniciarContasPagar();
     btn.onclick = ()=>{ if(typeof cpAbrirNovaConta==='function') cpAbrirNovaConta(); };
   }
+  if(id==='categorias'){
+    if(typeof iniciarCategorias==='function') iniciarCategorias();
+    btn.onclick = ()=>{ if(typeof catAbrirNova==='function') catAbrirNova(); };
+  }
   if(id==='ajuda' && typeof renderAjudaAcordeon==='function') renderAjudaAcordeon();
   if(id==='pipeline'  && typeof iniciarPipeline==='function')  iniciarPipeline();
   if(id==='apilogs'   && typeof iniciarApiLogs==='function')   iniciarApiLogs();
@@ -98,6 +103,12 @@ async function loadContasPagar(){
   allContasPagar = data||[];
 }
 
+async function loadCategoriasFinanceiras(){
+  if(!sb) return;
+  const {data} = await sb.from('categorias_financeiras').select('*').order('ordem').order('nome');
+  allCategoriasFinanceiras = data||[];
+}
+
 async function carregarTudo(){
   const promises = [
     loadVeiculos(),
@@ -108,7 +119,7 @@ async function carregarTudo(){
     loadReservas(),
     loadLocacoesCompletas(),
   ];
-  if(currentPerfil?.perfil==='admin') promises.push(loadContasPagar());
+  if(currentPerfil?.perfil==='admin') promises.push(loadContasPagar(), loadCategoriasFinanceiras());
   await Promise.all(promises);
   expirarReservas();
   renderDashboard();
