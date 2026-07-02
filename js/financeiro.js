@@ -13,6 +13,8 @@ const FIN_CORES = {
 const FIN_CAT_ICONES = {
   'Aluguel':'🚗','Manutenção':'🔧','Seguro':'🛡️','IPVA':'📋',
   'Combustível':'⛽','Multa':'⚠️','Caução':'🔒','Outros':'📎',
+  'Salários':'👥','Fornecedores':'📦','Aluguel/Imóvel':'🏢','Impostos':'🧾',
+  'Assinaturas/Software':'💻','Marketing':'📣',
 };
 
 // ══ INICIALIZAÇÃO ══

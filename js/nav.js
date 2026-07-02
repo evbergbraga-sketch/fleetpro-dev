@@ -17,6 +17,7 @@ const PAGE_CFG = {
   usuarios:    {title:'Usuários & Acessos',      action:'',                    modal:null,        roles:['admin']},
   investidores:{title:'Minha Carteira',          action:'',                    modal:null,        roles:['admin','investidor']},
   financeiro:  {title:'Financeiro',               action:'+ Lançamento',        modal:null,        roles:['admin']},
+  'contas-pagar': {title:'Contas a Pagar',         action:'+ Nova conta',        modal:null,        roles:['admin']},
   portal:      {title:'Portal do Cliente',         action:'',                    modal:null,        roles:['admin']},
   ajuda:       {title:'Como Funciona',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
   denied:      {title:'Acesso negado',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
@@ -61,6 +62,10 @@ function goPage(id, navEl){
     if(typeof iniciarFinanceiro==='function') iniciarFinanceiro();
     btn.onclick = ()=>{ if(typeof finAbrirNovoLancamento==='function') finAbrirNovoLancamento(); };
   }
+  if(id==='contas-pagar'){
+    if(typeof iniciarContasPagar==='function') iniciarContasPagar();
+    btn.onclick = ()=>{ if(typeof cpAbrirNovaConta==='function') cpAbrirNovaConta(); };
+  }
   if(id==='ajuda' && typeof renderAjudaAcordeon==='function') renderAjudaAcordeon();
   if(id==='pipeline'  && typeof iniciarPipeline==='function')  iniciarPipeline();
   if(id==='apilogs'   && typeof iniciarApiLogs==='function')   iniciarApiLogs();
@@ -87,8 +92,14 @@ function goPage(id, navEl){
 }
 
 // ══ DATA LOADING ══
+async function loadContasPagar(){
+  if(!sb) return;
+  const {data} = await sb.from('contas_pagar').select('id,status,vencimento,valor').limit(2000);
+  allContasPagar = data||[];
+}
+
 async function carregarTudo(){
-  await Promise.all([
+  const promises = [
     loadVeiculos(),
     loadClientes(),
     loadLocacoes(),
@@ -96,7 +107,9 @@ async function carregarTudo(){
     loadPerfis(),
     loadReservas(),
     loadLocacoesCompletas(),
-  ]);
+  ];
+  if(currentPerfil?.perfil==='admin') promises.push(loadContasPagar());
+  await Promise.all(promises);
   expirarReservas();
   renderDashboard();
   if(typeof atualizarBadgeNotif==='function') atualizarBadgeNotif();
@@ -275,6 +288,25 @@ function renderDashboard(){
     if(alertCard){
       if(atrasados.length > 0){ alertCard.classList.add('stat-alert'); alertVal.style.color=''; }
       else { alertCard.classList.remove('stat-alert'); alertVal.style.color='#166534'; }
+    }
+  }
+
+  // ── 6º card: Contas em atraso (só admin) ──
+  const isAdmin = currentPerfil?.perfil === 'admin';
+  const kpiGrid = document.getElementById('dash-kpi-grid');
+  const cpCard  = document.getElementById('st-cp-card');
+  if(kpiGrid) kpiGrid.style.gridTemplateColumns = isAdmin ? 'repeat(6,1fr)' : 'repeat(5,1fr)';
+  if(cpCard){
+    cpCard.style.display = isAdmin ? '' : 'none';
+    if(isAdmin){
+      const hoje = new Date().toISOString().slice(0,10);
+      const cpAtrasadas = (allContasPagar||[]).filter(c=>c.status==='pendente' && c.vencimento<hoje);
+      const cpVal = document.getElementById('st-cp-val');
+      const cpSub = document.getElementById('st-cp-sub');
+      if(cpVal) cpVal.textContent = cpAtrasadas.length;
+      if(cpSub) cpSub.textContent = cpAtrasadas.length === 0 ? 'Tudo em dia ✓' : `conta${cpAtrasadas.length>1?'s':''} em atraso`;
+      if(cpAtrasadas.length > 0){ cpCard.classList.add('stat-alert'); if(cpVal) cpVal.style.color=''; }
+      else { cpCard.classList.remove('stat-alert'); if(cpVal) cpVal.style.color='#166534'; }
     }
   }
 

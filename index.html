@@ -199,8 +199,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <!-- DASHBOARD -->
       <div class="page active" id="page-dashboard">
 
-        <!-- LINHA 1: 5 KPIs compactos -->
-        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
+        <!-- LINHA 1: KPIs compactos -->
+        <div id="dash-kpi-grid" class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
           <div class="stat-card" onclick="goPage('carros')" style="cursor:pointer">
             <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l3-4h8l3 4h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/><circle cx="7.5" cy="17" r="2.5"/><circle cx="16.5" cy="17" r="2.5"/><path d="M5 9h14"/></svg></div>
             <div class="stat-label">Carros disp.</div>
@@ -230,6 +230,12 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <div class="stat-label">Alertas de atraso</div>
             <div class="stat-val" id="st-alert-val">—</div>
             <div class="stat-sub" id="st-alert-sub">verificando...</div>
+          </div>
+          <div id="st-cp-card" class="stat-card" onclick="goPage('contas-pagar')" style="cursor:pointer;display:none">
+            <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg></div>
+            <div class="stat-label">Contas em atraso</div>
+            <div class="stat-val" id="st-cp-val">—</div>
+            <div class="stat-sub" id="st-cp-sub">verificando...</div>
           </div>
         </div>
 
@@ -1290,7 +1296,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <select id="fin-filtro-cat" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
                 <option value="">Todas as categorias</option>
                 <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
-                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option><option>Outros</option>
+                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option>
+                <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option><option>Impostos</option><option>Assinaturas/Software</option><option>Marketing</option><option>Outros</option>
               </select>
               <select id="fin-filtro-veiculo" onchange="finCarregarLancamentos()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
                 <option value="">Todos os veículos</option>
@@ -1375,7 +1382,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <label>Categoria</label>
               <select id="mlc-cat" style="width:100%">
                 <option>Aluguel</option><option>Manutenção</option><option>Seguro</option>
-                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option><option>Outros</option>
+                <option>IPVA</option><option>Combustível</option><option>Multa</option><option>Caução</option>
+                <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option><option>Impostos</option><option>Assinaturas/Software</option><option>Marketing</option><option>Outros</option>
               </select>
             </div>
             <div class="form-group full">
@@ -1417,6 +1425,135 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('lancamento')">Cancelar</button>
             <button class="btn btn-primary" onclick="finSalvarLancamento()">✓ Salvar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTAS A PAGAR -->
+      <div class="page" id="page-contas-pagar">
+        <!-- CARDS RESUMO -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">A vencer</div>
+            <div id="cp-total-pendente" style="font-size:22px;font-weight:800;color:var(--text)">R$ 0</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Atrasado</div>
+            <div id="cp-total-atrasado" style="font-size:22px;font-weight:800;color:var(--red)">R$ 0</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Pago este mês</div>
+            <div id="cp-total-pago-mes" style="font-size:22px;font-weight:800;color:var(--green)">R$ 0</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Total em aberto</div>
+            <div id="cp-total-aberto" style="font-size:22px;font-weight:800;color:var(--accent)">R$ 0</div>
+          </div>
+        </div>
+
+        <!-- FILTROS -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="cp-filtro-status" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+              <option value="">Todos os status</option>
+              <option value="pendente">Pendente</option>
+              <option value="atrasado">Atrasado</option>
+              <option value="pago">Pago</option>
+            </select>
+            <select id="cp-filtro-categoria" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+              <option value="">Todas as categorias</option>
+              <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option>
+              <option>Impostos</option><option>Assinaturas/Software</option><option>Manutenção</option>
+              <option>Combustível</option><option>Multa</option><option>Seguro</option><option>Marketing</option><option>Outros</option>
+            </select>
+            <select id="cp-filtro-veiculo" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+              <option value="">Todos os veículos</option>
+            </select>
+            <select id="cp-filtro-recorrencia" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+              <option value="">Recorrente ou não</option>
+              <option value="sim">Só recorrentes</option>
+              <option value="nao">Só avulsas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Veículo</th><th>Recorrência</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+            <tbody id="tb-contas-pagar"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MODAL NOVA/EDITAR CONTA A PAGAR -->
+      <div class="modal-overlay" id="m-conta-pagar">
+        <div class="modal" style="max-width:480px">
+          <div class="modal-header">
+            <div class="modal-title" id="mcp-title">➕ Nova Conta a Pagar</div>
+            <button class="modal-close" onclick="closeModal('conta-pagar')">✕</button>
+          </div>
+          <div class="form-grid" style="padding:16px 20px">
+            <input type="hidden" id="mcp-id">
+            <div class="form-group full">
+              <label>Descrição</label>
+              <input type="text" id="mcp-desc" placeholder="Ex: Aluguel da sede" style="width:100%">
+            </div>
+            <div class="form-group">
+              <label>Tipo de despesa</label>
+              <select id="mcp-cat" style="width:100%">
+                <option>Salários</option><option>Fornecedores</option><option>Aluguel/Imóvel</option>
+                <option>Impostos</option><option>Assinaturas/Software</option><option>Manutenção</option>
+                <option>Combustível</option><option>Multa</option><option>Seguro</option><option>Marketing</option><option>Outros</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Valor (R$)</label>
+              <input type="number" id="mcp-valor" placeholder="0,00" step="0.01" min="0" style="width:100%">
+            </div>
+            <div class="form-group">
+              <label>Vencimento</label>
+              <input type="date" id="mcp-vencimento" style="width:100%">
+            </div>
+            <div class="form-group">
+              <label>Forma de pagamento</label>
+              <select id="mcp-forma" style="width:100%">
+                <option value="">— Selecione —</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="PIX">PIX</option>
+                <option value="Cartão Débito">Cartão Débito</option>
+                <option value="Cartão Crédito">Cartão Crédito</option>
+                <option value="Transferência">Transferência</option>
+                <option value="Boleto">Boleto</option>
+                <option value="Asaas">Asaas</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Veículo (opcional)</label>
+              <select id="mcp-vei" style="width:100%">
+                <option value="">— Nenhum —</option>
+              </select>
+            </div>
+            <div class="form-group full" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+              <input type="checkbox" id="mcp-recorrente" onchange="cpToggleRecorrencia()" style="width:auto">
+              <label style="margin:0">É uma conta recorrente</label>
+            </div>
+            <div class="form-group full" id="mcp-recorrencia-wrap" style="display:none">
+              <label>Recorrência</label>
+              <select id="mcp-recorrencia-tipo" style="width:100%">
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
+                <option value="anual">Anual</option>
+              </select>
+              <div style="font-size:11px;color:var(--muted2);margin-top:4px">Ao marcar essa conta como paga, a próxima já é criada automaticamente com o mesmo valor.</div>
+            </div>
+            <div class="form-group full">
+              <label>Observações (opcional)</label>
+              <textarea id="mcp-obs" rows="2" style="width:100%"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('conta-pagar')">Cancelar</button>
+            <button class="btn btn-primary" onclick="cpSalvarConta()">✓ Salvar</button>
           </div>
         </div>
       </div>
@@ -2640,6 +2777,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/historico.js"></script>
 <script src="js/contratos.js"></script>
 <script src="js/financeiro.js"></script>
+<script src="js/contaspagar.js"></script>
 <script src="js/portal-admin.js"></script>
 <script src="js/reservas.js"></script>
 <script src="js/locacoes.js"></script>
