@@ -69,7 +69,7 @@ function abrirModalReserva(){
   // Popula clientes — somente aprovados
   const selCli = document.getElementById('res-cli');
   if(selCli){
-    const aprovados = allClientes.filter(c=>c.status_analise==='aprovado');
+    const aprovados = allClientes.filter(c=>c.tipo!=='lead' && c.status_analise==='aprovado');
     selCli.innerHTML = aprovados.length
       ? aprovados.map(c=>`<option value="${c.id}" data-tel="${c.telefone||''}">${c.nome}</option>`).join('')
       : '<option value="">Nenhum cliente aprovado</option>';
@@ -419,7 +419,7 @@ function editarReserva(id){
   // Preenche clientes
   const selCli = document.getElementById('res-cli');
   if(selCli){
-    const aprovados = allClientes.filter(c=>c.status_analise==='aprovado');
+    const aprovados = allClientes.filter(c=>c.tipo!=='lead' && c.status_analise==='aprovado');
     selCli.innerHTML = aprovados.length
       ? aprovados.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')
       : '<option value="">Nenhum cliente aprovado</option>';

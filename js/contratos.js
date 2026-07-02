@@ -432,7 +432,7 @@ function populateContratosSelects(){
   });
   const cs = document.getElementById('c-cli');
   if(cs){
-    const aprovados = allClientes.filter(c=>!c.status_analise || c.status_analise === 'aprovado');
+    const aprovados = allClientes.filter(c=>c.tipo!=='lead' && (!c.status_analise || c.status_analise === 'aprovado'));
     cs.innerHTML = aprovados.map(c=>{
       // Pega telefone principal (legado ou JSON)
       let tel = c.telefone || '';

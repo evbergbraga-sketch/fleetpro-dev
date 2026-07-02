@@ -88,12 +88,16 @@ function setMsg(txt){
       const match = (c.nome||'').toLowerCase().includes(ql)
         || (c.cpf||'').replace(/\D/g,'').includes(ql.replace(/\D/g,''))
         || (c.telefone||'').replace(/\D/g,'').includes(ql.replace(/\D/g,''));
-      if(match) itens.push({
-        tipo: 'cliente',
-        tag: 'Cliente',
+      if(!match) return;
+      const isLead = c.tipo==='lead';
+      itens.push({
+        tipo: isLead ? 'lead' : 'cliente',
+        tag: isLead ? 'Lead' : 'Cliente',
         titulo: c.nome,
         sub: c.cpf ? 'CPF '+c.cpf : (c.telefone||''),
-        acao: ()=>{ goPage('clientes'); setTimeout(()=>{ const s=document.getElementById('s-clientes'); if(s){s.value=c.nome;renderClientes();} },400); }
+        acao: isLead
+          ? ()=>{ goPage('pipeline'); setTimeout(()=>{ if(typeof _plAbrirModal==='function') _plAbrirModal(c.id); },400); }
+          : ()=>{ goPage('clientes'); setTimeout(()=>{ const s=document.getElementById('s-clientes'); if(s){s.value=c.nome;renderClientes();} },400); }
       });
     });
 
@@ -136,6 +140,7 @@ function setMsg(txt){
 
     const TAG_CFG = {
       cliente:  { bg:'rgba(79,70,229,.15)',  cor:'#818CF8' },
+      lead:     { bg:'rgba(139,92,246,.15)', cor:'#A78BFA' },
       carro:    { bg:'rgba(21,128,61,.12)',  cor:'#22c55e' },
       moto:     { bg:'rgba(217,119,6,.12)',  cor:'#FCD34D' },
       locacao:  { bg:'rgba(220,38,38,.12)',  cor:'#F87171' },

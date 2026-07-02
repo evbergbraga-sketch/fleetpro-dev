@@ -256,7 +256,7 @@ function renderDashboard(){
   document.getElementById('st-carros-s').textContent = `de ${carros.length} total`;
   document.getElementById('st-motos').textContent = motos.filter(v=>v.status==='disponivel').length;
   document.getElementById('st-motos-s').textContent = `de ${motos.length} total`;
-  document.getElementById('st-clientes').textContent = allClientes.length;
+  document.getElementById('st-clientes').textContent = allClientes.filter(c=>c.tipo!=='lead').length;
 
   const meusLocIds = new Set(meusVeiculos.map(v=>v.id));
   const meusLocs = isInv
