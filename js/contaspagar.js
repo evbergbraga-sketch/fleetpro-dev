@@ -91,7 +91,7 @@ async function cpCarregarContas(){
   const dataFim = document.getElementById('cp-filtro-data-fim')?.value||'';
 
   let query = sb.from('contas_pagar')
-    .select('*,veiculos(marca,modelo,placa,tipo)')
+    .select('*,veiculos!contas_pagar_veiculo_id_fkey(marca,modelo,placa,tipo)')
     .order('vencimento',{ascending:true})
     .limit(500);
 
