@@ -1474,12 +1474,16 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <option value="sim">Só recorrentes</option>
               <option value="nao">Só avulsas</option>
             </select>
+            <span style="font-size:12px;color:var(--muted)">Vencimento:</span>
+            <input type="date" id="cp-filtro-data-ini" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+            <span style="font-size:12px;color:var(--muted)">até</span>
+            <input type="date" id="cp-filtro-data-fim" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
           </div>
         </div>
 
         <div class="card">
           <table class="table">
-            <thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Veículo</th><th>Recorrência</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Veículo</th><th>Nota</th><th>Recorrência</th><th>Valor</th><th>Status</th><th></th></tr></thead>
             <tbody id="tb-contas-pagar"></tbody>
           </table>
         </div>
@@ -1554,6 +1558,42 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('conta-pagar')">Cancelar</button>
             <button class="btn btn-primary" onclick="cpSalvarConta()">✓ Salvar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL CONFIRMAR PAGAMENTO -->
+      <div class="modal-overlay" id="m-conta-pagar-confirmar">
+        <div class="modal" style="max-width:420px">
+          <div class="modal-header">
+            <div class="modal-title">💳 Confirmar Pagamento</div>
+            <button class="modal-close" onclick="closeModal('conta-pagar-confirmar')">✕</button>
+          </div>
+          <div style="padding:20px">
+            <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-bottom:16px">
+              <div id="cpc-desc" style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px">—</div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:7px">
+                <span>Categoria</span><span id="cpc-cat" style="color:var(--text);font-weight:600">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:7px">
+                <span>Vencimento</span><span id="cpc-venc" style="color:var(--text);font-weight:600">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:12px">
+                <span>Forma de pagamento</span><span id="cpc-forma" style="color:var(--text);font-weight:600">—</span>
+              </div>
+              <div style="border-top:1px solid var(--border2);padding-top:12px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;color:var(--muted)">Valor</span>
+                <span id="cpc-valor" style="font-size:24px;font-weight:800;color:var(--green)">R$ 0,00</span>
+              </div>
+            </div>
+            <div class="form-group full" style="margin-bottom:0">
+              <label>Número da Nota Fiscal (opcional)</label>
+              <input type="text" id="cpc-nf" placeholder="Ex: NF-00123" style="width:100%">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('conta-pagar-confirmar')">Cancelar</button>
+            <button class="btn btn-primary" onclick="cpConfirmarPagamento()" style="background:var(--green)">✓ Confirmar Pagamento</button>
           </div>
         </div>
       </div>

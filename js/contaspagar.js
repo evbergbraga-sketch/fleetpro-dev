@@ -2,6 +2,7 @@
 
 // ══ ESTADO ══
 let _cpContas = [];
+let _cpPagamentoAtual = null;
 
 // ══ CATEGORIAS ══
 const CP_CAT_ICONES = {
@@ -53,15 +54,19 @@ async function cpCarregarContas(){
   const cat    = document.getElementById('cp-filtro-categoria')?.value||'';
   const veiId  = document.getElementById('cp-filtro-veiculo')?.value||'';
   const rec    = document.getElementById('cp-filtro-recorrencia')?.value||'';
+  const dataIni = document.getElementById('cp-filtro-data-ini')?.value||'';
+  const dataFim = document.getElementById('cp-filtro-data-fim')?.value||'';
 
   let query = sb.from('contas_pagar')
     .select('*,veiculos(marca,modelo,placa,tipo)')
     .order('vencimento',{ascending:true})
     .limit(500);
 
-  if(cat)   query = query.eq('categoria', cat);
-  if(veiId) query = query.eq('veiculo_id', veiId);
-  if(rec)   query = query.eq('recorrente', rec==='sim');
+  if(cat)     query = query.eq('categoria', cat);
+  if(veiId)   query = query.eq('veiculo_id', veiId);
+  if(rec)     query = query.eq('recorrente', rec==='sim');
+  if(dataIni) query = query.gte('vencimento', dataIni);
+  if(dataFim) query = query.lte('vencimento', dataFim);
 
   const {data, error} = await query;
   if(error){ console.warn('[contaspagar]', error.message); return; }
@@ -82,7 +87,7 @@ function cpRenderContas(){
   const tb = document.getElementById('tb-contas-pagar');
   if(!tb) return;
   if(!_cpContas.length){
-    tb.innerHTML = '<tr class="empty-row"><td colspan="8">Nenhuma conta encontrada</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="9">Nenhuma conta encontrada</td></tr>';
     return;
   }
   const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -98,11 +103,13 @@ function cpRenderContas(){
     const rec  = c.recorrente
       ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">🔁 ${CP_RECORRENCIA_LABEL[c.recorrencia_tipo]||''}</span>`
       : '—';
+    const nota = c.num_nota ? `<span style="font-size:11px;color:var(--muted)">${c.num_nota}</span>` : '—';
     return `<tr>
       <td style="font-size:12px;color:${atrasada?'#b91c1c':'var(--muted)'};font-weight:${atrasada?'700':'400'}">${fmtData(c.vencimento)}</td>
       <td style="font-size:12px">${c.descricao}</td>
       <td style="font-size:12px">${icon} ${c.categoria}</td>
       <td style="font-size:12px">${vei}</td>
+      <td>${nota}</td>
       <td>${rec}</td>
       <td style="font-weight:700">${fmt(c.valor)}</td>
       <td>${badge}</td>
@@ -221,13 +228,29 @@ async function cpExcluirConta(id){
   if(typeof renderDashboard==='function') renderDashboard();
 }
 
-// ══ MARCAR COMO PAGO — lança no Financeiro + gera próxima (se recorrente) ══
-async function cpMarcarPago(id){
+// ══ MARCAR COMO PAGO — abre modal de confirmação ══
+function cpMarcarPago(id){
   const c = _cpContas.find(x=>x.id===id);
   if(!c || c.status==='pago') return;
-  const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  if(!confirm(`Confirmar pagamento de "${c.descricao}" — ${fmt(c.valor)}?`)) return;
+  _cpPagamentoAtual = c;
 
+  const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  document.getElementById('cpc-desc').textContent  = c.descricao;
+  document.getElementById('cpc-cat').textContent   = `${CP_CAT_ICONES[c.categoria]||'📎'} ${c.categoria}`;
+  document.getElementById('cpc-venc').textContent  = fmtData(c.vencimento);
+  document.getElementById('cpc-forma').textContent = c.forma_pgto || '—';
+  document.getElementById('cpc-valor').textContent = fmt(c.valor);
+  document.getElementById('cpc-nf').value = '';
+
+  document.getElementById('m-conta-pagar-confirmar').classList.add('show');
+}
+
+// ══ CONFIRMAR PAGAMENTO — lança no Financeiro + gera próxima (se recorrente) ══
+async function cpConfirmarPagamento(){
+  const c = _cpPagamentoAtual;
+  if(!c || c.status==='pago') return;
+
+  const numNota = document.getElementById('cpc-nf')?.value?.trim()||null;
   const hojeIso = new Date().toISOString();
 
   // 1) Cria o lançamento de despesa no Financeiro
@@ -239,15 +262,16 @@ async function cpMarcarPago(id){
     data: hojeIso.slice(0,10),
     veiculo_id: c.veiculo_id||null,
     forma_pgto: c.forma_pgto||null,
+    num_nota: numNota,
     origem: 'contas_pagar',
     criado_por: currentUser?.id,
   }).select().single();
 
   if(errLanc){ notify('Erro ao lançar no financeiro: '+errLanc.message,'error'); return; }
 
-  // 2) Marca a conta como paga e vincula o lançamento
+  // 2) Marca a conta como paga, vincula o lançamento e grava a nota
   const {error: errUpd} = await sb.from('contas_pagar').update({
-    status: 'pago', data_pagamento: hojeIso, lancamento_id: lanc?.id||null,
+    status: 'pago', data_pagamento: hojeIso, lancamento_id: lanc?.id||null, num_nota: numNota,
   }).eq('id', c.id);
 
   if(errUpd){ notify('Erro ao atualizar conta: '+errUpd.message,'error'); return; }
@@ -263,6 +287,8 @@ async function cpMarcarPago(id){
     });
   }
 
+  closeModal('conta-pagar-confirmar');
+  _cpPagamentoAtual = null;
   notify('Pagamento confirmado e lançado no Financeiro!','success');
   await cpCarregarContas();
   if(typeof loadContasPagar==='function'){ await loadContasPagar(); }
