@@ -187,7 +187,7 @@ function iniciarApp(){
     });
   } else {
     goPage('dashboard');
-    carregarTudo();
+    window._carregarTudoPromise = carregarTudo();
   }
 
   // ── Inject botão hamburguer no topbar (mobile) ──

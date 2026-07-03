@@ -617,7 +617,8 @@ async function renderChatMsgs(cid){
   try{
     const dbMsgs = await carregarMsgsDB(cid, 0);
 
-    // O banco é a fonte da verdade — descarta cache e usa só o banco
+    // Guard: se o usuário abriu outro chat enquanto o banco respondia, aborta
+    if(activeChatId !== cid) return;
     // Mantém apenas msgs do SSE que ainda não chegaram no banco (sem id, recentes)
     const memMsgs = chatMsgs[cid]||[];
     // Compara por texto+direção para detectar msgs locais que já estão no banco
@@ -2035,12 +2036,15 @@ async function converterEmCliente(){
     if(c){ c.tipo='cliente'; c.cpf=cpf; }
     notify('Lead convertido em cliente com sucesso! 🎉','success');
     document.getElementById('m-converter-cliente')?.classList.remove('show');
+    const cidConvertido = _ccLeadId;
     await loadClientes();
     renderChatContacts();
+    // Re-renderiza mensagens do chat atual (podem ter sumido durante o loadClientes)
+    if(activeChatId === cidConvertido) {
+      abrirChat(cidConvertido);
+    }
     // Atualiza pipeline se estiver aberto
     if(typeof _plCarregarDados==='function') _plCarregarDados();
-    // O cliente agora aparece na aba Clientes — botão no painel CRM já atualiza
-    // (o usuário pode navegar manualmente ou via busca global)
   }catch(e){
     if(errEl){errEl.textContent='Erro: '+e.message;errEl.style.display='block';}
   }

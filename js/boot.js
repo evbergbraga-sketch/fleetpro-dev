@@ -64,10 +64,12 @@ window.addEventListener('DOMContentLoaded', async()=>{
         sessionStorage.removeItem('fp_last_page');
         sessionStorage.removeItem('fp_last_chat');
         if(lastPage){
-          setTimeout(()=>{
+          setTimeout(async ()=>{
             goPage(lastPage);
             if(lastPage==='chat' && lastChat){
-              setTimeout(()=>abrirChat(lastChat), 500);
+              // Aguarda carregarTudo (allClientes, allVeiculos etc.) antes de abrir o chat
+              if(window._carregarTudoPromise) await window._carregarTudoPromise;
+              if(typeof abrirChat==='function') abrirChat(lastChat);
             }
           }, 800);
         }
@@ -99,9 +101,12 @@ window.addEventListener('DOMContentLoaded', async()=>{
       await carregarPerfil(session.user);
       _appIniciado = true;
       if(lastPage && lastPage!=='dashboard' && currentPerfil?.perfil !== 'investidor'){
-        setTimeout(()=>{
+        setTimeout(async ()=>{
           goPage(lastPage);
-          if(lastPage==='chat' && lastChat) setTimeout(()=>abrirChat(lastChat), 500);
+          if(lastPage==='chat' && lastChat){
+            if(window._carregarTudoPromise) await window._carregarTudoPromise;
+            if(typeof abrirChat==='function') abrirChat(lastChat);
+          }
         }, 400);
       }
     }
