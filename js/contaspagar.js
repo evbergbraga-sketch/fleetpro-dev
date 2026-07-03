@@ -207,13 +207,12 @@ function cpRenderContas(){
       ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">${CP_RECORRENCIA_LABEL[c.recorrencia_tipo]||''}</span>`
       : '—';
     const nota = c.num_nota ? `<span style="font-size:11px;color:var(--muted)">${c.num_nota}</span>` : '—';
-    // Botões de ação profissionais com SVG
+    // Botões de ação profissionais com SVG — tamanho aumentado
     const btnPagar   = c.status!=='pago'
-      ? `<button onclick="cpMarcarPago('${c.id}')" title="Marcar como pago" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(21,128,61,.12);color:#166534;border:1px solid rgba(21,128,61,.3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.check} Pagar</button>` : '';
-    const btnEditar  = `<button onclick="cpEditarConta('${c.id}')" title="Editar" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.edit}</button>`;
-    const btnCancelar = c.status!=='pago'
-      ? `<button onclick="cpCancelarConta('${c.id}')" title="Cancelar" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(217,119,6,.08);color:#92400e;border:1px solid rgba(217,119,6,.25);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.cancel}</button>` : '';
-    const btnExcluir  = `<button onclick="cpExcluirConta('${c.id}')" title="Excluir permanentemente" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(220,38,38,.06);color:#b91c1c;border:1px solid rgba(220,38,38,.25);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.trash}</button>`;
+      ? `<button onclick="cpMarcarPago('${c.id}')" title="Marcar como pago" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:rgba(21,128,61,.12);color:#166534;border:1px solid rgba(21,128,61,.3);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">${CP_SVG.check} Pagar</button>` : '';
+    const btnEditar  = `<button onclick="cpEditarConta('${c.id}')" title="Editar" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">${CP_SVG.edit} Editar</button>`;
+    const btnCancelar = `<button onclick="cpCancelarConta('${c.id}')" title="Cancelar" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:rgba(217,119,6,.08);color:#92400e;border:1px solid rgba(217,119,6,.25);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">${CP_SVG.cancel} Cancelar</button>`;
+    const btnExcluir  = `<button onclick="cpExcluirConta('${c.id}')" title="Excluir permanentemente" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:rgba(220,38,38,.06);color:#b91c1c;border:1px solid rgba(220,38,38,.25);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">${CP_SVG.trash}</button>`;
     return `<tr>
       <td style="font-size:12px;color:${atrasada?'#b91c1c':'var(--muted)'};font-weight:${atrasada?'700':'400'}">${fmtData(c.vencimento)}</td>
       <td style="font-size:12px;font-weight:500">${c.descricao}</td>
@@ -280,8 +279,12 @@ function cpAbrirNovaConta(){
   document.getElementById('m-conta-pagar').classList.add('show');
 }
 
-function cpEditarConta(id){
-  const c = _cpContas.find(x=>x.id===id);
+async function cpEditarConta(id){
+  let c = _cpContas.find(x=>x.id===id);
+  if(!c){
+    const {data} = await sb.from('contas_pagar').select('*').eq('id',id).maybeSingle();
+    c = data;
+  }
   if(!c) return;
   cpAbrirNovaConta();
   document.getElementById('mcp-id').value = c.id;
@@ -326,8 +329,26 @@ async function cpSalvarConta(){
   };
 
   let error;
-  if(id){ ({error} = await sb.from('contas_pagar').update(obj).eq('id',id)); }
-  else   { obj.criado_por = currentUser?.id; ({error} = await sb.from('contas_pagar').insert(obj)); }
+  if(id){
+    ({error} = await sb.from('contas_pagar').update(obj).eq('id',id));
+    if(!error){
+      // Propagar edição para o lançamento vinculado no Financeiro (se existir e conta já foi paga)
+      const contaAtual = _cpContas.find(x=>x.id===id);
+      const lancId = contaAtual?.lancamento_id || (await sb.from('contas_pagar').select('lancamento_id').eq('id',id).maybeSingle()).data?.lancamento_id;
+      if(lancId){
+        await sb.from('lancamentos').update({
+          descricao: desc,
+          categoria: cat,
+          valor,
+          veiculo_id: veiId||null,
+          forma_pgto: forma||null,
+        }).eq('id', lancId);
+      }
+    }
+  } else {
+    obj.criado_por = currentUser?.id;
+    ({error} = await sb.from('contas_pagar').insert(obj));
+  }
   if(error){ notify('Erro: '+error.message,'error'); return; }
   notify('Conta salva!','success');
   closeModal('conta-pagar');
@@ -338,7 +359,12 @@ async function cpSalvarConta(){
 
 // ══ CANCELAR CONTA (move para histórico com motivo) ══
 async function cpCancelarConta(id){
-  const c = _cpContas.find(x=>x.id===id);
+  // Busca no cache local primeiro; se não encontrar (filtro ativo), vai ao banco
+  let c = _cpContas.find(x=>x.id===id);
+  if(!c){
+    const {data} = await sb.from('contas_pagar').select('*').eq('id',id).maybeSingle();
+    c = data;
+  }
   if(!c) return;
   const motivo = await fpPrompt('Ficará registrado no histórico.', `Cancelar "${c.descricao}"`, {placeholder:'Ex: Pago de outra forma, duplicado...'});
   if(motivo === null) return; // cancelou o prompt
@@ -369,7 +395,11 @@ async function cpCancelarConta(id){
 
 // ══ EXCLUIR CONTA (remove permanentemente de todos os lugares) ══
 async function cpExcluirConta(id){
-  const c = _cpContas.find(x=>x.id===id);
+  let c = _cpContas.find(x=>x.id===id);
+  if(!c){
+    const {data} = await sb.from('contas_pagar').select('*').eq('id',id).maybeSingle();
+    c = data;
+  }
   if(!c) return;
   if(!await fpConfirm(`Excluir permanentemente "${c.descricao}"?\n\nIsso também remove qualquer lançamento no Financeiro vinculado. Essa ação não pode ser desfeita.`, 'Excluir conta')) return;
 
