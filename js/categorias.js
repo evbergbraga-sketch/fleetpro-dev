@@ -6,7 +6,13 @@ let _catLista = []; // lista completa (inclui inativas), usada só na tela de ge
 // ══ CATEGORIA PROTEGIDA (fallback padrão do sistema, não pode ser renomeada/excluída/desativada) ══
 const CAT_PROTEGIDA = 'Outros';
 
-// ══ INICIALIZAÇÃO (tela de gerenciamento) ══
+// ══ ABRIR MODAL DE CATEGORIAS ══
+async function abrirModalCategorias(){
+  document.getElementById('m-categorias-tela')?.classList.add('show');
+  await catCarregarLista();
+}
+
+// ══ INICIALIZAÇÃO (mantida para compatibilidade) ══
 async function iniciarCategorias(){
   await catCarregarLista();
 }

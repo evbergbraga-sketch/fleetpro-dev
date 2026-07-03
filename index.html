@@ -1310,7 +1310,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </select>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="btn btn-ghost" style="font-size:12px" onclick="goPage('categorias')">⚙️ Categorias</button>
+              <button class="btn btn-ghost" style="font-size:12px" onclick="abrirModalCategorias()">⚙️ Categorias</button>
               <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarCsvFluxo()">Fluxo de Caixa CSV</button>
               <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarPdf()">Exportar PDF</button>
               <button class="btn btn-primary" style="font-size:12px" onclick="finAbrirNovoLancamento()">+ Lançamento</button>
@@ -1471,7 +1471,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <span style="font-size:12px;color:var(--muted)">até</span>
             <input type="date" id="cp-filtro-data-fim" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
           </div>
-          <button id="cp-btn-categorias" class="btn btn-ghost" style="font-size:12px" onclick="goPage('categorias')">⚙️ Categorias</button>
+          <button id="cp-btn-categorias" class="btn btn-ghost" style="font-size:12px" onclick="abrirModalCategorias()">⚙️ Categorias</button>
         </div>
 
         <div class="card">
@@ -1539,6 +1539,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </select>
               <div style="font-size:11px;color:var(--muted2);margin-top:4px">Ao marcar essa conta como paga, a próxima já é criada automaticamente com o mesmo valor.</div>
             </div>
+            <div class="form-group full" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+              <input type="checkbox" id="mcp-eh-fatura" onchange="cpToggleFaturaCartao()" style="width:auto">
+              <label style="margin:0">É fatura de cartão de crédito</label>
+            </div>
+            <div class="form-group full" id="mcp-fatura-wrap" style="display:none">
+              <label>Período da fatura</label>
+              <input type="month" id="mcp-fatura-periodo" style="width:100%">
+              <div style="font-size:11px;color:var(--muted2);margin-top:4px">Gastos de 01 até o último dia do mês selecionado com <strong>Cartão Crédito</strong> serão conciliados automaticamente ao marcar como pago. A fatura <strong>não</strong> vai para o Financeiro.</div>
+            </div>
             <div class="form-group full">
               <label>Observações (opcional)</label>
               <textarea id="mcp-obs" rows="2" style="width:100%"></textarea>
@@ -1579,6 +1588,11 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <label>Número da Nota Fiscal (opcional)</label>
               <input type="text" id="cpc-nf" placeholder="Ex: NF-00123" style="width:100%">
             </div>
+            <!-- Seção conciliação cartão — só aparece para faturas -->
+            <div id="cpc-fatura-wrap" style="display:none;margin-top:12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:12px">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);margin-bottom:8px">Conciliação de Cartão</div>
+              <div id="cpc-fatura-preview" style="font-size:12px;color:var(--muted2)">Calculando gastos do período...</div>
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('conta-pagar-confirmar')">Cancelar</button>
@@ -1588,15 +1602,25 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       </div>
 
       <!-- CATEGORIAS -->
-      <div class="page" id="page-categorias">
-        <div style="font-size:12px;color:var(--muted2);margin-bottom:14px">
-          Categorias usadas no Financeiro e em Contas a Pagar. Renomear uma categoria atualiza automaticamente todos os lançamentos e contas que já usam ela.
-        </div>
-        <div class="card">
-          <table class="table">
-            <thead><tr><th>Ícone</th><th>Nome</th><th>Financeiro</th><th>Contas a Pagar</th><th>Status</th><th></th></tr></thead>
-            <tbody id="tb-categorias"></tbody>
-          </table>
+      <!-- MODAL CATEGORIAS (era uma página, agora é modal) -->
+      <div class="modal-overlay" id="m-categorias-tela">
+        <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column">
+          <div class="modal-header">
+            <div class="modal-title">Categorias</div>
+            <button class="modal-close" onclick="closeModal('categorias-tela')">✕</button>
+          </div>
+          <div style="padding:0 20px 8px;font-size:12px;color:var(--muted2)">
+            Categorias usadas no Financeiro e em Contas a Pagar. Renomear atualiza automaticamente todos os registros que já usam ela.
+          </div>
+          <div style="padding:0 20px 16px;overflow-y:auto;flex:1">
+            <div style="margin-bottom:12px;display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" style="font-size:12px" onclick="catAbrirNova()">+ Nova categoria</button>
+            </div>
+            <table class="table">
+              <thead><tr><th>Ícone</th><th>Nome</th><th>Financeiro</th><th>Contas a Pagar</th><th>Status</th><th></th></tr></thead>
+              <tbody id="tb-categorias"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

@@ -58,7 +58,6 @@ const ROLE_MENUS = {
     {section:'Financeiro'},
     {id:'financeiro',  icon:ICONS.financeiro,    label:'Financeiro'},
     {id:'contas-pagar',icon:ICONS.contaspagar,   label:'Contas a Pagar'},
-    {id:'categorias',  icon:ICONS.categorias,    label:'Categorias'},
     {section:'Admin'},
     {id:'usuarios',    icon:ICONS.usuarios,      label:'Usuários'},
     {id:'investidores',icon:ICONS.investidores,  label:'Investidores'},

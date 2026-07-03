@@ -182,6 +182,12 @@ function cpToggleRecorrencia(){
   if(wrap) wrap.style.display = chk ? '' : 'none';
 }
 
+function cpToggleFaturaCartao(){
+  const chk  = document.getElementById('mcp-eh-fatura')?.checked;
+  const wrap = document.getElementById('mcp-fatura-wrap');
+  if(wrap) wrap.style.display = chk ? '' : 'none';
+}
+
 function cpAbrirNovaConta(){
   document.getElementById('mcp-id').value = '';
   document.getElementById('mcp-title').textContent = '➕ Nova Conta a Pagar';
@@ -194,7 +200,11 @@ function cpAbrirNovaConta(){
   document.getElementById('mcp-recorrente').checked = false;
   document.getElementById('mcp-recorrencia-tipo').value = 'mensal';
   document.getElementById('mcp-obs').value = '';
+  document.getElementById('mcp-eh-fatura').checked = false;
+  const hoje = new Date();
+  document.getElementById('mcp-fatura-periodo').value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
   cpToggleRecorrencia();
+  cpToggleFaturaCartao();
   cpPopularSelectVeiculo();
   document.getElementById('m-conta-pagar').classList.add('show');
 }
@@ -214,7 +224,10 @@ function cpEditarConta(id){
   document.getElementById('mcp-recorrente').checked = !!c.recorrente;
   document.getElementById('mcp-recorrencia-tipo').value = c.recorrencia_tipo||'mensal';
   document.getElementById('mcp-obs').value = c.observacoes||'';
+  document.getElementById('mcp-eh-fatura').checked = !!c.eh_fatura_cartao;
+  if(c.fatura_periodo) document.getElementById('mcp-fatura-periodo').value = c.fatura_periodo;
   cpToggleRecorrencia();
+  cpToggleFaturaCartao();
 }
 
 async function cpSalvarConta(){
@@ -227,15 +240,20 @@ async function cpSalvarConta(){
   const veiId  = document.getElementById('mcp-vei')?.value||null;
   const recorrente = document.getElementById('mcp-recorrente')?.checked||false;
   const recTipo = recorrente ? (document.getElementById('mcp-recorrencia-tipo')?.value||'mensal') : null;
-  const obs    = document.getElementById('mcp-obs')?.value?.trim()||null;
+  const obs         = document.getElementById('mcp-obs')?.value?.trim()||null;
+  const ehFatura    = document.getElementById('mcp-eh-fatura')?.checked||false;
+  const fatPerido   = ehFatura ? (document.getElementById('mcp-fatura-periodo')?.value||null) : null;
 
   if(!desc || !valor || !venc || !forma){ notify('Preencha descrição, valor, vencimento e forma de pagamento','error'); return; }
+  if(ehFatura && !fatPerido){ notify('Informe o período da fatura','error'); return; }
 
   const obj = {
     descricao: desc, categoria: cat, valor, vencimento: venc,
     forma_pgto: forma, veiculo_id: veiId||null,
     recorrente, recorrencia_tipo: recTipo,
     observacoes: obs,
+    eh_fatura_cartao: ehFatura,
+    fatura_periodo: fatPerido,
   };
 
   let error;
@@ -264,7 +282,7 @@ async function cpExcluirConta(id){
 }
 
 // ══ MARCAR COMO PAGO — abre modal de confirmação ══
-function cpMarcarPago(id){
+async function cpMarcarPago(id){
   const c = _cpContas.find(x=>x.id===id);
   if(!c || c.status==='pago') return;
   _cpPagamentoAtual = c;
@@ -277,10 +295,40 @@ function cpMarcarPago(id){
   document.getElementById('cpc-valor').textContent = fmt(c.valor);
   document.getElementById('cpc-nf').value = '';
 
+  // Se for fatura de cartão: mostrar preview de conciliação
+  const fatWrap = document.getElementById('cpc-fatura-wrap');
+  const fatPreview = document.getElementById('cpc-fatura-preview');
+  if(c.eh_fatura_cartao && c.fatura_periodo && fatWrap && fatPreview){
+    fatWrap.style.display = '';
+    fatPreview.textContent = 'Calculando gastos do período...';
+    // Busca contas a pagar com Cartão Crédito no período
+    const [anoStr, mesStr] = c.fatura_periodo.split('-');
+    const dataIni = `${c.fatura_periodo}-01`;
+    const dataFim = new Date(parseInt(anoStr), parseInt(mesStr), 0).toISOString().slice(0,10);
+    const {data: gastos} = await sb.from('contas_pagar')
+      .select('id,descricao,valor,vencimento')
+      .eq('forma_pgto','Cartão Crédito')
+      .eq('eh_fatura_cartao', false)
+      .in('status',['pendente','atrasado'])
+      .gte('vencimento', dataIni)
+      .lte('vencimento', dataFim);
+    const lista = gastos||[];
+    const totalGastos = lista.reduce((a,x)=>a+Number(x.valor),0);
+    if(!lista.length){
+      fatPreview.innerHTML = `<span style="color:var(--muted2)">Nenhum gasto com Cartão Crédito encontrado para ${mesStr}/${anoStr}.</span>`;
+    } else {
+      fatPreview.innerHTML = `<div style="margin-bottom:6px;color:var(--text2);font-weight:600">${lista.length} gasto${lista.length>1?'s':''} serão conciliados → ${fmt(totalGastos)}</div>` +
+        lista.map(g=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border2);color:var(--text2)"><span>${g.descricao}</span><span style="font-weight:600">${fmt(g.valor)}</span></div>`).join('') +
+        `<div style="font-size:11px;color:var(--muted2);margin-top:6px">A fatura não vai para o Financeiro. Cada gasto individual será lançado.</div>`;
+    }
+  } else if(fatWrap){
+    fatWrap.style.display = 'none';
+  }
+
   document.getElementById('m-conta-pagar-confirmar').classList.add('show');
 }
 
-// ══ CONFIRMAR PAGAMENTO — lança no Financeiro + gera próxima (se recorrente) ══
+// ══ CONFIRMAR PAGAMENTO ══
 async function cpConfirmarPagamento(){
   const c = _cpPagamentoAtual;
   if(!c || c.status==='pago') return;
@@ -288,30 +336,70 @@ async function cpConfirmarPagamento(){
   const numNota = document.getElementById('cpc-nf')?.value?.trim()||null;
   const hojeIso = new Date().toISOString();
 
-  // 1) Cria o lançamento de despesa no Financeiro
+  // ── FATURA DE CARTÃO: concilia gastos, não lança a fatura no Financeiro ──
+  if(c.eh_fatura_cartao && c.fatura_periodo){
+    const [anoStr, mesStr] = c.fatura_periodo.split('-');
+    const dataIni = `${c.fatura_periodo}-01`;
+    const dataFim = new Date(parseInt(anoStr), parseInt(mesStr), 0).toISOString().slice(0,10);
+
+    // Busca todos os gastos de cartão do período ainda não conciliados
+    const {data: gastos, error: errGastos} = await sb.from('contas_pagar')
+      .select('*')
+      .eq('forma_pgto','Cartão Crédito')
+      .eq('eh_fatura_cartao', false)
+      .in('status',['pendente','atrasado'])
+      .gte('vencimento', dataIni)
+      .lte('vencimento', dataFim);
+
+    if(errGastos){ notify('Erro ao buscar gastos: '+errGastos.message,'error'); return; }
+
+    // Para cada gasto: cria lançamento individual no Financeiro e marca como pago
+    const lista = gastos||[];
+    for(const g of lista){
+      const {data: lanc} = await sb.from('lancamentos').insert({
+        tipo: 'despesa', categoria: g.categoria, descricao: g.descricao,
+        valor: g.valor, data: hojeIso.slice(0,10),
+        veiculo_id: g.veiculo_id||null, forma_pgto: 'Cartão Crédito',
+        origem: 'contas_pagar', criado_por: currentUser?.id,
+      }).select().single();
+
+      await sb.from('contas_pagar').update({
+        status: 'pago', data_pagamento: hojeIso,
+        lancamento_id: lanc?.data?.id||null,
+        conciliada_por: c.id,
+      }).eq('id', g.id);
+    }
+
+    // Marca a fatura como paga (SEM criar lançamento no Financeiro)
+    await sb.from('contas_pagar').update({
+      status: 'pago', data_pagamento: hojeIso, num_nota: numNota,
+    }).eq('id', c.id);
+
+    closeModal('conta-pagar-confirmar');
+    _cpPagamentoAtual = null;
+    const n = lista.length;
+    notify(`Fatura paga! ${n} gasto${n!==1?'s':''} conciliado${n!==1?'s':''} no Financeiro.`,'success');
+    await cpCarregarContas();
+    if(typeof loadContasPagar==='function') await loadContasPagar();
+    if(typeof renderDashboard==='function') renderDashboard();
+    return;
+  }
+
+  // ── CONTA NORMAL: cria lançamento no Financeiro ──
   const {data: lanc, error: errLanc} = await sb.from('lancamentos').insert({
-    tipo: 'despesa',
-    categoria: c.categoria,
-    descricao: c.descricao,
-    valor: c.valor,
-    data: hojeIso.slice(0,10),
-    veiculo_id: c.veiculo_id||null,
-    forma_pgto: c.forma_pgto||null,
-    num_nota: numNota,
-    origem: 'contas_pagar',
-    criado_por: currentUser?.id,
+    tipo: 'despesa', categoria: c.categoria, descricao: c.descricao,
+    valor: c.valor, data: hojeIso.slice(0,10),
+    veiculo_id: c.veiculo_id||null, forma_pgto: c.forma_pgto||null,
+    num_nota: numNota, origem: 'contas_pagar', criado_por: currentUser?.id,
   }).select().single();
 
   if(errLanc){ notify('Erro ao lançar no financeiro: '+errLanc.message,'error'); return; }
 
-  // 2) Marca a conta como paga, vincula o lançamento e grava a nota
-  const {error: errUpd} = await sb.from('contas_pagar').update({
+  await sb.from('contas_pagar').update({
     status: 'pago', data_pagamento: hojeIso, lancamento_id: lanc?.id||null, num_nota: numNota,
   }).eq('id', c.id);
 
-  if(errUpd){ notify('Erro ao atualizar conta: '+errUpd.message,'error'); return; }
-
-  // 3) Se é recorrente, gera automaticamente a próxima conta
+  // Se é recorrente, gera a próxima
   if(c.recorrente){
     await sb.from('contas_pagar').insert({
       descricao: c.descricao, categoria: c.categoria, valor: c.valor,
@@ -326,6 +414,6 @@ async function cpConfirmarPagamento(){
   _cpPagamentoAtual = null;
   notify('Pagamento confirmado e lançado no Financeiro!','success');
   await cpCarregarContas();
-  if(typeof loadContasPagar==='function'){ await loadContasPagar(); }
+  if(typeof loadContasPagar==='function') await loadContasPagar();
   if(typeof renderDashboard==='function') renderDashboard();
 }
