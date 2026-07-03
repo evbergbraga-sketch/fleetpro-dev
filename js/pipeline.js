@@ -547,7 +547,7 @@ function _plIrChat(id){
 
 async function _plExcluirLead(id, nome, tipo){
   const label = tipo==='lead' ? 'lead' : 'cliente';
-  if(!confirm(`Excluir ${label} "${nome}"? Esta ação não pode ser desfeita.\n\nNotas internas e encaminhamentos também serão removidos.`)) return;
+  if(!await fpConfirm(`Excluir ${label} "${nome}"? Notas internas e encaminhamentos também serão removidos. Esta ação não pode ser desfeita.`, `Excluir ${label}`)) return;
   try{
     // Remove notas e encaminhamentos primeiro (FK)
     await Promise.all([
@@ -701,7 +701,7 @@ async function _plCfgMover(id, dir){
 }
 
 async function _plCfgRemover(id, label){
-  if(!confirm(`Remover o status "${label}"? Leads com esse status ficarão sem status.`)) return;
+  if(!await fpConfirm(`Remover o status "${label}"? Leads com esse status ficarão sem status.`, 'Remover status')) return;
 
   // Leads com esse status → sem_status
   const key = label.toLowerCase().replace(/\s+/g,'-');
@@ -758,7 +758,7 @@ async function _plConfigSalvarAplicar(){
 }
 
 async function _plConfigNovoStatus(){
-  const label = prompt('Nome do novo status:');
+  const label = await fpPrompt('Nome do novo status:', 'Novo status CRM', {placeholder:'Ex: Em negociação'});
   if(!label?.trim()) return;
   const emoji = '●'; // sem emoji
   const cor   = '#60A5FA';
@@ -816,7 +816,7 @@ async function _fuMassaEnviar(){
     : _plDados).filter(c=>c.telefone);
 
   if(!leads.length){ notify('Nenhum lead com telefone para este status.','error'); return; }
-  if(!confirm(`Enviar mensagem para ${leads.length} lead${leads.length!==1?'s':''}?`)) return;
+  if(!await fpConfirm(`Enviar mensagem para ${leads.length} lead${leads.length!==1?'s':''}?`, 'Confirmar envio', {confirmLabel:'Enviar', danger:false})) return;
 
   btn.disabled=true; btn.textContent='⏳ Enviando...';
 

@@ -510,7 +510,7 @@ function renderVeiculos(){
 
 // ── EDITAR VEÍCULO ──
 async function excluirVeiculo(id, nome, placa){
-  if(!confirm(`Excluir veículo "${nome} (${placa})"?\n\nAtenção: só é possível excluir veículos sem locações ou contratos vinculados.`)) return;
+  if(!await fpConfirm(`Excluir veículo "${nome} (${placa})"?\n\nSó é possível excluir veículos sem locações ou contratos vinculados.`, 'Excluir veículo')) return;
   try{
     const {error} = await sb.from('veiculos').delete().eq('id', id);
     if(error){

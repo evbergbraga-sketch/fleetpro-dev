@@ -710,7 +710,7 @@ async function salvarPagamento(){
 }
 
 async function excluirPagamento(id){
-  if(!confirm('Excluir este pagamento?')) return;
+  if(!await fpConfirm('Excluir este pagamento? Essa ação não pode ser desfeita.', 'Excluir pagamento')) return;
   await sb.from('pagamentos_investidor').delete().eq('id',id);
   notify('Excluído!','success');
   const invId = document.getElementById('inv-selector')?.value||currentUser?.id;
@@ -790,7 +790,7 @@ function _renderInvRastreador(){
 }
 
 async function configurarRastreador(){
-  const link = prompt('Cole o link do sistema de rastreamento:', currentPerfil?.link_rastreador||'');
+  const link = await fpPrompt('Cole o link do sistema de rastreamento:', 'Link de rastreamento', {defaultValue: currentPerfil?.link_rastreador||''});
   if(link===null) return;
   const {error} = await sb.from('perfis').update({link_rastreador:link.trim()}).eq('id',currentUser.id);
   if(error){ notify('Erro: '+error.message,'error'); return; }

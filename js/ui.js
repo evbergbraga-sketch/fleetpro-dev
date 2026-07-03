@@ -346,3 +346,135 @@ function _renderNotifDropdown(){
 
   dd.innerHTML = html;
 }
+
+// ══ MODAL DE CONFIRMAÇÃO PERSONALIZADO (substitui window.confirm e window.prompt) ══
+
+let _fpDialogResolve = null;
+let _fpDialogType    = null;
+
+function _fpDialogClose(val){
+  const m = document.getElementById('m-fp-dialog');
+  if(m) m.style.display = 'none';
+  if(_fpDialogResolve) { _fpDialogResolve(val); _fpDialogResolve = null; }
+}
+
+// Teclado: ESC cancela, Enter confirma
+function _fpDialogKeydown(e){
+  if(e.key === 'Escape') _fpDialogClose(_fpDialogType === 'prompt' ? null : false);
+  if(e.key === 'Enter'){
+    if(_fpDialogType === 'prompt'){
+      const inp = document.getElementById('fp-dialog-input');
+      _fpDialogClose(inp ? inp.value : null);
+    } else {
+      _fpDialogClose(true);
+    }
+  }
+}
+
+/**
+ * Confirmação personalizada — substitui window.confirm()
+ * @param {string} mensagem
+ * @param {string} [titulo]
+ * @param {Object} [opts] — { confirmLabel, cancelLabel, danger }
+ * @returns {Promise<boolean>}
+ */
+function fpConfirm(mensagem, titulo='Confirmar', opts={}){
+  return new Promise(resolve => {
+    _fpDialogResolve = resolve;
+    _fpDialogType    = 'confirm';
+
+    const m    = document.getElementById('m-fp-dialog');
+    const box  = document.getElementById('fp-dialog-box');
+    const tEl  = document.getElementById('fp-dialog-title');
+    const mEl  = document.getElementById('fp-dialog-msg');
+    const inpW = document.getElementById('fp-dialog-input-wrap');
+    const okEl = document.getElementById('fp-dialog-ok');
+    const noEl = document.getElementById('fp-dialog-cancel');
+    if(!m) { resolve(window.confirm(mensagem)); return; }
+
+    tEl.textContent = titulo;
+    mEl.innerHTML   = mensagem.replace(/\n/g,'<br>');
+    if(inpW) inpW.style.display = 'none';
+
+    const danger = opts.danger !== false; // padrão: botão OK vermelho para confirm
+    okEl.textContent = opts.confirmLabel || 'Confirmar';
+    okEl.style.background = danger ? 'var(--red)' : 'var(--accent)';
+    noEl.textContent = opts.cancelLabel || 'Cancelar';
+    noEl.style.display = '';
+
+    m.style.display = 'flex';
+    document.removeEventListener('keydown', _fpDialogKeydown);
+    document.addEventListener('keydown', _fpDialogKeydown, {once:true});
+    setTimeout(()=>okEl.focus(), 50);
+  });
+}
+
+/**
+ * Input personalizado — substitui window.prompt()
+ * @param {string} mensagem
+ * @param {string} [titulo]
+ * @param {Object} [opts] — { placeholder, defaultValue, confirmLabel }
+ * @returns {Promise<string|null>}
+ */
+function fpPrompt(mensagem, titulo='Informar', opts={}){
+  return new Promise(resolve => {
+    _fpDialogResolve = resolve;
+    _fpDialogType    = 'prompt';
+
+    const m    = document.getElementById('m-fp-dialog');
+    const tEl  = document.getElementById('fp-dialog-title');
+    const mEl  = document.getElementById('fp-dialog-msg');
+    const inpW = document.getElementById('fp-dialog-input-wrap');
+    const inp  = document.getElementById('fp-dialog-input');
+    const okEl = document.getElementById('fp-dialog-ok');
+    const noEl = document.getElementById('fp-dialog-cancel');
+    if(!m) { resolve(window.prompt(mensagem)); return; }
+
+    tEl.textContent = titulo;
+    mEl.innerHTML   = mensagem.replace(/\n/g,'<br>');
+    if(inpW) inpW.style.display = '';
+    if(inp){ inp.value = opts.defaultValue||''; inp.placeholder = opts.placeholder||''; }
+
+    okEl.textContent = opts.confirmLabel || 'Confirmar';
+    okEl.style.background = 'var(--accent)';
+    noEl.textContent = 'Cancelar';
+    noEl.style.display = '';
+
+    m.style.display = 'flex';
+    document.removeEventListener('keydown', _fpDialogKeydown);
+    document.addEventListener('keydown', _fpDialogKeydown, {once:true});
+    setTimeout(()=>{ if(inp) inp.focus(); }, 50);
+  });
+}
+
+/**
+ * Alerta personalizado — substitui window.alert()
+ * @param {string} mensagem
+ * @param {string} [titulo]
+ */
+function fpAlert(mensagem, titulo='Atenção'){
+  return new Promise(resolve => {
+    _fpDialogResolve = resolve;
+    _fpDialogType    = 'alert';
+
+    const m    = document.getElementById('m-fp-dialog');
+    const tEl  = document.getElementById('fp-dialog-title');
+    const mEl  = document.getElementById('fp-dialog-msg');
+    const inpW = document.getElementById('fp-dialog-input-wrap');
+    const okEl = document.getElementById('fp-dialog-ok');
+    const noEl = document.getElementById('fp-dialog-cancel');
+    if(!m) { alert(mensagem); resolve(true); return; }
+
+    tEl.textContent = titulo;
+    mEl.innerHTML   = mensagem.replace(/\n/g,'<br>');
+    if(inpW) inpW.style.display = 'none';
+    if(noEl) noEl.style.display = 'none';
+    okEl.textContent = 'OK';
+    okEl.style.background = 'var(--accent)';
+
+    m.style.display = 'flex';
+    document.removeEventListener('keydown', _fpDialogKeydown);
+    document.addEventListener('keydown', _fpDialogKeydown, {once:true});
+    setTimeout(()=>okEl.focus(), 50);
+  });
+}

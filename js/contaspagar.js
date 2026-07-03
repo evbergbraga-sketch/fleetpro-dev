@@ -340,7 +340,7 @@ async function cpSalvarConta(){
 async function cpCancelarConta(id){
   const c = _cpContas.find(x=>x.id===id);
   if(!c) return;
-  const motivo = prompt(`Motivo do cancelamento de "${c.descricao}":\n(Ficará registrado no histórico)`);
+  const motivo = await fpPrompt('Ficará registrado no histórico.', `Cancelar "${c.descricao}"`, {placeholder:'Ex: Pago de outra forma, duplicado...'});
   if(motivo === null) return; // cancelou o prompt
   const hojeIso = new Date().toISOString();
 
@@ -371,7 +371,7 @@ async function cpCancelarConta(id){
 async function cpExcluirConta(id){
   const c = _cpContas.find(x=>x.id===id);
   if(!c) return;
-  if(!confirm(`Excluir permanentemente "${c.descricao}"?\n\nIsso também remove qualquer lançamento no Financeiro vinculado a esta conta. Essa ação não pode ser desfeita.`)) return;
+  if(!await fpConfirm(`Excluir permanentemente "${c.descricao}"?\n\nIsso também remove qualquer lançamento no Financeiro vinculado. Essa ação não pode ser desfeita.`, 'Excluir conta')) return;
 
   // Remove lançamento vinculado no Financeiro (se houver)
   if(c.lancamento_id){

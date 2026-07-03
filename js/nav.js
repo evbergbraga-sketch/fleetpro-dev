@@ -228,7 +228,7 @@ async function adminResetarSenha(){
   const nome = document.getElementById('eu-nome')?.value||'este usuário';
   if(!id) return;
   if(id === currentUser?.id){ notify('Use "Meu Perfil" para trocar sua própria senha.','error'); return; }
-  if(!confirm(`Gerar uma nova senha provisória para ${nome}?\n\nA senha atual dele deixará de funcionar imediatamente.`)) return;
+  if(!await fpConfirm(`Gerar uma nova senha provisória para ${nome}?\n\nA senha atual deixará de funcionar imediatamente.`, 'Resetar senha')) return;
 
   try{
     const {data:sessionData} = await sb.auth.getSession();
@@ -258,8 +258,8 @@ async function adminExcluirUsuario(){
   const nome = document.getElementById('eu-nome')?.value||'este usuário';
   if(!id) return;
   if(id === currentUser?.id){ notify('Você não pode excluir seu próprio usuário.','error'); return; }
-  if(!confirm(`Excluir ${nome} permanentemente?\n\nEle perderá o acesso ao sistema imediatamente. Essa ação não pode ser desfeita.`)) return;
-  if(!confirm(`Tem certeza mesmo? Digite OK para confirmar a exclusão de ${nome}.`)) return;
+  if(!await fpConfirm(`Excluir ${nome} permanentemente?\n\nEle perderá o acesso imediatamente. Essa ação não pode ser desfeita.`, 'Excluir usuário')) return;
+  if(!await fpConfirm(`Tem certeza mesmo? Confirme a exclusão de ${nome}.`, 'Confirmar exclusão', {confirmLabel:'Sim, excluir'})) return;
 
   try{
     const {data:sessionData} = await sb.auth.getSession();

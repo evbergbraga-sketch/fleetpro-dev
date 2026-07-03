@@ -1726,7 +1726,7 @@ async function _locUploadAnexos(input, locId){
 }
 
 async function _locExcluirAnexo(id, url, locId){
-  if(!confirm('Remover este arquivo?')) return;
+  if(!await fpConfirm('Remover este arquivo?', 'Remover arquivo')) return;
   try{
     // Extrai o path do Storage da URL pública
     const match = url.match(/locacoes-docs\/(.+)$/);
@@ -1741,7 +1741,7 @@ async function _locExcluirAnexo(id, url, locId){
 async function cancelarLocacao(id){
   const motivo = document.getElementById('loc-cancel-motivo')?.value?.trim() || '';
   if(!motivo){ notify('Informe o motivo do cancelamento','error'); return; }
-  if(!confirm('Confirmar cancelamento desta locação? O veículo voltará a ficar disponível.')) return;
+  if(!await fpConfirm('Confirmar cancelamento desta locação? O veículo voltará a ficar disponível.', 'Cancelar locação')) return;
 
   const loc = allLocacoesCompletas?.find(l=>l.id===id);
   if(!loc){ notify('Locação não encontrada','error'); return; }
@@ -1804,7 +1804,7 @@ async function _locUploadContratoPdf(input, locId) {
 }
 
 async function _locRemoverContratoPdf(locId) {
-  if (!confirm('Remover o PDF do contrato do portal?')) return;
+  if(!await fpConfirm('Remover o PDF do contrato do portal?', 'Remover PDF')) return;
   const { error } = await sb.from('locacoes').update({ contrato_pdf_url: null }).eq('id', locId);
   if (error) { notify('Erro: ' + error.message, 'error'); return; }
   notify('PDF removido.', 'success');
@@ -1817,11 +1817,11 @@ async function _editarValorLancamento(lancId, valorAtual){
   if(!['admin','gerente'].includes(currentPerfil?.perfil)){
     notify('Sem permissão para editar lançamentos.','error'); return;
   }
-  const novoValorStr = prompt(`Editar valor do lançamento\nValor atual: R$ ${Number(valorAtual).toFixed(2).replace('.',',')}\n\nNovo valor (apenas números):`, Number(valorAtual).toFixed(2));
+  const novoValorStr = await fpPrompt('Valor atual: R$ '+Number(valorAtual).toFixed(2).replace('.',','), 'Editar valor do lançamento', {defaultValue: Number(valorAtual).toFixed(2), placeholder:'0.00'});
   if(novoValorStr === null) return; // cancelou
   const novoValor = parseFloat(novoValorStr.replace(',','.'));
   if(isNaN(novoValor) || novoValor < 0){ notify('Valor inválido.','error'); return; }
-  if(!confirm(`Confirmar alteração para R$ ${novoValor.toFixed(2).replace('.',',')}?`)) return;
+  if(!await fpConfirm(`Confirmar alteração para R$ ${novoValor.toFixed(2).replace('.',',')}?`, 'Alterar valor')) return;
   try{
     const {error} = await sb.from('lancamentos').update({valor: novoValor}).eq('id', lancId);
     if(error) throw error;

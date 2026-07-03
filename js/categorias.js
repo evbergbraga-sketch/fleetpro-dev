@@ -147,12 +147,14 @@ async function catExcluir(id){
   const emUso = (countLanc||0) + (countCp||0);
 
   if(emUso > 0){
-    if(!confirm(`"${c.nome}" está em uso em ${emUso} registro(s) e não pode ser excluída.\n\nDeseja apenas desativá-la? Ela some dos formulários, mas o histórico existente é mantido.`)) return;
+    if(!await fpConfirm(`"${c.nome}" está em uso em ${emUso} registro(s).
+
+Deseja desativá-la? Ela some dos formulários, mas o histórico é mantido.`, 'Categoria em uso')) return;
     const {error} = await sb.from('categorias_financeiras').update({ativo:false}).eq('id', id);
     if(error){ notify('Erro: '+error.message,'error'); return; }
     notify('Categoria desativada (estava em uso).','success');
   } else {
-    if(!confirm(`Excluir a categoria "${c.nome}"? Ela não está em uso em nenhum registro.`)) return;
+    if(!await fpConfirm(`Excluir a categoria "${c.nome}"? Ela não está em uso em nenhum registro.`, 'Excluir categoria')) return;
     const {error} = await sb.from('categorias_financeiras').delete().eq('id', id);
     if(error){ notify('Erro: '+error.message,'error'); return; }
     notify('Categoria excluída.','success');

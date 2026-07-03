@@ -198,7 +198,7 @@ async function salvarReserva(){
 
 // ══ CANCELAR RESERVA ══
 async function excluirReserva(id){
-  if(!confirm('Excluir esta reserva permanentemente? Esta ação não pode ser desfeita.')) return;
+  if(!await fpConfirm('Excluir esta reserva permanentemente? Esta ação não pode ser desfeita.', 'Excluir reserva')) return;
   const r = allReservas.find(x=>x.id===id);
   const {error} = await sb.from('reservas').delete().eq('id',id);
   if(error){ notify('Erro: '+error.message,'error'); return; }
@@ -212,7 +212,7 @@ async function excluirReserva(id){
 }
 
 async function cancelarReserva(id){
-  if(!confirm('Cancelar esta reserva? O veículo voltará a ficar disponível.')) return;
+  if(!await fpConfirm('Cancelar esta reserva? O veículo voltará a ficar disponível.', 'Cancelar reserva', {confirmLabel:'Cancelar reserva', danger:false})) return;
   const r = allReservas.find(x=>x.id===id);
   if(!r) return;
 

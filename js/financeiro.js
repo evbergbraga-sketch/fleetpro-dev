@@ -498,7 +498,7 @@ async function finSalvarLancamento(){
 }
 
 async function finExcluirLancamento(id){
-  if(!confirm('Excluir este lançamento?')) return;
+  if(!await fpConfirm('Excluir este lançamento? Essa ação não pode ser desfeita.', 'Excluir lançamento')) return;
   const {error} = await sb.from('lancamentos').delete().eq('id',id);
   if(error){ notify('Erro: '+error.message,'error'); return; }
   notify('Lançamento excluído','success');
@@ -775,9 +775,10 @@ async function finExportarPdf(){
 async function finExportarCsvFluxo(){
   // Pede mês e ano
   const hoje = new Date();
-  const mesAno = prompt(
+  const mesAno = await fpPrompt(
     'Informe mês/ano para o fluxo de caixa (MM/AAAA):',
-    String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear()
+    'Exportar Fluxo de Caixa',
+    {defaultValue: String(hoje.getMonth()+1).padStart(2,'0')+'/'+hoje.getFullYear(), placeholder:'MM/AAAA'}
   );
   if(!mesAno) return;
   const [mes, ano] = mesAno.split('/');

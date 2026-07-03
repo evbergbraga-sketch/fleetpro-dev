@@ -137,7 +137,7 @@ async function _portalToggleComunicado(id, ativo) {
 }
 
 async function _portalDeletarComunicado(id) {
-  if (!confirm('Excluir este comunicado?')) return;
+  if(!await fpConfirm('Excluir este comunicado? Essa ação não pode ser desfeita.', 'Excluir comunicado')) return;
   const { error } = await sb.from('comunicados').delete().eq('id', id);
   if (error) { notify('Erro: ' + error.message, 'error'); return; }
   notify('Comunicado excluído.', 'success');
@@ -220,7 +220,7 @@ async function _portalSalvarSorteio() {
 }
 
 async function _portalRealizarSorteio(sorteioId) {
-  if (!confirm('Realizar o sorteio agora? Esta ação não pode ser desfeita.')) return;
+  if(!await fpConfirm('Realizar o sorteio agora? Esta ação não pode ser desfeita.', 'Realizar sorteio', {confirmLabel:'Sortear', danger:false})) return;
   const hoje = new Date().toISOString().slice(0,10);
   const { data: locacoes } = await sb.from('locacoes')
     .select('id, cliente_id, num_contrato, clientes(nome, telefones)')
@@ -282,7 +282,7 @@ async function _portalEnviarWhatsAppVencedor(sorteioId) {
 }
 
 async function _portalDeletarSorteio(id) {
-  if (!confirm('Excluir este sorteio?')) return;
+  if(!await fpConfirm('Excluir este sorteio?', 'Excluir sorteio')) return;
   const { error } = await sb.from('sorteios').delete().eq('id',id);
   if (error) { notify('Erro: '+error.message,'error'); return; }
   notify('Sorteio excluído.','success');

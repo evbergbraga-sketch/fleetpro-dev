@@ -3183,6 +3183,28 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
+<!-- MODAL DE CONFIRMAÇÃO PERSONALIZADO — fpConfirm / fpPrompt / fpAlert -->
+<div id="m-fp-dialog" style="display:none;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px)" onclick="if(event.target===this)_fpDialogClose(_fpDialogType==='prompt'?null:false)">
+  <div id="fp-dialog-box" style="background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:0;width:100%;max-width:420px;margin:16px;box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0">
+      <div id="fp-dialog-title" style="font-size:15px;font-weight:700;color:var(--text)">Confirmar</div>
+      <button onclick="_fpDialogClose(_fpDialogType==='prompt'?null:false)" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:2px 4px">✕</button>
+    </div>
+    <!-- Mensagem -->
+    <div id="fp-dialog-msg" style="padding:14px 20px 0;font-size:13px;color:var(--text2);line-height:1.6"></div>
+    <!-- Input (só para fpPrompt) -->
+    <div id="fp-dialog-input-wrap" style="display:none;padding:12px 20px 0">
+      <input id="fp-dialog-input" type="text" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;outline:none">
+    </div>
+    <!-- Botões -->
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding:18px 20px">
+      <button id="fp-dialog-cancel" onclick="_fpDialogClose(false)" style="padding:9px 20px;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>
+      <button id="fp-dialog-ok" onclick="_fpDialogType==='prompt'?(()=>{const i=document.getElementById('fp-dialog-input');_fpDialogClose(i?i.value:null)})():_fpDialogClose(true)" style="padding:9px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 <div id="crm-enc-dropdown" style="display:none;position:fixed;background:#182229;border:1px solid rgba(255,255,255,.12);border-radius:10px;z-index:99999;min-width:170px;box-shadow:0 8px 32px rgba(0,0,0,.7)">
   <div style="padding:6px 0">

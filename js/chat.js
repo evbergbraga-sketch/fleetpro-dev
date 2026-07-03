@@ -196,7 +196,7 @@ async function atualizarQrManual(){
 }
 
 async function desconectarWpp(){
-  if(!confirm('Desconectar o WhatsApp? Precisará escanear o QR novamente.')) return;
+  if(!await fpConfirm('Desconectar o WhatsApp? Precisará escanear o QR novamente.', 'Desconectar WhatsApp')) return;
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   try{
     await fetch(cfg.apiUrl+'/instance/logout/'+cfg.instancia, {
@@ -1396,7 +1396,7 @@ async function _crmEncaminhar(setor){
   if(!activeChatId){ notify('Selecione um cliente','error'); return; }
   const c = allClientes?.find(x=>x.id===activeChatId);
   if(!c){ notify('Cliente não cadastrado — encaminhamento disponível apenas para clientes cadastrados','error'); return; }
-  const obs = prompt(`Observação para o setor ${setor} (opcional):`)||null;
+  const obs = await fpPrompt('Observação (opcional):', `Encaminhar para ${setor}`)||null;
   try{
     await sb.from('encaminhamentos').insert({
       cliente_id: c.id,

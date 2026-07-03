@@ -806,7 +806,7 @@ async function _salvarCondutor(clienteId){
 }
 
 async function _excluirCondutor(id, clienteId){
-  if(!confirm('Remover este condutor?')) return;
+  if(!await fpConfirm('Remover este condutor?', 'Remover condutor')) return;
   await sb.from('condutores').delete().eq('id',id);
   notify('Condutor removido','success');
   const c = allClientes.find(x=>x.id===clienteId);
@@ -830,7 +830,7 @@ async function _salvarCartao(clienteId){
 }
 
 async function _excluirCartao(id, clienteId){
-  if(!confirm('Remover este cartão?')) return;
+  if(!await fpConfirm('Remover este cartão?', 'Remover cartão')) return;
   await sb.from('cartoes').delete().eq('id',id);
   notify('Cartão removido','success');
   const c = allClientes.find(x=>x.id===clienteId);
@@ -839,7 +839,7 @@ async function _excluirCartao(id, clienteId){
 
 // ══ EXCLUIR CLIENTE ══
 async function excluirCliente(id, nome){
-  if(!confirm(`Excluir o cliente "${nome}"?\n\nEssa ação não pode ser desfeita.`)) return;
+  if(!await fpConfirm(`Excluir o cliente "${nome}"?\n\nEssa ação não pode ser desfeita.`, 'Excluir cliente')) return;
   try{
     // Verificar vínculos antes de excluir
     const [resLoc, resRes, resCond] = await Promise.all([
@@ -862,7 +862,7 @@ async function excluirCliente(id, nome){
       const msg = [];
       if(totalRes  > 0) msg.push(`${totalRes} reserva(s)`);
       if(totalCond > 0) msg.push(`${totalCond} condutor(es) adicional(is)`);
-      if(!confirm(`O cliente "${nome}" possui ${msg.join(' e ')} vinculado(s).\n\nDeseja excluir tudo junto?`)) return;
+      if(!await fpConfirm(`O cliente "${nome}" possui ${msg.join(' e ')} vinculado(s).\n\nDeseja excluir tudo junto?`, 'Excluir cliente')) return;
       if(totalRes  > 0) await sb.from('reservas').delete().eq('cliente_id', id);
       if(totalCond > 0) await sb.from('condutores').delete().eq('cliente_id', id);
     }
