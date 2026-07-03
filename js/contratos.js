@@ -156,6 +156,18 @@ function _coletarChecklistInline(){
   };
 }
 
+// ══ HELPERS DE LOADING ══
+function _showLoading(txt='Gerando contrato...'){
+  const el = document.getElementById('m-contrato-loading');
+  const txtEl = document.getElementById('m-contrato-loading-txt');
+  if(txtEl) txtEl.textContent = txt;
+  if(el) el.style.display='flex';
+}
+function _hideLoading(){
+  const el = document.getElementById('m-contrato-loading');
+  if(el) el.style.display='none';
+}
+
 // ══ REGISTRAR CONTRATO + CHECKLIST + PDF ÚNICO ══
 async function registrarComChecklist(){
   const chkEl = document.getElementById('ct-checklist-inline');
@@ -178,74 +190,99 @@ async function registrarComChecklist(){
     if(!chk?.itens?.length) console.warn('[chk] ATENÇÃO: itens vazios!');
   }
 
-  // PASSO 3: Registrar o contrato — retorna {locId, numContrato, d}
-  const resultado = await registrarContrato(true);
-  if(!resultado){ console.error('[chk] registrarContrato não retornou resultado'); return; }
+  _showLoading('Registrando contrato...');
+  try{
+    // PASSO 3: Registrar o contrato — retorna {locId, numContrato, d}
+    const resultado = await registrarContrato(true);
+    if(!resultado){ console.error('[chk] registrarContrato não retornou resultado'); return; }
 
-  const { locId, numContrato, d } = resultado;
-  console.log('[chk] locId:', locId, 'numContrato:', numContrato);
+    const { locId, numContrato, d } = resultado;
+    console.log('[chk] locId:', locId, 'numContrato:', numContrato);
 
-  // PASSO 4: Se não tem checklist, gera PDF simples e sai
-  if(!temChecklist || !chk){
-    notify('Contrato registrado! Gerando PDF...','success');
-    await gerarPdfContrato(numContrato, d, null);
-    return;
-  }
-
-  // PASSO 5: Upload de fotos para o Storage
-  const fotosUrls = [];
-  for(const f of fotosParaUpload){
-    try{
-      const ext = (f.name.split('.').pop()||'jpg').toLowerCase();
-      const path = `contratos/${locId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const {error:upErr} = await sb.storage.from('checklists').upload(path, f);
-      if(!upErr){
-        const {data:signData} = await sb.storage.from('checklists').createSignedUrl(path, 60*60*24*365);
-        if(signData?.signedUrl) fotosUrls.push(signData.signedUrl);
+    // PASSO 4: Se não tem checklist, gera PDF simples e sai
+    if(!temChecklist || !chk){
+      _showLoading('Gerando PDF...');
+      const pdfUrl = await gerarPdfContrato(numContrato, d, null, true);
+      if(pdfUrl){
+        const a = document.createElement('a');
+        a.href = pdfUrl; a.download = 'Contrato_Royal_'+numContrato+'_'+(d.nomeCli||'').replace(/\s+/g,'_')+'.pdf';
+        a.click();
+        notify('PDF do Contrato #'+numContrato+' gerado!','success');
       }
-    }catch(e){ console.warn('[chk] foto upload:', e.message); }
+      _showLoading('Enviando para assinatura...');
+      const _cid0 = document.getElementById('c-cli')?.value||null;
+      if(locId) await enviarParaAssinatura(numContrato, d, locId, pdfUrl, _cid0);
+      await carregarTudo();
+      return;
+    }
+
+    // PASSO 5: Upload de fotos para o Storage
+    _showLoading('Enviando fotos...');
+    const fotosUrls = [];
+    for(const f of fotosParaUpload){
+      try{
+        const ext = (f.name.split('.').pop()||'jpg').toLowerCase();
+        const path = 'contratos/'+locId+'/'+Date.now()+'_'+Math.random().toString(36).slice(2)+'.'+ext;
+        const {error:upErr} = await sb.storage.from('checklists').upload(path, f);
+        if(!upErr){
+          const {data:signData} = await sb.storage.from('checklists').createSignedUrl(path, 60*60*24*365);
+          if(signData?.signedUrl) fotosUrls.push(signData.signedUrl);
+        }
+      }catch(e){ console.warn('[chk] foto upload:', e.message); }
+    }
+
+    // PASSO 6: Montar payload e salvar checklist no banco
+    _showLoading('Salvando checklist...');
+    const chkPayload = {
+      locacao_id:  locId,
+      tipo:        'saida',
+      km:          parseInt(chk.km)||0,
+      combustivel: chk.combustivel||'Cheio',
+      horario:     chk.horario ? new Date(chk.horario).toISOString() : new Date().toISOString(),
+      observacoes: chk.observacoes||null,
+      itens:       Array.isArray(chk.itens) ? chk.itens : [],
+      fotos:       fotosUrls,
+      ...(currentUser?.id ? {criado_por: currentUser.id} : {}),
+    };
+
+    console.log('[chk] salvando no banco:', JSON.stringify(chkPayload).slice(0,200));
+
+    const {data:chkSalvo, error:chkErr} = await sb
+      .from('checklists')
+      .insert(chkPayload)
+      .select('id,locacao_id,tipo')
+      .single();
+
+    if(chkErr){
+      console.error('[chk] ERRO ao salvar:', chkErr);
+      notify('⚠️ Checklist não salvo: '+chkErr.message,'error');
+    } else {
+      console.log('[chk] SALVO com sucesso — id:', chkSalvo.id, 'locacao_id:', chkSalvo.locacao_id);
+      notify('✅ Contrato + Checklist registrados!','success');
+    }
+
+    // PASSO 7: Gerar PDF com checklist (UMA VEZ) → usado para download e Autentique
+    _showLoading('Gerando PDF com checklist...');
+    const pdfComChk = await gerarPdfContrato(numContrato, d, chk, true);
+    if(pdfComChk){
+      const a = document.createElement('a');
+      a.href = pdfComChk; a.download = 'Contrato_Royal_'+numContrato+'_'+(d.nomeCli||'').replace(/\s+/g,'_')+'.pdf';
+      a.click();
+      notify('PDF do Contrato #'+numContrato+' gerado!','success');
+    }
+
+    // PASSO 7b: Enviar para assinatura digital COM O MESMO PDF (inclui checklist)
+    _showLoading('Enviando para assinatura digital...');
+    const _cidChk = document.getElementById('c-cli')?.value||null;
+    if(locId) await enviarParaAssinatura(numContrato, d, locId, pdfComChk, _cidChk);
+
+    // PASSO 8: Recarregar dados DEPOIS de tudo concluído
+    await carregarTudo();
+  }finally{
+    _hideLoading();
   }
-
-  // PASSO 6: Montar payload e salvar checklist no banco
-  const chkPayload = {
-    locacao_id:  locId,
-    tipo:        'saida',
-    km:          parseInt(chk.km)||0,
-    combustivel: chk.combustivel||'Cheio',
-    horario:     chk.horario ? new Date(chk.horario).toISOString() : new Date().toISOString(),
-    observacoes: chk.observacoes||null,
-    itens:       Array.isArray(chk.itens) ? chk.itens : [],
-    fotos:       fotosUrls,
-    ...(currentUser?.id ? {criado_por: currentUser.id} : {}),
-  };
-
-  console.log('[chk] salvando no banco:', JSON.stringify(chkPayload).slice(0,200));
-
-  const {data:chkSalvo, error:chkErr} = await sb
-    .from('checklists')
-    .insert(chkPayload)
-    .select('id,locacao_id,tipo')
-    .single();
-
-  if(chkErr){
-    console.error('[chk] ERRO ao salvar:', chkErr);
-    notify('⚠️ Checklist não salvo: '+chkErr.message,'error');
-    // Mesmo com erro no checklist, gera o PDF com os dados coletados
-  } else {
-    console.log('[chk] SALVO com sucesso — id:', chkSalvo.id, 'locacao_id:', chkSalvo.locacao_id);
-    notify('✅ Contrato + Checklist registrados!','success');
-  }
-
-  // PASSO 7: Gerar PDF com página de checklist
-  await gerarPdfContrato(numContrato, d, chk);
-
-  // PASSO 7b: Enviar para assinatura digital
-  const _cidChk = document.getElementById('c-cli')?.value||null;
-  if(locId) await enviarParaAssinatura(numContrato, d, locId, null, _cidChk);
-
-  // PASSO 8: Recarregar dados DEPOIS de tudo concluído
-  await carregarTudo();
 }
+
 
 // ══ NÚMERO DO CONTRATO ══
 // Sincroniza o número do contrato com o banco (maior num_contrato + 1)
@@ -838,18 +875,26 @@ async function registrarContrato(retornarId=false){
     // Gera PDF UMA VEZ → download + Autentique (sem gerar duas vezes)
     const _locIdParaAssinatura = locSalva?.id || null;
     setTimeout(async ()=>{
-      // Gera PDF com returnBase64=true para ter o blob disponível
-      const _pdfDataUrl = await gerarPdfContrato(numContrato, d, null, true);
-      // Trigger download manualmente
-      if(_pdfDataUrl){
-        const _a = document.createElement('a');
-        _a.href = _pdfDataUrl;
-        _a.download = `Contrato_Royal_${numContrato}_${(d.nomeCli||'').replace(/\s+/g,'_')}.pdf`;
-        _a.click();
-        notify(`PDF do Contrato #${numContrato} gerado!`,'success');
+      _showLoading('Gerando PDF...');
+      try{
+        // Gera PDF com returnBase64=true para ter o blob disponível
+        const _pdfDataUrl = await gerarPdfContrato(numContrato, d, null, true);
+        // Trigger download manualmente
+        if(_pdfDataUrl){
+          const _a = document.createElement('a');
+          _a.href = _pdfDataUrl;
+          _a.download = `Contrato_Royal_${numContrato}_${(d.nomeCli||'').replace(/\s+/g,'_')}.pdf`;
+          _a.click();
+          notify(`PDF do Contrato #${numContrato} gerado!`,'success');
+        }
+        // Envia para Autentique com o PDF já gerado (sem regerar)
+        if(_locIdParaAssinatura){
+          _showLoading('Enviando para assinatura digital...');
+          await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura, _pdfDataUrl, cid);
+        }
+      }finally{
+        _hideLoading();
       }
-      // Envia para Autentique com o PDF já gerado (sem regerar)
-      if(_locIdParaAssinatura) await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura, _pdfDataUrl, cid);
     }, 500);
     await carregarTudo();
 
@@ -1550,13 +1595,8 @@ try{
   // ══════════════════════════════════════
   // RODAPÉ EM TODAS AS PÁGINAS
   // ══════════════════════════════════════
+  // Calculado ANTES do checklist — total_do_contrato para referência
   const totalPgs = doc.getNumberOfPages();
-  for(let p=1; p<=totalPgs; p++){
-    doc.setPage(p);
-    doc.setFillColor('#006400'); doc.rect(0,287,PW,10,'F');
-    doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#ffffff');
-    doc.text(`Locadora Royal — Contrato #${numContrato} — ${d.nomeCli||''} — Página ${p} de ${totalPgs}`, PW/2, 293, {align:'center'});
-  }
 
   // ══════════════════════════════════════
   // PÁGINA EXTRA: CHECKLIST (se fornecido)
@@ -1652,13 +1692,21 @@ try{
     doc.text('Assinatura do Consultor',M+2,y+4);
     doc.text('Assinatura do Cliente / Condutor',PW-M-78,y+4);
 
-    // Rodapé das páginas do checklist
-    const totalPgs2 = doc.getNumberOfPages();
-    for(let p=totalPgs+1; p<=totalPgs2; p++){
-      doc.setPage(p);
-      doc.setFillColor('#006400'); doc.rect(0,287,PW,10,'F');
-      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#ffffff');
-      doc.text(`Locadora Royal — Contrato #${numContrato} — Checklist de Vistoria — Página ${p} de ${totalPgs2}`, PW/2, 293, {align:'center'});
+    // Rodapé das páginas do checklist — aplicado junto com o contrato no passe final abaixo
+  }
+
+  // ══════════════════════════════════════
+  // RODAPÉ UNIFICADO — após todas as páginas (contrato + checklist)
+  // ══════════════════════════════════════
+  const totalPgsF = doc.getNumberOfPages();
+  for(let p=1; p<=totalPgsF; p++){
+    doc.setPage(p);
+    doc.setFillColor('#006400'); doc.rect(0,287,PW,10,'F');
+    doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#ffffff');
+    if(p <= totalPgs){
+      doc.text(`Locadora Royal — Contrato #${numContrato} — ${d.nomeCli||''} — Página ${p} de ${totalPgsF}`, PW/2, 293, {align:'center'});
+    } else {
+      doc.text(`Locadora Royal — Contrato #${numContrato} — Checklist de Vistoria — Página ${p} de ${totalPgsF}`, PW/2, 293, {align:'center'});
     }
   }
 
@@ -1924,7 +1972,7 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
     let docPdf = pdfDataUrlParam;
     if(!docPdf){
       if(!window.jspdf){ notify('jsPDF não carregado','error'); return; }
-      docPdf = await _gerarPdfBlob(numContrato, d);
+      docPdf = await gerarPdfContrato(numContrato, d, null, true);
     }
     const pdfBase64 = docPdf.split(',')[1]; // remove "data:application/pdf;base64,"
 
@@ -2006,7 +2054,6 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
         btnEl.disabled=true; btnEl.textContent='⏳ Enviando...';
         try{
           await evoSendText(_cTel, msgWpp);
-          await salvarMsgDB(d.clienteId, _cTel, msgWpp, 'text', 'saida', null);
           btnEl.textContent='✅ Enviado!';
           btnEl.style.background='var(--green)';
           notify('Mensagem enviada no WhatsApp ✓','success');
@@ -2078,13 +2125,6 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
   }finally{
     if(btnAs){ btnAs.disabled=false; btnAs.textContent='✍️ Assinar Digitalmente'; }
   }
-}
-
-// Gera PDF como dataURL (sem baixar) — usado pelo Autentique
-async function _gerarPdfBlob(numContrato, d){
-  // Usa gerarPdfContrato com returnBase64=true
-  const dataUrl = await gerarPdfContrato(numContrato, d, null, true);
-  return dataUrl;
 }
 
 // ── PLANOS DE MOTO — CONTRATO ──
