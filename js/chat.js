@@ -1253,16 +1253,21 @@ function _getCrmStatusCfg(){
     const cfg = {};
     _PL_STATUS.forEach(s=>{
       cfg[s.label] = { label: s.label, bg: s.bg, border: s.border, color: s.cor };
-      cfg[s.key]   = cfg[s.label]; // compatibilidade com keys antigas (slug)
+      cfg[s.key]   = cfg[s.label]; // compatibilidade com keys slug
+      // Mapeamento explícito de slugs legados (ex: 'em-atendimento' → 'Em atendimento')
+      const slug = s.label.toLowerCase().replace(/\s+/g,'-').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      cfg[slug] = cfg[s.label];
     });
     return cfg;
   }
   // Fallback hardcoded
   return {
-    interesse: {label:'Interesse', bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
-    potencial: {label:'Potencial', bg:'rgba(56,138,221,.15)', border:'rgba(56,138,221,.4)', color:'#85B7EB'},
-    ativo:     {label:'Ativo',     bg:'rgba(100,153,34,.15)',  border:'rgba(100,153,34,.4)',  color:'#C0DD97'},
-    reprovado: {label:'Reprovado', bg:'rgba(226,75,74,.15)',   border:'rgba(226,75,74,.4)',   color:'#F09595'},
+    interesse:        {label:'Interesse',     bg:'rgba(250,199,117,.15)', border:'rgba(250,199,117,.4)', color:'#FAC775'},
+    potencial:        {label:'Potencial',     bg:'rgba(56,138,221,.15)',  border:'rgba(56,138,221,.4)',  color:'#85B7EB'},
+    ativo:            {label:'Ativo',         bg:'rgba(100,153,34,.15)',  border:'rgba(100,153,34,.4)',  color:'#C0DD97'},
+    reprovado:        {label:'Reprovado',     bg:'rgba(226,75,74,.15)',   border:'rgba(226,75,74,.4)',   color:'#F09595'},
+    'em-atendimento': {label:'Em atendimento',bg:'rgba(56,138,221,.15)',  border:'rgba(56,138,221,.4)',  color:'#85B7EB'},
+    'em-analise':     {label:'Em Análise',    bg:'rgba(255,136,0,.15)',   border:'rgba(255,136,0,.4)',   color:'#FF8800'},
   };
 }
 
@@ -1954,7 +1959,17 @@ function abrirLeadRapido(){
   const err = document.getElementById('lr-err');
   if(err) err.style.display='none';
   document.getElementById('lr-interesse').value='indefinido';
-  document.getElementById('lr-status').value='interesse';
+
+  // Popula status dinamicamente do banco (via _PL_STATUS já carregado)
+  const selStatus = document.getElementById('lr-status');
+  if(selStatus){
+    const statusList = (typeof _PL_STATUS!=='undefined' && _PL_STATUS.length)
+      ? _PL_STATUS
+      : [{key:'Interesse', label:'Interesse'}, {key:'Potencial', label:'Potencial'}];
+    selStatus.innerHTML = statusList.map(s=>`<option value="${s.label}">${s.label}</option>`).join('');
+    selStatus.value = statusList[0]?.label || 'Interesse';
+  }
+
   document.getElementById('m-lead-rapido')?.classList.add('show');
 }
 
@@ -2012,7 +2027,9 @@ async function converterEmCliente(){
   if(!cpf){ if(errEl){errEl.textContent='CPF é obrigatório para virar cliente.';errEl.style.display='block';} return; }
   if(!_ccLeadId){ notify('Lead não identificado','error'); return; }
   try{
-    const {error} = await sb.from('clientes').update({ tipo:'cliente', cpf, cnh: cnh||undefined }).eq('id',_ccLeadId);
+    const updateObj = { tipo:'cliente', cpf };
+    if(cnh) updateObj.cnh = cnh;
+    const {error} = await sb.from('clientes').update(updateObj).eq('id',_ccLeadId);
     if(error) throw error;
     const c = allClientes?.find(x=>x.id===_ccLeadId);
     if(c){ c.tipo='cliente'; c.cpf=cpf; }
@@ -2022,6 +2039,8 @@ async function converterEmCliente(){
     renderChatContacts();
     // Atualiza pipeline se estiver aberto
     if(typeof _plCarregarDados==='function') _plCarregarDados();
+    // O cliente agora aparece na aba Clientes — botão no painel CRM já atualiza
+    // (o usuário pode navegar manualmente ou via busca global)
   }catch(e){
     if(errEl){errEl.textContent='Erro: '+e.message;errEl.style.display='block';}
   }

@@ -142,7 +142,13 @@ function _plRenderKanban(dados){
             <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</div>
             <div style="font-size:11px;color:var(--text);opacity:.65">${c.telefone||'—'}</div>
           </div>
-          ${veiSvg ? `<div style="display:flex;gap:3px;flex-shrink:0">${veiSvg}</div>` : ''}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+            ${veiSvg ? `<div style="display:flex;gap:3px">${veiSvg}</div>` : ''}
+            ${c.tipo==='lead'
+              ? `<span style="font-size:9px;padding:1px 6px;border-radius:999px;font-weight:700;background:rgba(139,92,246,.2);color:#A78BFA;border:1px solid rgba(139,92,246,.3);white-space:nowrap">⚡ Lead</span>`
+              : `<span style="font-size:9px;padding:1px 6px;border-radius:999px;font-weight:700;background:rgba(21,128,61,.2);color:#166534;border:1px solid rgba(21,128,61,.3);white-space:nowrap">✓ Cliente</span>`
+            }
+          </div>
         </div>
 
         ${resumo ? `<div style="font-size:11px;color:var(--text);opacity:.72;line-height:1.5;margin-bottom:8px;padding:6px 8px;background:rgba(0,0,0,.05);border-radius:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${resumo}</div>` : ''}
@@ -271,9 +277,9 @@ function _plRenderLista(dados){
   const tb = document.getElementById('pl-lista-tbody');
   if(!tb) return;
   const hoje = new Date().toISOString().slice(0,10);
-  if(!dados.length){ tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum lead encontrado</td></tr>'; return; }
+  if(!dados.length){ tb.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum lead encontrado</td></tr>'; return; }
   tb.innerHTML = dados.map(c=>{
-    const s    = _PL_STATUS.find(x=>x.key===c.status_crm);
+    const s    = _PL_STATUS.find(x=>x.key===c.status_crm||x.label===c.status_crm);
     const resp = _plPerfis.find(p=>p.id===c.responsavel_id);
     const fu   = (c.followup_em||'').slice(0,10);
     const vei  = _PL_VEICULO[c.interesse_veiculo||'indefinido'];
@@ -282,11 +288,15 @@ function _plRenderLista(dados){
     if(fu===hoje){ fuTxt='🔔 '+fuTxt; fuCor='#F5B942'; }
     else if(fu&&fu<hoje){ fuTxt='⚠️ '+fuTxt; fuCor='#F87171'; }
     const criado = c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—';
+    const tipoBadge = c.tipo==='lead'
+      ? `<span style="font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700;background:rgba(139,92,246,.2);color:#A78BFA;border:1px solid rgba(139,92,246,.3)">⚡ Lead</span>`
+      : `<span style="font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700;background:rgba(21,128,61,.2);color:#166534;border:1px solid rgba(21,128,61,.3)">✓ Cliente</span>`;
     return `<tr style="cursor:pointer" onclick="_plAbrirModal('${c.id}')">
       <td>
         <div style="font-weight:600">${c.nome}</div>
         <div style="font-size:11px;color:var(--muted)">${c.telefone||'—'}</div>
       </td>
+      <td>${tipoBadge}</td>
       <td><span style="font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}">${s?.label||c.status_crm}</span></td>
       <td style="font-size:13px">${vei.icon} ${vei.icon ? vei.label : '—'}</td>
       <td style="font-size:12px;color:var(--muted)">${resp ? resp.nome.split(' ')[0] : '—'}</td>
