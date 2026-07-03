@@ -2087,19 +2087,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         </div>
       </div>
 
-      <!-- CRM — visível logo no topo do formulário -->
-      <div style="background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(99,102,241,.04));border:1.5px solid rgba(99,102,241,.25);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+      <!-- CRM — visível logo no topo do formulário (só para leads) -->
+      <div id="ec-crm-section" style="background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(99,102,241,.04));border:1.5px solid rgba(99,102,241,.25);border-radius:12px;padding:14px 16px;margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:12px">🎯 CRM — Status do Lead</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <div class="form-group" style="margin:0">
             <label style="font-size:11px">Status</label>
             <select id="ec-status-crm" style="width:100%">
               <option value="sem_status">— Sem status —</option>
-              <option value="interesse">🟡 Interesse</option>
-              <option value="potencial">🔵 Potencial</option>
-              <option value="ativo">🟢 Ativo</option>
-              <option value="reprovado">🔴 Ficha reprovada</option>
-              <option value="inativo">⚫ Inativo</option>
             </select>
           </div>
           <div class="form-group" style="margin:0">

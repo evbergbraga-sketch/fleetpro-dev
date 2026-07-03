@@ -431,6 +431,14 @@ function editarCliente(id){
   sv('ec-nome', c.nome);
   sv('ec-cpf',  c.cpf);
   sv('ec-obs',  c.observacoes);
+
+  // Popular select de status com os status reais do banco
+  const selStatus = document.getElementById('ec-status-crm');
+  if(selStatus && typeof _PL_STATUS !== 'undefined' && _PL_STATUS.length){
+    selStatus.innerHTML = '<option value="sem_status">— Sem status —</option>' +
+      _PL_STATUS.map(s=>`<option value="${s.label}">${s.label}</option>`).join('');
+  }
+
   sv('ec-status-crm', c.status_crm||'sem_status');
   sv('ec-interesse-veiculo', c.interesse_veiculo||'indefinido');
   sv('ec-followup-em', c.followup_em||'');
@@ -438,6 +446,11 @@ function editarCliente(id){
   _cliAnexos['ec'] = [];
   window._cliAnexosRemovidos['ec'] = [];
   _preencherCamposCliente('ec', c);
+
+  // Seção CRM: só relevante para leads, esconde para clientes reais
+  const crmSection = document.getElementById('ec-crm-section');
+  if(crmSection) crmSection.style.display = c.tipo === 'lead' ? '' : 'none';
+
   document.getElementById('m-editar-cliente').classList.add('show');
 }
 
