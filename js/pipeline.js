@@ -304,7 +304,7 @@ function _plRenderLista(dados){
       <td style="font-size:12px;color:var(--muted)">${criado}</td>
       <td>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();_plAbrirModal('${c.id}')">👁 Ver</button>
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();_plAbrirModal('${c.id}')">Ver</button>
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="event.stopPropagation();_plIrChat('${c.id}')">💬</button>
         </div>
       </td>
@@ -345,11 +345,40 @@ async function _plAbrirModal(id){
   if(!c) return;
   _plModalData = c;
   const resp = _plPerfis.find(p=>p.id===c.responsavel_id);
-  const s    = _PL_STATUS.find(x=>x.key===c.status_crm);
+  const s    = _PL_STATUS.find(x=>x.key===c.status_crm||x.label===c.status_crm);
   const fu   = (c.followup_em||'').slice(0,10);
   const hoje = new Date().toISOString().slice(0,10);
-  const vei  = _PL_VEICULO[c.interesse_veiculo||'indefinido'];
-  const ini  = c.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+
+  // SVG icons inline — sem emojis
+  const SVG = {
+    phone:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.5 2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6.08 6.08l1.87-1.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`,
+    email:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+    user:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    origin:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+    chat:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    edit:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+    convert:  `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    trash:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+    save:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+    note:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+    forward:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>`,
+    clock:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    alert:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    vehicle:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+  };
+
+  // Interesse
+  const VEI_LABEL = {indefinido:'— Indefinido', carro:'Carro', moto:'Moto', ambos:'Ambos'};
+  const interLbl = VEI_LABEL[c.interesse_veiculo||'indefinido'] || '—';
+
+  // Follow-up badge — texto limpo, cor pelo estado
+  let fuBadge = '';
+  if(fu===hoje)
+    fuBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(245,158,11,.15);color:#92400e;border:1px solid rgba(245,158,11,.35);font-weight:600">${SVG.clock} Follow-up hoje</span>`;
+  else if(fu&&fu<hoje)
+    fuBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(220,38,38,.12);color:#b91c1c;border:1px solid rgba(220,38,38,.3);font-weight:600">${SVG.alert} Follow-up atrasado</span>`;
+  else if(fu)
+    fuBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 10px;border-radius:999px;background:var(--bg3);color:var(--muted);border:1px solid var(--border2)">${SVG.clock} ${fu.split('-').reverse().join('/')}</span>`;
 
   // Busca notas e encaminhamentos
   const [{data:notas},{data:encs}] = await Promise.all([
@@ -359,95 +388,90 @@ async function _plAbrirModal(id){
   const hist = [...(notas||[]).map(n=>({...n,_t:'nota'})), ...(encs||[]).map(e=>({...e,_t:'enc'}))]
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
-  let fuBadge = '';
-  if(fu===hoje)       fuBadge = `<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(245,185,66,.15);color:#F5B942;border:1px solid rgba(245,185,66,.3);font-weight:600">🔔 Follow-up hoje</span>`;
-  else if(fu&&fu<hoje) fuBadge = `<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600">⚠️ Follow-up atrasado</span>`;
-  else if(fu)          fuBadge = `<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)">📅 ${fu.split('-').reverse().join('/')}</span>`;
+  const _fmtDt = dt => new Date(dt).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+new Date(dt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
   const histHtml = hist.length ? hist.map(it=>{
-    const dt  = new Date(it.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+new Date(it.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     const quem = it.perfis?.nome?.split(' ')[0]||'';
-    if(it._t==='enc') return `<div style="padding:8px 10px;background:rgba(99,102,241,.08);border-left:2px solid var(--accent);border-radius:0 8px 8px 0;font-size:12px;color:var(--text)">📨 → <strong>${it.setor_destino}</strong><br><span style="color:var(--muted);font-size:10px">${dt} · ${quem}</span></div>`;
-    return `<div style="padding:8px 10px;background:var(--bg2);border-left:2px solid var(--border2);border-radius:0 8px 8px 0;font-size:12px;color:var(--text)">📝 ${it.texto}<br><span style="color:var(--muted);font-size:10px">${dt} · ${quem}</span></div>`;
-  }).join('') : `<div style="font-size:12px;color:var(--muted2);text-align:center;padding:12px">Sem histórico</div>`;
+    if(it._t==='enc')
+      return `<div style="padding:9px 12px;background:rgba(99,102,241,.06);border-left:2px solid var(--accent);border-radius:0 8px 8px 0;font-size:12px;color:var(--text2)"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">${SVG.forward} <strong style="color:var(--text)">${it.setor_destino}</strong></div><span style="color:var(--muted);font-size:11px">${_fmtDt(it.created_at)} · ${quem}</span></div>`;
+    return `<div style="padding:9px 12px;background:var(--bg2);border-left:2px solid var(--border2);border-radius:0 8px 8px 0;font-size:12px;color:var(--text2)"><div style="margin-bottom:3px;line-height:1.5">${it.texto}</div><span style="color:var(--muted);font-size:11px">${SVG.note} ${_fmtDt(it.created_at)} · ${quem}</span></div>`;
+  }).join('')
+  : `<div style="font-size:12px;color:var(--muted2);text-align:center;padding:14px 0">Sem histórico registrado</div>`;
+
+  // Avatar iniciais
+  const ini = c.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 
   document.getElementById('pl-modal-body').innerHTML = `
-    <!-- HEADER DO LEAD -->
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
-      <div style="width:52px;height:52px;border-radius:50%;background:${s?.bg||'var(--bg2)'};border:2px solid ${s?.cor||'var(--border2)'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:${s?.cor||'var(--text)'};flex-shrink:0">${ini}</div>
-      <div style="flex:1">
-        <div style="font-size:18px;font-weight:800;color:var(--text)">${c.nome}</div>
-        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
-          <span style="font-size:12px;padding:3px 12px;border-radius:999px;font-weight:600;background:${s?.bg};color:${s?.cor};border:1px solid ${s?.border}">${s?.label}</span>
-          ${vei.icon ? `<span style="font-size:12px;padding:3px 12px;border-radius:999px;background:var(--bg2);color:var(--text);border:1px solid var(--border2)">${vei.icon} ${vei.label}</span>` : ''}
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;gap:14px;padding-bottom:18px;border-bottom:1px solid var(--border2);margin-bottom:18px">
+      <div style="width:52px;height:52px;border-radius:50%;background:${s?.bg||'var(--bg2)'};border:2px solid ${s?.border||'var(--border2)'};display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:${s?.cor||'var(--text)'};flex-shrink:0">${ini}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nome}</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:11px;padding:3px 12px;border-radius:999px;font-weight:600;background:${s?.bg||'var(--bg2)'};color:${s?.cor||'var(--muted)'};border:1px solid ${s?.border||'var(--border2)'}">${s?.label||c.status_crm||'—'}</span>
+          ${c.interesse_veiculo && c.interesse_veiculo!=='indefinido' ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 12px;border-radius:999px;background:var(--bg3);color:var(--text2);border:1px solid var(--border2)">${SVG.vehicle} ${interLbl}</span>` : ''}
           ${fuBadge}
         </div>
       </div>
     </div>
 
-    <!-- GRID INFOS -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+    <!-- INFO GRID -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
       <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Telefone</div>
-        <div style="font-size:13px;color:var(--text)">${c.telefone||'—'}</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:5px">${SVG.phone} Telefone</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">${c.telefone||'—'}</div>
       </div>
       <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Email</div>
-        <div style="font-size:13px;color:var(--text);word-break:break-all">${c.email||'—'}</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:5px">${SVG.email} E-mail</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);word-break:break-all">${c.email||'—'}</div>
       </div>
       <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Responsável</div>
-        <div style="font-size:13px;color:var(--text)">${resp ? '👤 '+resp.nome : '—'}</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:5px">${SVG.user} Responsável</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">${resp?.nome||'—'}</div>
       </div>
       <div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2)">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Origem</div>
-        <div style="font-size:13px;color:var(--text)">${c.origem||'—'}</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:5px">${SVG.origin} Origem</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text)">${c.origem||'—'}</div>
       </div>
-      ${c.motivo_perda ? `<div style="background:rgba(248,113,113,.08);border-radius:10px;padding:12px;border:1px solid rgba(248,113,113,.2);grid-column:span 2">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#F87171;margin-bottom:6px">Motivo de perda</div>
-        <div style="font-size:13px;color:var(--text)">${c.motivo_perda}</div>
-      </div>` : ''}
-      ${c.observacoes ? `<div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2);grid-column:span 2">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:6px">Observações</div>
-        <div style="font-size:13px;color:var(--text);line-height:1.5">${c.observacoes}</div>
-      </div>` : ''}
+      ${c.motivo_perda?`<div style="background:rgba(220,38,38,.06);border-radius:10px;padding:12px;border:1px solid rgba(220,38,38,.2);grid-column:span 2"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#b91c1c;margin-bottom:5px">Motivo de perda</div><div style="font-size:13px;font-weight:500;color:var(--text)">${c.motivo_perda}</div></div>`:''}
+      ${c.observacoes?`<div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2);grid-column:span 2"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:5px">Observações</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">${c.observacoes}</div></div>`:''}
     </div>
 
-    <!-- ALTERAR STATUS + INTERESSE -->
-    <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border2);margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:10px">Atualizar lead</div>
+    <!-- ATUALIZAR -->
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border2);margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:12px">Atualizar</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
-          <label style="font-size:11px;color:var(--muted2);margin-bottom:4px;display:block">Status CRM</label>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;display:block">Status CRM</label>
           <select id="plm-status" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
-            ${_PL_STATUS.map(st=>`<option value="${st.key}"${st.key===c.status_crm?' selected':''}>${st.label}</option>`).join('')}
+            ${_PL_STATUS.map(st=>`<option value="${st.key}"${(st.key===c.status_crm||st.label===c.status_crm)?' selected':''}>${st.label}</option>`).join('')}
           </select>
         </div>
         <div>
-          <label style="font-size:11px;color:var(--muted2);margin-bottom:4px;display:block">Interesse</label>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;display:block">Interesse</label>
           <select id="plm-interesse" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
             <option value="indefinido"${(c.interesse_veiculo||'indefinido')==='indefinido'?' selected':''}>— Indefinido</option>
-            <option value="carro"${c.interesse_veiculo==='carro'?' selected':''}>🚗 Carro</option>
-            <option value="moto"${c.interesse_veiculo==='moto'?' selected':''}>🏍️ Moto</option>
-            <option value="ambos"${c.interesse_veiculo==='ambos'?' selected':''}>🚗🏍️ Ambos</option>
+            <option value="carro"${c.interesse_veiculo==='carro'?' selected':''}>Carro</option>
+            <option value="moto"${c.interesse_veiculo==='moto'?' selected':''}>Moto</option>
+            <option value="ambos"${c.interesse_veiculo==='ambos'?' selected':''}>Ambos</option>
           </select>
         </div>
         <div>
-          <label style="font-size:11px;color:var(--muted2);margin-bottom:4px;display:block">Follow-up em</label>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;display:block">Follow-up em</label>
           <input type="date" id="plm-followup" value="${fu}" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
         </div>
         <div style="display:flex;align-items:flex-end">
-          <button onclick="_plModalSalvar()" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">💾 Salvar alterações</button>
+          <button onclick="_plModalSalvar()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">${SVG.save} Salvar alterações</button>
         </div>
       </div>
     </div>
 
-    <!-- NOTA RÁPIDA -->
-    <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border2);margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:8px">Nota interna</div>
+    <!-- NOTA INTERNA -->
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid var(--border2);margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:10px">Nota interna</div>
       <div style="display:flex;gap:8px">
         <input type="text" id="plm-nota" placeholder="Registrar uma observação..." style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
-        <button onclick="_plModalNota()" style="padding:8px 14px;background:rgba(99,102,241,.15);color:var(--accent);border:1px solid rgba(99,102,241,.3);border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:600">📝 Registrar</button>
+        <button onclick="_plModalNota()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--accent-light);color:var(--accent);border:1px solid rgba(99,102,241,.3);border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:600">${SVG.note} Registrar</button>
       </div>
     </div>
 
@@ -458,11 +482,11 @@ async function _plAbrirModal(id){
     </div>
 
     <!-- AÇÕES -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button onclick="closeModal('pl-modal');_plIrChat('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:rgba(74,222,128,.12);color:#4ADE80;border:1px solid rgba(74,222,128,.3);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">💬 Abrir chat</button>
-      <button onclick="closeModal('pl-modal');editarCliente('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:var(--bg2);color:var(--text);border:1px solid var(--border2);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">✏️ Editar perfil</button>
-      ${c.tipo==='lead' ? `<button onclick="closeModal('pl-modal');abrirConverterCliente('${c.id}')" style="flex:1;min-width:120px;padding:10px;background:rgba(99,102,241,.12);color:var(--accent);border:1px solid rgba(99,102,241,.3);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">✅ Converter em cliente</button>` : ''}
-      <button onclick="_plExcluirLead('${c.id}','${c.nome.replace(/'/g,"\\'")}','${c.tipo}')" style="flex:1;min-width:120px;padding:10px;background:rgba(248,113,113,.08);color:#F87171;border:1px solid rgba(248,113,113,.25);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">🗑️ Excluir</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button onclick="closeModal('pl-modal');_plIrChat('${c.id}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;grid-column:span 2">${SVG.chat} Abrir chat</button>
+      <button onclick="closeModal('pl-modal');editarCliente('${c.id}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">${SVG.edit} Editar perfil</button>
+      ${c.tipo==='lead'?`<button onclick="closeModal('pl-modal');abrirConverterCliente('${c.id}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:rgba(21,128,61,.12);color:#166534;border:1px solid rgba(21,128,61,.3);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">${SVG.convert} Converter em cliente</button>`:`<div></div>`}
+      <button onclick="_plExcluirLead('${c.id}','${c.nome.replace(/'/g,"\\'")}','${c.tipo}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:rgba(220,38,38,.06);color:#b91c1c;border:1px solid rgba(220,38,38,.25);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;grid-column:span 2">${SVG.trash} Excluir</button>
     </div>
   `;
 
