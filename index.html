@@ -1310,7 +1310,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </select>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="btn btn-ghost" style="font-size:12px" onclick="abrirModalCategorias()">⚙️ Categorias</button>
+              <button class="btn btn-ghost" style="font-size:12px" onclick="abrirModalCategorias()">Categorias</button>
               <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarCsvFluxo()">Fluxo de Caixa CSV</button>
               <button class="btn btn-ghost" style="font-size:12px" onclick="finExportarPdf()">Exportar PDF</button>
               <button class="btn btn-primary" style="font-size:12px" onclick="finAbrirNovoLancamento()">+ Lançamento</button>
@@ -1426,59 +1426,86 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="page" id="page-contas-pagar">
         <div id="cp-alertas"></div>
 
-        <!-- CARDS RESUMO -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">A vencer</div>
-            <div id="cp-total-pendente" style="font-size:22px;font-weight:800;color:var(--text)">R$ 0</div>
+        <!-- ABAS -->
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:20px">
+          <button id="cp-aba-contas" onclick="cpAbrirAba('contas')" class="active" style="padding:10px 20px;border:none;background:none;font-size:13px;font-weight:600;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px;cursor:pointer">Contas a Pagar</button>
+          <button id="cp-aba-historico" onclick="cpAbrirAba('historico')" style="padding:10px 20px;border:none;background:none;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer">Histórico</button>
+        </div>
+
+        <!-- SEÇÃO CONTAS -->
+        <div id="cp-sec-contas">
+          <!-- CARDS RESUMO -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+            <div class="card" style="text-align:center;padding:16px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">A vencer</div>
+              <div id="cp-total-pendente" style="font-size:22px;font-weight:800;color:var(--text)">R$ 0</div>
+            </div>
+            <div class="card" style="text-align:center;padding:16px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Atrasado</div>
+              <div id="cp-total-atrasado" style="font-size:22px;font-weight:800;color:var(--red)">R$ 0</div>
+            </div>
+            <div class="card" style="text-align:center;padding:16px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Pago este mês</div>
+              <div id="cp-total-pago-mes" style="font-size:22px;font-weight:800;color:var(--green)">R$ 0</div>
+            </div>
+            <div class="card" style="text-align:center;padding:16px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Total em aberto</div>
+              <div id="cp-total-aberto" style="font-size:22px;font-weight:800;color:var(--accent)">R$ 0</div>
+            </div>
           </div>
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Atrasado</div>
-            <div id="cp-total-atrasado" style="font-size:22px;font-weight:800;color:var(--red)">R$ 0</div>
+
+          <!-- FILTROS -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select id="cp-filtro-status" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Todos os status</option>
+                <option value="pendente">Pendente</option>
+                <option value="atrasado">Atrasado</option>
+                <option value="pago">Pago</option>
+              </select>
+              <select id="cp-filtro-categoria" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Todas as categorias</option>
+              </select>
+              <select id="cp-filtro-veiculo" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Todos os veículos</option>
+              </select>
+              <select id="cp-filtro-recorrencia" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Recorrente ou não</option>
+                <option value="sim">Só recorrentes</option>
+                <option value="nao">Só avulsas</option>
+              </select>
+              <select id="cp-filtro-periodo" onchange="cpToggleFiltroVencimento()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <option value="">Vencimento: todos</option>
+                <option value="mes">Este mês</option>
+                <option value="proximo">Próximo mês</option>
+                <option value="custom">Personalizado</option>
+              </select>
+              <div id="cp-filtro-datas-custom" style="display:none;display:flex;align-items:center;gap:6px">
+                <input type="date" id="cp-filtro-data-ini" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+                <span style="font-size:12px;color:var(--muted)">até</span>
+                <input type="date" id="cp-filtro-data-fim" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+              </div>
+            </div>
+            <button id="cp-btn-categorias" class="btn btn-ghost" style="font-size:12px;display:flex;align-items:center;gap:5px" onclick="abrirModalCategorias()">Categorias</button>
           </div>
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Pago este mês</div>
-            <div id="cp-total-pago-mes" style="font-size:22px;font-weight:800;color:var(--green)">R$ 0</div>
-          </div>
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Total em aberto</div>
-            <div id="cp-total-aberto" style="font-size:22px;font-weight:800;color:var(--accent)">R$ 0</div>
+
+          <div class="card">
+            <table class="table">
+              <thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Veículo</th><th>Nota</th><th>Recorrência</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="tb-contas-pagar"></tbody>
+            </table>
           </div>
         </div>
 
-        <!-- FILTROS -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select id="cp-filtro-status" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
-              <option value="">Todos os status</option>
-              <option value="pendente">Pendente</option>
-              <option value="atrasado">Atrasado</option>
-              <option value="pago">Pago</option>
-            </select>
-            <select id="cp-filtro-categoria" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
-              <option value="">Todas as categorias</option>
-            </select>
-            <select id="cp-filtro-veiculo" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
-              <option value="">Todos os veículos</option>
-            </select>
-            <select id="cp-filtro-recorrencia" onchange="cpCarregarContas()" style="font-size:12px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
-              <option value="">Recorrente ou não</option>
-              <option value="sim">Só recorrentes</option>
-              <option value="nao">Só avulsas</option>
-            </select>
-            <span style="font-size:12px;color:var(--muted)">Vencimento:</span>
-            <input type="date" id="cp-filtro-data-ini" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
-            <span style="font-size:12px;color:var(--muted)">até</span>
-            <input type="date" id="cp-filtro-data-fim" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
+        <!-- SEÇÃO HISTÓRICO -->
+        <div id="cp-sec-historico" style="display:none">
+          <div style="font-size:12px;color:var(--muted2);margin-bottom:14px">Contas canceladas ficam registradas aqui com o motivo. O lançamento no Financeiro vinculado também é removido ao cancelar.</div>
+          <div class="card">
+            <table class="table">
+              <thead><tr><th>Cancelado em</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Motivo</th><th>Vencimento original</th></tr></thead>
+              <tbody id="tb-cp-historico"></tbody>
+            </table>
           </div>
-          <button id="cp-btn-categorias" class="btn btn-ghost" style="font-size:12px" onclick="abrirModalCategorias()">⚙️ Categorias</button>
-        </div>
-
-        <div class="card">
-          <table class="table">
-            <thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Veículo</th><th>Nota</th><th>Recorrência</th><th>Valor</th><th>Status</th><th></th></tr></thead>
-            <tbody id="tb-contas-pagar"></tbody>
-          </table>
         </div>
       </div>
 
@@ -1486,7 +1513,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="modal-overlay" id="m-conta-pagar">
         <div class="modal" style="max-width:480px">
           <div class="modal-header">
-            <div class="modal-title" id="mcp-title">➕ Nova Conta a Pagar</div>
+            <div class="modal-title" id="mcp-title">Nova Conta a Pagar</div>
             <button class="modal-close" onclick="closeModal('conta-pagar')">✕</button>
           </div>
           <div class="form-grid" style="padding:16px 20px">

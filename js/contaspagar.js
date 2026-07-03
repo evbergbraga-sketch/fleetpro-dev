@@ -3,28 +3,68 @@
 // ══ ESTADO ══
 let _cpContas = [];
 let _cpPagamentoAtual = null;
+let _cpAbaCurrent = 'contas'; // 'contas' | 'historico'
 
-// ══ CATEGORIAS ══
-const CP_CAT_ICONES = {
-  'Salários':'👥','Fornecedores':'📦','Aluguel/Imóvel':'🏢','Impostos':'🧾',
-  'Assinaturas/Software':'💻','Manutenção':'🔧','Combustível':'⛽','Multa':'⚠️',
-  'Seguro':'🛡️','Marketing':'📣','Outros':'📎',
+// ══ ICONES SVG ══
+const CP_SVG = {
+  check: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  edit:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  trash: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  cancel:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
+  clock: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  gear:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
 };
+
 const CP_RECORRENCIA_LABEL = { semanal:'Semanal', mensal:'Mensal', anual:'Anual' };
 
 // ══ INICIALIZAÇÃO ══
 async function iniciarContasPagar(){
   if(typeof catPopularSelects==='function') await catPopularSelects();
   cpPopularSelectVeiculo();
+  cpAbrirAba('contas');
   await cpCarregarContas();
   cpRenderAvencer('cp-alertas');
   const btnCat = document.getElementById('cp-btn-categorias');
   if(btnCat) btnCat.style.display = currentPerfil?.perfil==='admin' ? '' : 'none';
 }
 
-// ══ CONTAS A VENCER (Dashboard + topo da aba Contas a Pagar) ══
-// Usa allContasPagar (cache global, sem filtro) — o lembrete sempre mostra
-// tudo, independente do filtro que a pessoa aplicou na tela.
+// ══ ABAS ══
+function cpAbrirAba(aba){
+  _cpAbaCurrent = aba;
+  document.getElementById('cp-aba-contas')?.classList.toggle('active', aba==='contas');
+  document.getElementById('cp-aba-historico')?.classList.toggle('active', aba==='historico');
+  const secContas = document.getElementById('cp-sec-contas');
+  const secHist   = document.getElementById('cp-sec-historico');
+  if(secContas) secContas.style.display = aba==='contas' ? '' : 'none';
+  if(secHist)   secHist.style.display   = aba==='historico' ? '' : 'none';
+  if(aba==='historico') cpCarregarHistorico();
+}
+
+// ══ HISTÓRICO (cancelados) ══
+async function cpCarregarHistorico(){
+  const tb = document.getElementById('tb-cp-historico');
+  if(!tb || !sb) return;
+  tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted2)">Carregando...</td></tr>';
+  const {data, error} = await sb.from('contas_pagar')
+    .select('*,veiculos!contas_pagar_veiculo_id_fkey(placa)')
+    .eq('status','cancelado')
+    .order('cancelado_em',{ascending:false})
+    .limit(200);
+  if(error){ tb.innerHTML = '<tr><td colspan="6">Erro ao carregar</td></tr>'; return; }
+  const lista = data||[];
+  if(!lista.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhum registro cancelado</td></tr>'; return; }
+  const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  tb.innerHTML = lista.map(c=>`<tr>
+    <td style="font-size:12px;color:var(--muted)">${c.cancelado_em ? new Date(c.cancelado_em).toLocaleDateString('pt-BR') : '—'}</td>
+    <td style="font-size:12px">${c.descricao}</td>
+    <td style="font-size:12px">${c.categoria}</td>
+    <td style="font-weight:700">${fmt(c.valor)}</td>
+    <td style="font-size:12px;color:var(--muted)">${c.cancelamento_motivo||'—'}</td>
+    <td style="font-size:12px;color:var(--muted)">${fmtData(c.vencimento)}</td>
+  </tr>`).join('');
+}
+
+// ══ CONTAS A VENCER ══
 function cpContasAVencer(dias=7){
   const hoje = new Date().toISOString().slice(0,10);
   const limite = new Date(); limite.setDate(limite.getDate()+dias);
@@ -42,9 +82,9 @@ function cpRenderAvencer(containerId){
   const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   el.innerHTML = `
     <div style="background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.25);border-radius:10px;padding:12px 16px;margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">📅 Contas a vencer nos próximos 7 dias (${lista.length})</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px">${CP_SVG.clock} Contas a vencer nos próximos 7 dias (${lista.length})</div>
       ${lista.map(c=>{
-        const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone || CP_CAT_ICONES[c.categoria]||'📎';
+        const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone||'';
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
           <span style="color:var(--text)">${icon} ${c.descricao} <span style="color:var(--muted2)">— vence ${fmtData(c.vencimento)}</span></span>
           <span style="font-weight:700;color:#92400e">${fmt(c.valor)}</span>
@@ -65,7 +105,7 @@ function _cpProximoVencimento(dataStr, tipo){
   const d = new Date(dataStr+'T00:00:00');
   if(tipo==='semanal') d.setDate(d.getDate()+7);
   else if(tipo==='anual') d.setFullYear(d.getFullYear()+1);
-  else d.setMonth(d.getMonth()+1); // mensal (padrão)
+  else d.setMonth(d.getMonth()+1);
   return d.toISOString().slice(0,10);
 }
 
@@ -76,24 +116,52 @@ function cpPopularSelectVeiculo(){
     if(!sel) return;
     const isModal = id==='mcp-vei';
     sel.innerHTML = (isModal ? '<option value="">— Nenhum —</option>' : '<option value="">Todos os veículos</option>') +
-      (allVeiculos||[]).map(v=>
-        `<option value="${v.id}">${v.tipo==='moto'?'🏍️':'🚗'} ${v.marca} ${v.modelo} — ${v.placa}</option>`
-      ).join('');
+      (allVeiculos||[]).map(v=>`<option value="${v.id}">${v.tipo==='moto'?'Moto':'Carro'} — ${v.marca} ${v.modelo} — ${v.placa}</option>`).join('');
   });
+}
+
+// ══ FILTRO DE VENCIMENTO (Este mês / Próximo mês / Personalizado) ══
+function cpToggleFiltroVencimento(){
+  const sel = document.getElementById('cp-filtro-periodo');
+  const wrap = document.getElementById('cp-filtro-datas-custom');
+  if(!sel) return;
+  const val = sel.value;
+  if(wrap) wrap.style.display = val==='custom' ? '' : 'none';
+
+  const hoje = new Date();
+  const dataIniEl = document.getElementById('cp-filtro-data-ini');
+  const dataFimEl = document.getElementById('cp-filtro-data-fim');
+
+  if(val==='mes'){
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0,10);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).toISOString().slice(0,10);
+    if(dataIniEl) dataIniEl.value = ini;
+    if(dataFimEl) dataFimEl.value = fim;
+  } else if(val==='proximo'){
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth()+1, 1).toISOString().slice(0,10);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 0).toISOString().slice(0,10);
+    if(dataIniEl) dataIniEl.value = ini;
+    if(dataFimEl) dataFimEl.value = fim;
+  } else if(val===''){
+    if(dataIniEl) dataIniEl.value = '';
+    if(dataFimEl) dataFimEl.value = '';
+  }
+  cpCarregarContas();
 }
 
 // ══ CARREGAR CONTAS ══
 async function cpCarregarContas(){
   if(!sb) return;
-  const status = document.getElementById('cp-filtro-status')?.value||'';
-  const cat    = document.getElementById('cp-filtro-categoria')?.value||'';
-  const veiId  = document.getElementById('cp-filtro-veiculo')?.value||'';
-  const rec    = document.getElementById('cp-filtro-recorrencia')?.value||'';
+  const status  = document.getElementById('cp-filtro-status')?.value||'';
+  const cat     = document.getElementById('cp-filtro-categoria')?.value||'';
+  const veiId   = document.getElementById('cp-filtro-veiculo')?.value||'';
+  const rec     = document.getElementById('cp-filtro-recorrencia')?.value||'';
   const dataIni = document.getElementById('cp-filtro-data-ini')?.value||'';
   const dataFim = document.getElementById('cp-filtro-data-fim')?.value||'';
 
   let query = sb.from('contas_pagar')
     .select('*,veiculos!contas_pagar_veiculo_id_fkey(marca,modelo,placa,tipo)')
+    .neq('status','cancelado')
     .order('vencimento',{ascending:true})
     .limit(500);
 
@@ -108,9 +176,9 @@ async function cpCarregarContas(){
 
   const todas = data||[];
   let filtradas = todas;
-  if(status==='pago')      filtradas = todas.filter(c=>c.status==='pago');
-  else if(status==='pendente') filtradas = todas.filter(c=>c.status==='pendente' && !_cpEstaAtrasada(c));
-  else if(status==='atrasado') filtradas = todas.filter(c=>_cpEstaAtrasada(c));
+  if(status==='pago')       filtradas = todas.filter(c=>c.status==='pago');
+  else if(status==='pendente')  filtradas = todas.filter(c=>c.status==='pendente' && !_cpEstaAtrasada(c));
+  else if(status==='atrasado')  filtradas = todas.filter(c=>_cpEstaAtrasada(c));
 
   _cpContas = filtradas;
   cpRenderContas();
@@ -129,35 +197,38 @@ function cpRenderContas(){
   tb.innerHTML = _cpContas.map(c=>{
     const atrasada = _cpEstaAtrasada(c);
     const badge = c.status==='pago'
-      ? '<span class="badge badge-green">✓ Pago</span>'
+      ? '<span class="badge badge-green">Pago</span>'
       : atrasada
-      ? '<span class="badge badge-red">⚠️ Atrasado</span>'
+      ? '<span class="badge badge-red">Atrasado</span>'
       : '<span class="badge badge-yellow">Pendente</span>';
-    const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone || CP_CAT_ICONES[c.categoria]||'📎';
-    const vei  = c.veiculos ? `${c.veiculos.tipo==='moto'?'🏍️':'🚗'} ${c.veiculos.placa}` : '—';
+    const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone||'';
+    const vei  = c.veiculos ? c.veiculos.placa : '—';
     const rec  = c.recorrente
-      ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">🔁 ${CP_RECORRENCIA_LABEL[c.recorrencia_tipo]||''}</span>`
+      ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">${CP_RECORRENCIA_LABEL[c.recorrencia_tipo]||''}</span>`
       : '—';
     const nota = c.num_nota ? `<span style="font-size:11px;color:var(--muted)">${c.num_nota}</span>` : '—';
+    // Botões de ação profissionais com SVG
+    const btnPagar   = c.status!=='pago'
+      ? `<button onclick="cpMarcarPago('${c.id}')" title="Marcar como pago" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(21,128,61,.12);color:#166534;border:1px solid rgba(21,128,61,.3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.check} Pagar</button>` : '';
+    const btnEditar  = `<button onclick="cpEditarConta('${c.id}')" title="Editar" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.edit}</button>`;
+    const btnCancelar = c.status!=='pago'
+      ? `<button onclick="cpCancelarConta('${c.id}')" title="Cancelar" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(217,119,6,.08);color:#92400e;border:1px solid rgba(217,119,6,.25);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.cancel}</button>` : '';
+    const btnExcluir  = `<button onclick="cpExcluirConta('${c.id}')" title="Excluir permanentemente" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(220,38,38,.06);color:#b91c1c;border:1px solid rgba(220,38,38,.25);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">${CP_SVG.trash}</button>`;
     return `<tr>
       <td style="font-size:12px;color:${atrasada?'#b91c1c':'var(--muted)'};font-weight:${atrasada?'700':'400'}">${fmtData(c.vencimento)}</td>
-      <td style="font-size:12px">${c.descricao}</td>
+      <td style="font-size:12px;font-weight:500">${c.descricao}</td>
       <td style="font-size:12px">${icon} ${c.categoria}</td>
       <td style="font-size:12px">${vei}</td>
       <td>${nota}</td>
       <td>${rec}</td>
       <td style="font-weight:700">${fmt(c.valor)}</td>
       <td>${badge}</td>
-      <td>
-        ${c.status!=='pago' ? `<button onclick="cpMarcarPago('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--green)" title="Marcar como pago">✓</button>` : ''}
-        <button onclick="cpEditarConta('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted)">✏️</button>
-        <button onclick="cpExcluirConta('${c.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--red)">🗑️</button>
-      </td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap">${btnPagar}${btnEditar}${btnCancelar}${btnExcluir}</div></td>
     </tr>`;
   }).join('');
 }
 
-// ══ CARDS RESUMO (sempre calculados sobre o total, ignorando filtro de status) ══
+// ══ CARDS RESUMO ══
 function cpAtualizarCards(todas){
   const fmt = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const hoje = new Date().toISOString().slice(0,10);
@@ -190,7 +261,7 @@ function cpToggleFaturaCartao(){
 
 function cpAbrirNovaConta(){
   document.getElementById('mcp-id').value = '';
-  document.getElementById('mcp-title').textContent = '➕ Nova Conta a Pagar';
+  document.getElementById('mcp-title').textContent = 'Nova Conta a Pagar';
   document.getElementById('mcp-desc').value = '';
   document.getElementById('mcp-cat').value = 'Outros';
   document.getElementById('mcp-valor').value = '';
@@ -214,7 +285,7 @@ function cpEditarConta(id){
   if(!c) return;
   cpAbrirNovaConta();
   document.getElementById('mcp-id').value = c.id;
-  document.getElementById('mcp-title').textContent = '✏️ Editar Conta a Pagar';
+  document.getElementById('mcp-title').textContent = 'Editar Conta a Pagar';
   document.getElementById('mcp-desc').value = c.descricao||'';
   document.getElementById('mcp-cat').value = c.categoria||'Outros';
   document.getElementById('mcp-valor').value = c.valor;
@@ -231,53 +302,87 @@ function cpEditarConta(id){
 }
 
 async function cpSalvarConta(){
-  const id     = document.getElementById('mcp-id')?.value;
-  const desc   = document.getElementById('mcp-desc')?.value?.trim();
-  const cat    = document.getElementById('mcp-cat')?.value;
-  const valor  = parseFloat(document.getElementById('mcp-valor')?.value)||0;
-  const venc   = document.getElementById('mcp-vencimento')?.value;
-  const forma  = document.getElementById('mcp-forma')?.value||null;
-  const veiId  = document.getElementById('mcp-vei')?.value||null;
+  const id      = document.getElementById('mcp-id')?.value;
+  const desc    = document.getElementById('mcp-desc')?.value?.trim();
+  const cat     = document.getElementById('mcp-cat')?.value;
+  const valor   = parseFloat(document.getElementById('mcp-valor')?.value)||0;
+  const venc    = document.getElementById('mcp-vencimento')?.value;
+  const forma   = document.getElementById('mcp-forma')?.value||null;
+  const veiId   = document.getElementById('mcp-vei')?.value||null;
   const recorrente = document.getElementById('mcp-recorrente')?.checked||false;
   const recTipo = recorrente ? (document.getElementById('mcp-recorrencia-tipo')?.value||'mensal') : null;
-  const obs         = document.getElementById('mcp-obs')?.value?.trim()||null;
-  const ehFatura    = document.getElementById('mcp-eh-fatura')?.checked||false;
-  const fatPerido   = ehFatura ? (document.getElementById('mcp-fatura-periodo')?.value||null) : null;
+  const obs     = document.getElementById('mcp-obs')?.value?.trim()||null;
+  const ehFatura  = document.getElementById('mcp-eh-fatura')?.checked||false;
+  const fatPeriodo = ehFatura ? (document.getElementById('mcp-fatura-periodo')?.value||null) : null;
 
   if(!desc || !valor || !venc || !forma){ notify('Preencha descrição, valor, vencimento e forma de pagamento','error'); return; }
-  if(ehFatura && !fatPerido){ notify('Informe o período da fatura','error'); return; }
+  if(ehFatura && !fatPeriodo){ notify('Informe o período da fatura','error'); return; }
 
   const obj = {
     descricao: desc, categoria: cat, valor, vencimento: venc,
     forma_pgto: forma, veiculo_id: veiId||null,
-    recorrente, recorrencia_tipo: recTipo,
-    observacoes: obs,
-    eh_fatura_cartao: ehFatura,
-    fatura_periodo: fatPerido,
+    recorrente, recorrencia_tipo: recTipo, observacoes: obs,
+    eh_fatura_cartao: ehFatura, fatura_periodo: fatPeriodo,
   };
 
   let error;
-  if(id){
-    ({error} = await sb.from('contas_pagar').update(obj).eq('id',id));
-  } else {
-    obj.criado_por = currentUser?.id;
-    ({error} = await sb.from('contas_pagar').insert(obj));
-  }
+  if(id){ ({error} = await sb.from('contas_pagar').update(obj).eq('id',id)); }
+  else   { obj.criado_por = currentUser?.id; ({error} = await sb.from('contas_pagar').insert(obj)); }
   if(error){ notify('Erro: '+error.message,'error'); return; }
   notify('Conta salva!','success');
   closeModal('conta-pagar');
   await cpCarregarContas();
-  if(typeof loadContasPagar==='function'){ await loadContasPagar(); }
+  if(typeof loadContasPagar==='function') await loadContasPagar();
   if(typeof renderDashboard==='function') renderDashboard();
 }
 
+// ══ CANCELAR CONTA (move para histórico com motivo) ══
+async function cpCancelarConta(id){
+  const c = _cpContas.find(x=>x.id===id);
+  if(!c) return;
+  const motivo = prompt(`Motivo do cancelamento de "${c.descricao}":\n(Ficará registrado no histórico)`);
+  if(motivo === null) return; // cancelou o prompt
+  const hojeIso = new Date().toISOString();
+
+  // Se já gerou lançamento no Financeiro, cancela lá também
+  if(c.lancamento_id){
+    await sb.from('lancamentos').update({
+      cancelamento_motivo: motivo||'Cancelado',
+      cancelado_em: hojeIso,
+    }).eq('id', c.lancamento_id);
+    // Remove o lançamento do financeiro
+    await sb.from('lancamentos').delete().eq('id', c.lancamento_id);
+  }
+
+  const {error} = await sb.from('contas_pagar').update({
+    status: 'cancelado',
+    cancelamento_motivo: motivo||'Cancelado',
+    cancelado_em: hojeIso,
+  }).eq('id', c.id);
+
+  if(error){ notify('Erro: '+error.message,'error'); return; }
+  notify('Conta cancelada e movida para histórico.','success');
+  await cpCarregarContas();
+  if(typeof loadContasPagar==='function') await loadContasPagar();
+  if(typeof renderDashboard==='function') renderDashboard();
+}
+
+// ══ EXCLUIR CONTA (remove permanentemente de todos os lugares) ══
 async function cpExcluirConta(id){
-  if(!confirm('Excluir esta conta a pagar? Isso não apaga um lançamento já criado no Financeiro.')) return;
+  const c = _cpContas.find(x=>x.id===id);
+  if(!c) return;
+  if(!confirm(`Excluir permanentemente "${c.descricao}"?\n\nIsso também remove qualquer lançamento no Financeiro vinculado a esta conta. Essa ação não pode ser desfeita.`)) return;
+
+  // Remove lançamento vinculado no Financeiro (se houver)
+  if(c.lancamento_id){
+    await sb.from('lancamentos').delete().eq('id', c.lancamento_id);
+  }
+
   const {error} = await sb.from('contas_pagar').delete().eq('id',id);
   if(error){ notify('Erro: '+error.message,'error'); return; }
-  notify('Conta excluída','success');
+  notify('Conta excluída permanentemente.','success');
   await cpCarregarContas();
-  if(typeof loadContasPagar==='function'){ await loadContasPagar(); }
+  if(typeof loadContasPagar==='function') await loadContasPagar();
   if(typeof renderDashboard==='function') renderDashboard();
 }
 
@@ -289,19 +394,18 @@ async function cpMarcarPago(id){
 
   const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   document.getElementById('cpc-desc').textContent  = c.descricao;
-  document.getElementById('cpc-cat').textContent   = `${(allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone || CP_CAT_ICONES[c.categoria]||'📎'} ${c.categoria}`;
+  const catIcon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone||'';
+  document.getElementById('cpc-cat').textContent   = `${catIcon} ${c.categoria}`.trim();
   document.getElementById('cpc-venc').textContent  = fmtData(c.vencimento);
   document.getElementById('cpc-forma').textContent = c.forma_pgto || '—';
   document.getElementById('cpc-valor').textContent = fmt(c.valor);
   document.getElementById('cpc-nf').value = '';
 
-  // Se for fatura de cartão: mostrar preview de conciliação
-  const fatWrap = document.getElementById('cpc-fatura-wrap');
+  const fatWrap    = document.getElementById('cpc-fatura-wrap');
   const fatPreview = document.getElementById('cpc-fatura-preview');
   if(c.eh_fatura_cartao && c.fatura_periodo && fatWrap && fatPreview){
     fatWrap.style.display = '';
     fatPreview.textContent = 'Calculando gastos do período...';
-    // Busca contas a pagar com Cartão Crédito no período
     const [anoStr, mesStr] = c.fatura_periodo.split('-');
     const dataIni = `${c.fatura_periodo}-01`;
     const dataFim = new Date(parseInt(anoStr), parseInt(mesStr), 0).toISOString().slice(0,10);
@@ -315,7 +419,7 @@ async function cpMarcarPago(id){
     const lista = gastos||[];
     const totalGastos = lista.reduce((a,x)=>a+Number(x.valor),0);
     if(!lista.length){
-      fatPreview.innerHTML = `<span style="color:var(--muted2)">Nenhum gasto com Cartão Crédito encontrado para ${mesStr}/${anoStr}.</span>`;
+      fatPreview.innerHTML = `<span style="color:var(--muted2)">Nenhum gasto com Cartão Crédito para ${mesStr}/${anoStr}.</span>`;
     } else {
       fatPreview.innerHTML = `<div style="margin-bottom:6px;color:var(--text2);font-weight:600">${lista.length} gasto${lista.length>1?'s':''} serão conciliados → ${fmt(totalGastos)}</div>` +
         lista.map(g=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border2);color:var(--text2)"><span>${g.descricao}</span><span style="font-weight:600">${fmt(g.valor)}</span></div>`).join('') +
@@ -336,13 +440,11 @@ async function cpConfirmarPagamento(){
   const numNota = document.getElementById('cpc-nf')?.value?.trim()||null;
   const hojeIso = new Date().toISOString();
 
-  // ── FATURA DE CARTÃO: concilia gastos, não lança a fatura no Financeiro ──
   if(c.eh_fatura_cartao && c.fatura_periodo){
     const [anoStr, mesStr] = c.fatura_periodo.split('-');
     const dataIni = `${c.fatura_periodo}-01`;
     const dataFim = new Date(parseInt(anoStr), parseInt(mesStr), 0).toISOString().slice(0,10);
 
-    // Busca todos os gastos de cartão do período ainda não conciliados
     const {data: gastos, error: errGastos} = await sb.from('contas_pagar')
       .select('*')
       .eq('forma_pgto','Cartão Crédito')
@@ -353,7 +455,6 @@ async function cpConfirmarPagamento(){
 
     if(errGastos){ notify('Erro ao buscar gastos: '+errGastos.message,'error'); return; }
 
-    // Para cada gasto: cria lançamento individual no Financeiro e marca como pago
     const lista = gastos||[];
     for(const g of lista){
       const {data: lanc} = await sb.from('lancamentos').insert({
@@ -362,7 +463,6 @@ async function cpConfirmarPagamento(){
         veiculo_id: g.veiculo_id||null, forma_pgto: 'Cartão Crédito',
         origem: 'contas_pagar', criado_por: currentUser?.id,
       }).select().single();
-
       await sb.from('contas_pagar').update({
         status: 'pago', data_pagamento: hojeIso,
         lancamento_id: lanc?.data?.id||null,
@@ -370,7 +470,6 @@ async function cpConfirmarPagamento(){
       }).eq('id', g.id);
     }
 
-    // Marca a fatura como paga (SEM criar lançamento no Financeiro)
     await sb.from('contas_pagar').update({
       status: 'pago', data_pagamento: hojeIso, num_nota: numNota,
     }).eq('id', c.id);
@@ -385,7 +484,6 @@ async function cpConfirmarPagamento(){
     return;
   }
 
-  // ── CONTA NORMAL: cria lançamento no Financeiro ──
   const {data: lanc, error: errLanc} = await sb.from('lancamentos').insert({
     tipo: 'despesa', categoria: c.categoria, descricao: c.descricao,
     valor: c.valor, data: hojeIso.slice(0,10),
@@ -399,7 +497,6 @@ async function cpConfirmarPagamento(){
     status: 'pago', data_pagamento: hojeIso, lancamento_id: lanc?.id||null, num_nota: numNota,
   }).eq('id', c.id);
 
-  // Se é recorrente, gera a próxima
   if(c.recorrente){
     await sb.from('contas_pagar').insert({
       descricao: c.descricao, categoria: c.categoria, valor: c.valor,
