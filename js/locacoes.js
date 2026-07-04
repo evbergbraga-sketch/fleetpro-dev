@@ -1766,6 +1766,13 @@ async function cancelarLocacao(id){
     // Remove lançamentos financeiros se solicitado
     const removerLanc = document.getElementById('loc-cancel-remover-lanc')?.checked;
     if(removerLanc){
+      // Zera referências FK antes de deletar (evita 409 Conflict)
+      const {data: lancsIds} = await sb.from('lancamentos').select('id').eq('locacao_id', id);
+      if(lancsIds?.length){
+        const ids = lancsIds.map(l=>l.id);
+        await sb.from('contas_pagar').update({lancamento_id: null}).in('lancamento_id', ids);
+        await sb.from('cobrancas_semanais').update({lancamento_id: null}).in('lancamento_id', ids);
+      }
       await sb.from('lancamentos').delete().eq('locacao_id', id);
       await sb.from('cobrancas_semanais').delete().eq('locacao_id', id);
     }

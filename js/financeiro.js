@@ -497,9 +497,22 @@ async function finSalvarLancamento(){
   await finCarregarLancamentos();
 }
 
+// ══ EXCLUIR LANÇAMENTO COM SEGURANÇA ══
+// Zera todas as FK que apontam para o lançamento antes de deletar,
+// evitando erro 409 (Conflict) do PostgreSQL com NO ACTION constraint.
+async function _deletarLancamentoSeguro(lancId){
+  if(!lancId) return;
+  // Zera referências em contas_pagar
+  await sb.from('contas_pagar').update({lancamento_id: null}).eq('lancamento_id', lancId);
+  // Zera referências em cobrancas_semanais
+  await sb.from('cobrancas_semanais').update({lancamento_id: null}).eq('lancamento_id', lancId);
+  // Agora pode deletar com segurança
+  return sb.from('lancamentos').delete().eq('id', lancId);
+}
+
 async function finExcluirLancamento(id){
   if(!await fpConfirm('Excluir este lançamento? Essa ação não pode ser desfeita.', 'Excluir lançamento')) return;
-  const {error} = await sb.from('lancamentos').delete().eq('id',id);
+  const {error} = await _deletarLancamentoSeguro(id);
   if(error){ notify('Erro: '+error.message,'error'); return; }
   notify('Lançamento excluído','success');
   await finCarregarLancamentos();

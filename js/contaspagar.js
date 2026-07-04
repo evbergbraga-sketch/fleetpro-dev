@@ -370,14 +370,9 @@ async function cpCancelarConta(id){
   if(motivo === null) return; // cancelou o prompt
   const hojeIso = new Date().toISOString();
 
-  // Se já gerou lançamento no Financeiro, cancela lá também
+  // Se já gerou lançamento no Financeiro, remove com segurança (zerando FKs antes)
   if(c.lancamento_id){
-    await sb.from('lancamentos').update({
-      cancelamento_motivo: motivo||'Cancelado',
-      cancelado_em: hojeIso,
-    }).eq('id', c.lancamento_id);
-    // Remove o lançamento do financeiro
-    await sb.from('lancamentos').delete().eq('id', c.lancamento_id);
+    await _deletarLancamentoSeguro(c.lancamento_id);
   }
 
   const {error} = await sb.from('contas_pagar').update({
@@ -403,9 +398,9 @@ async function cpExcluirConta(id){
   if(!c) return;
   if(!await fpConfirm(`Excluir permanentemente "${c.descricao}"?\n\nIsso também remove qualquer lançamento no Financeiro vinculado. Essa ação não pode ser desfeita.`, 'Excluir conta')) return;
 
-  // Remove lançamento vinculado no Financeiro (se houver)
+  // Remove lançamento vinculado no Financeiro com segurança (zerando FKs antes)
   if(c.lancamento_id){
-    await sb.from('lancamentos').delete().eq('id', c.lancamento_id);
+    await _deletarLancamentoSeguro(c.lancamento_id);
   }
 
   const {error} = await sb.from('contas_pagar').delete().eq('id',id);
