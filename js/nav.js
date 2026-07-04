@@ -94,7 +94,7 @@ function goPage(id, navEl){
 // ══ DATA LOADING ══
 async function loadContasPagar(){
   if(!sb) return;
-  const {data} = await sb.from('contas_pagar').select('id,status,vencimento,valor,descricao,categoria').limit(2000);
+  const {data} = await sb.from('contas_pagar').select('id,status,vencimento,valor,descricao,categoria,qual_cartao_id').limit(2000);
   allContasPagar = data||[];
   if(typeof cpRenderAvencer==='function'){
     cpRenderAvencer('dash-cp-avencer');
@@ -383,7 +383,7 @@ function renderDashboard(){
     }
   }
 
-  // ── 6º card: Contas em atraso (só admin) ──
+  // ── 6º card: Contas em atraso + Em Conciliação (só admin) ──
   const isAdmin = currentPerfil?.perfil === 'admin';
   const kpiGrid = document.getElementById('dash-kpi-grid');
   const cpCard  = document.getElementById('st-cp-card');
@@ -393,11 +393,16 @@ function renderDashboard(){
     if(isAdmin){
       const hoje = new Date().toISOString().slice(0,10);
       const cpAtrasadas = (allContasPagar||[]).filter(c=>c.status==='pendente' && c.vencimento<hoje);
+      const cpConc      = (allContasPagar||[]).filter(c=>c.status==='em_conciliacao');
       const cpVal = document.getElementById('st-cp-val');
       const cpSub = document.getElementById('st-cp-sub');
-      if(cpVal) cpVal.textContent = cpAtrasadas.length;
-      if(cpSub) cpSub.textContent = cpAtrasadas.length === 0 ? 'Tudo em dia ✓' : `conta${cpAtrasadas.length>1?'s':''} em atraso`;
-      if(cpAtrasadas.length > 0){ cpCard.classList.add('stat-alert'); if(cpVal) cpVal.style.color=''; }
+      const totalAlerta = cpAtrasadas.length + cpConc.length;
+      if(cpVal) cpVal.textContent = totalAlerta;
+      const partes = [];
+      if(cpAtrasadas.length) partes.push(`${cpAtrasadas.length} atrasada${cpAtrasadas.length>1?'s':''}`);
+      if(cpConc.length)      partes.push(`${cpConc.length} em conciliação`);
+      if(cpSub) cpSub.textContent = totalAlerta === 0 ? 'Tudo em dia ✓' : partes.join(' · ');
+      if(totalAlerta > 0){ cpCard.classList.add('stat-alert'); if(cpVal) cpVal.style.color=''; }
       else { cpCard.classList.remove('stat-alert'); if(cpVal) cpVal.style.color='#166534'; }
       if(typeof cpRenderAvencer==='function') cpRenderAvencer('dash-cp-avencer');
     } else {

@@ -3,7 +3,7 @@
 // ══ ESTADO ══
 let _cpContas = [];
 let _cpPagamentoAtual = null;
-let _cpAbaCurrent = 'contas'; // 'contas' | 'historico'
+let _cpAbaCurrent = 'contas';
 
 // ══ ICONES SVG ══
 const CP_SVG = {
@@ -12,7 +12,6 @@ const CP_SVG = {
   trash: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
   cancel:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
   clock: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  gear:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
 };
 
 const CP_RECORRENCIA_LABEL = { semanal:'Semanal', mensal:'Mensal', anual:'Anual' };
@@ -20,6 +19,8 @@ const CP_RECORRENCIA_LABEL = { semanal:'Semanal', mensal:'Mensal', anual:'Anual'
 // ══ INICIALIZAÇÃO ══
 async function iniciarContasPagar(){
   if(typeof catPopularSelects==='function') await catPopularSelects();
+  if(typeof cartoesCarregar==='function') await cartoesCarregar();
+  await cartaoPopularSelects(['mcp-cartao']);
   cpPopularSelectVeiculo();
   cpAbrirAba('contas');
   await cpCarregarContas();
@@ -120,7 +121,32 @@ function cpPopularSelectVeiculo(){
   });
 }
 
-// ══ FILTRO DE VENCIMENTO (Este mês / Próximo mês / Personalizado) ══
+// ══ TOGGLE CARTÃO no modal (mostra select quando Cartão Crédito selecionado) ══
+function cpToggleCartao(){
+  const forma = document.getElementById('mcp-forma')?.value;
+  const wrap  = document.getElementById('mcp-cartao-wrap');
+  const info  = document.getElementById('mcp-cartao-info');
+  if(!wrap) return;
+  wrap.style.display = forma==='Cartão Crédito' ? '' : 'none';
+  if(forma!=='Cartão Crédito' && info) info.textContent = '';
+}
+
+function cpAtualizarInfoCartao(){
+  const cartaoId = document.getElementById('mcp-cartao')?.value;
+  const venc     = document.getElementById('mcp-vencimento')?.value;
+  const info     = document.getElementById('mcp-cartao-info');
+  if(!info || !cartaoId || !venc) return;
+  if(typeof _cartoesLista === 'undefined' || !_cartoesLista.length) return;
+  const cartao = _cartoesLista.find(c=>c.id===cartaoId);
+  if(!cartao) return;
+  const fat = cartaoCalcularFatura(cartao, venc);
+  if(!fat) return;
+  const [ano, mes] = fat.periodo.split('-');
+  const nomeMes = new Date(parseInt(ano), parseInt(mes)-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  info.innerHTML = `Esta compra entra na fatura de <strong>${nomeMes}</strong> — vencimento <strong>${fmtData(fat.vencimento)}</strong>`;
+}
+
+// ══ FILTRO DE VENCIMENTO ══
 function cpToggleFiltroVencimento(){
   const sel = document.getElementById('cp-filtro-periodo');
   const wrap = document.getElementById('cp-filtro-datas-custom');
@@ -160,7 +186,7 @@ async function cpCarregarContas(){
   const dataFim = document.getElementById('cp-filtro-data-fim')?.value||'';
 
   let query = sb.from('contas_pagar')
-    .select('*,veiculos!contas_pagar_veiculo_id_fkey(marca,modelo,placa,tipo)')
+    .select('*,veiculos!contas_pagar_veiculo_id_fkey(marca,modelo,placa,tipo),cartoes_credito(nome,dia_fechamento,dia_vencimento)')
     .neq('status','cancelado')
     .order('vencimento',{ascending:true})
     .limit(500);
@@ -176,9 +202,10 @@ async function cpCarregarContas(){
 
   const todas = data||[];
   let filtradas = todas;
-  if(status==='pago')       filtradas = todas.filter(c=>c.status==='pago');
-  else if(status==='pendente')  filtradas = todas.filter(c=>c.status==='pendente' && !_cpEstaAtrasada(c));
-  else if(status==='atrasado')  filtradas = todas.filter(c=>_cpEstaAtrasada(c));
+  if(status==='pago')            filtradas = todas.filter(c=>c.status==='pago');
+  else if(status==='pendente')   filtradas = todas.filter(c=>c.status==='pendente' && !_cpEstaAtrasada(c));
+  else if(status==='atrasado')   filtradas = todas.filter(c=>_cpEstaAtrasada(c));
+  else if(status==='em_conciliacao') filtradas = todas.filter(c=>c.status==='em_conciliacao');
 
   _cpContas = filtradas;
   cpRenderContas();
@@ -190,25 +217,29 @@ function cpRenderContas(){
   const tb = document.getElementById('tb-contas-pagar');
   if(!tb) return;
   if(!_cpContas.length){
-    tb.innerHTML = '<tr class="empty-row"><td colspan="9">Nenhuma conta encontrada</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="10">Nenhuma conta encontrada</td></tr>';
     return;
   }
   const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   tb.innerHTML = _cpContas.map(c=>{
     const atrasada = _cpEstaAtrasada(c);
+    const emConc   = c.status==='em_conciliacao';
     const badge = c.status==='pago'
       ? '<span class="badge badge-green">Pago</span>'
+      : emConc
+      ? '<span class="badge badge-blue">Em Conciliação</span>'
       : atrasada
       ? '<span class="badge badge-red">Atrasado</span>'
       : '<span class="badge badge-yellow">Pendente</span>';
     const icon = (allCategoriasFinanceiras||[]).find(x=>x.nome===c.categoria)?.icone||'';
     const vei  = c.veiculos ? c.veiculos.placa : '—';
+    const cartaoNome = c.cartoes_credito ? c.cartoes_credito.nome : '—';
     const rec  = c.recorrente
       ? `<span style="font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3);color:var(--muted2);border:1px solid var(--border2)">${CP_RECORRENCIA_LABEL[c.recorrencia_tipo]||''}</span>`
       : '—';
     const nota = c.num_nota ? `<span style="font-size:11px;color:var(--muted)">${c.num_nota}</span>` : '—';
-    // Botões de ação profissionais com SVG — tamanho aumentado
-    const btnPagar   = c.status!=='pago'
+    const podeMarcarPago = c.status!=='pago';
+    const btnPagar   = podeMarcarPago
       ? `<button onclick="cpMarcarPago('${c.id}')" title="Marcar como pago" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:rgba(21,128,61,.12);color:#166534;border:1px solid rgba(21,128,61,.3);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">${CP_SVG.check} Pagar</button>` : '';
     const btnEditar  = `<button onclick="cpEditarConta('${c.id}')" title="Editar" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">${CP_SVG.edit} Editar</button>`;
     const btnCancelar = `<button onclick="cpCancelarConta('${c.id}')" title="Cancelar" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:rgba(217,119,6,.08);color:#92400e;border:1px solid rgba(217,119,6,.25);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">${CP_SVG.cancel} Cancelar</button>`;
@@ -217,6 +248,7 @@ function cpRenderContas(){
       <td style="font-size:12px;color:${atrasada?'#b91c1c':'var(--muted)'};font-weight:${atrasada?'700':'400'}">${fmtData(c.vencimento)}</td>
       <td style="font-size:12px;font-weight:500">${c.descricao}</td>
       <td style="font-size:12px">${icon} ${c.categoria}</td>
+      <td style="font-size:12px;color:var(--muted2)">${c.forma_pgto==='Cartão Crédito' ? cartaoNome : '—'}</td>
       <td style="font-size:12px">${vei}</td>
       <td>${nota}</td>
       <td>${rec}</td>
@@ -233,16 +265,18 @@ function cpAtualizarCards(todas){
   const hoje = new Date().toISOString().slice(0,10);
   const mesAtual = hoje.slice(0,7);
 
-  const pendentes = todas.filter(c=>c.status==='pendente' && c.vencimento>=hoje);
-  const atrasadas = todas.filter(c=>c.status==='pendente' && c.vencimento<hoje);
-  const pagasMes  = todas.filter(c=>c.status==='pago' && (c.data_pagamento||'').slice(0,7)===mesAtual);
-  const emAberto  = todas.filter(c=>c.status==='pendente');
+  const pendentes   = todas.filter(c=>c.status==='pendente' && c.vencimento>=hoje);
+  const atrasadas   = todas.filter(c=>c.status==='pendente' && c.vencimento<hoje);
+  const emConc      = todas.filter(c=>c.status==='em_conciliacao');
+  const pagasMes    = todas.filter(c=>c.status==='pago' && (c.data_pagamento||'').slice(0,7)===mesAtual);
+  const emAberto    = todas.filter(c=>c.status==='pendente' || c.status==='em_conciliacao');
 
   const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
-  set('cp-total-pendente', fmt(pendentes.reduce((a,c)=>a+Number(c.valor),0)));
-  set('cp-total-atrasado', fmt(atrasadas.reduce((a,c)=>a+Number(c.valor),0)));
-  set('cp-total-pago-mes', fmt(pagasMes.reduce((a,c)=>a+Number(c.valor),0)));
-  set('cp-total-aberto',   fmt(emAberto.reduce((a,c)=>a+Number(c.valor),0)));
+  set('cp-total-pendente',    fmt(pendentes.reduce((a,c)=>a+Number(c.valor),0)));
+  set('cp-total-atrasado',    fmt(atrasadas.reduce((a,c)=>a+Number(c.valor),0)));
+  set('cp-total-conciliacao', fmt(emConc.reduce((a,c)=>a+Number(c.valor),0)));
+  set('cp-total-pago-mes',    fmt(pagasMes.reduce((a,c)=>a+Number(c.valor),0)));
+  set('cp-total-aberto',      fmt(emAberto.reduce((a,c)=>a+Number(c.valor),0)));
 }
 
 // ══ MODAL NOVA/EDITAR CONTA ══
@@ -266,6 +300,7 @@ function cpAbrirNovaConta(){
   document.getElementById('mcp-valor').value = '';
   document.getElementById('mcp-vencimento').value = '';
   document.getElementById('mcp-forma').value = '';
+  document.getElementById('mcp-cartao').value = '';
   document.getElementById('mcp-vei').value = '';
   document.getElementById('mcp-recorrente').checked = false;
   document.getElementById('mcp-recorrencia-tipo').value = 'mensal';
@@ -275,6 +310,7 @@ function cpAbrirNovaConta(){
   document.getElementById('mcp-fatura-periodo').value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
   cpToggleRecorrencia();
   cpToggleFaturaCartao();
+  cpToggleCartao();
   cpPopularSelectVeiculo();
   document.getElementById('m-conta-pagar').classList.add('show');
 }
@@ -294,6 +330,7 @@ async function cpEditarConta(id){
   document.getElementById('mcp-valor').value = c.valor;
   document.getElementById('mcp-vencimento').value = c.vencimento;
   document.getElementById('mcp-forma').value = c.forma_pgto||'';
+  document.getElementById('mcp-cartao').value = c.qual_cartao_id||'';
   document.getElementById('mcp-vei').value = c.veiculo_id||'';
   document.getElementById('mcp-recorrente').checked = !!c.recorrente;
   document.getElementById('mcp-recorrencia-tipo').value = c.recorrencia_tipo||'mensal';
@@ -302,46 +339,63 @@ async function cpEditarConta(id){
   if(c.fatura_periodo) document.getElementById('mcp-fatura-periodo').value = c.fatura_periodo;
   cpToggleRecorrencia();
   cpToggleFaturaCartao();
+  cpToggleCartao();
+  cpAtualizarInfoCartao();
 }
 
 async function cpSalvarConta(){
-  const id      = document.getElementById('mcp-id')?.value;
-  const desc    = document.getElementById('mcp-desc')?.value?.trim();
-  const cat     = document.getElementById('mcp-cat')?.value;
-  const valor   = parseFloat(document.getElementById('mcp-valor')?.value)||0;
-  const venc    = document.getElementById('mcp-vencimento')?.value;
-  const forma   = document.getElementById('mcp-forma')?.value||null;
-  const veiId   = document.getElementById('mcp-vei')?.value||null;
+  const id         = document.getElementById('mcp-id')?.value;
+  const desc       = document.getElementById('mcp-desc')?.value?.trim();
+  const cat        = document.getElementById('mcp-cat')?.value;
+  const valor      = parseFloat(document.getElementById('mcp-valor')?.value)||0;
+  const venc       = document.getElementById('mcp-vencimento')?.value;
+  const forma      = document.getElementById('mcp-forma')?.value||null;
+  const cartaoId   = document.getElementById('mcp-cartao')?.value||null;
+  const veiId      = document.getElementById('mcp-vei')?.value||null;
   const recorrente = document.getElementById('mcp-recorrente')?.checked||false;
-  const recTipo = recorrente ? (document.getElementById('mcp-recorrencia-tipo')?.value||'mensal') : null;
-  const obs     = document.getElementById('mcp-obs')?.value?.trim()||null;
-  const ehFatura  = document.getElementById('mcp-eh-fatura')?.checked||false;
+  const recTipo    = recorrente ? (document.getElementById('mcp-recorrencia-tipo')?.value||'mensal') : null;
+  const obs        = document.getElementById('mcp-obs')?.value?.trim()||null;
+  const ehFatura   = document.getElementById('mcp-eh-fatura')?.checked||false;
   const fatPeriodo = ehFatura ? (document.getElementById('mcp-fatura-periodo')?.value||null) : null;
 
   if(!desc || !valor || !venc || !forma){ notify('Preencha descrição, valor, vencimento e forma de pagamento','error'); return; }
+  if(forma==='Cartão Crédito' && !cartaoId && !ehFatura){ notify('Selecione o cartão de crédito','error'); return; }
   if(ehFatura && !fatPeriodo){ notify('Informe o período da fatura','error'); return; }
+  if(ehFatura && !cartaoId){ notify('Selecione o cartão para esta fatura','error'); return; }
+
+  // Status automático: gastos no cartão entram como em_conciliacao
+  let statusInicial = undefined; // não altera se já existia
+  if(!id && forma==='Cartão Crédito' && !ehFatura){
+    // Calcular vencimento correto baseado no ciclo do cartão
+    statusInicial = 'em_conciliacao';
+    if(cartaoId && typeof _cartoesLista !== 'undefined'){
+      const cartao = _cartoesLista.find(c=>c.id===cartaoId);
+      if(cartao && venc){
+        const fat = cartaoCalcularFatura(cartao, venc);
+        // O vencimento do lançamento é o vencimento da fatura calculado
+        // (não a data da compra)
+        // Mantenha venc como data da compra para referência, mas o status entra em conciliação
+      }
+    }
+  }
 
   const obj = {
     descricao: desc, categoria: cat, valor, vencimento: venc,
-    forma_pgto: forma, veiculo_id: veiId||null,
+    forma_pgto: forma, qual_cartao_id: cartaoId||null, veiculo_id: veiId||null,
     recorrente, recorrencia_tipo: recTipo, observacoes: obs,
     eh_fatura_cartao: ehFatura, fatura_periodo: fatPeriodo,
+    ...(statusInicial ? {status: statusInicial} : {}),
   };
 
   let error;
   if(id){
     ({error} = await sb.from('contas_pagar').update(obj).eq('id',id));
     if(!error){
-      // Propagar edição para o lançamento vinculado no Financeiro (se existir e conta já foi paga)
-      const contaAtual = _cpContas.find(x=>x.id===id);
-      const lancId = contaAtual?.lancamento_id || (await sb.from('contas_pagar').select('lancamento_id').eq('id',id).maybeSingle()).data?.lancamento_id;
+      const lancId = (await sb.from('contas_pagar').select('lancamento_id').eq('id',id).maybeSingle()).data?.lancamento_id;
       if(lancId){
         await sb.from('lancamentos').update({
-          descricao: desc,
-          categoria: cat,
-          valor,
-          veiculo_id: veiId||null,
-          forma_pgto: forma||null,
+          descricao: desc, categoria: cat, valor,
+          veiculo_id: veiId||null, forma_pgto: forma||null,
         }).eq('id', lancId);
       }
     }
@@ -357,30 +411,32 @@ async function cpSalvarConta(){
   if(typeof renderDashboard==='function') renderDashboard();
 }
 
-// ══ CANCELAR CONTA (move para histórico com motivo) ══
+// ══ PEDIR SENHA ADMIN ══
+async function _cpPedirSenhaAdmin(acao){
+  const senha = await fpPrompt(`Para ${acao}, informe a senha de administrador:`, 'Autenticação necessária', {placeholder:'Senha'});
+  if(senha === null) return false;
+  const ok = await cpValidarSenhaAdmin(senha);
+  if(!ok){ notify('Senha incorreta. Ação cancelada.','error'); return false; }
+  return true;
+}
+
+// ══ CANCELAR CONTA ══
 async function cpCancelarConta(id){
-  // Busca no cache local primeiro; se não encontrar (filtro ativo), vai ao banco
   let c = _cpContas.find(x=>x.id===id);
   if(!c){
     const {data} = await sb.from('contas_pagar').select('*').eq('id',id).maybeSingle();
     c = data;
   }
   if(!c) return;
+  const senhaOk = await _cpPedirSenhaAdmin('cancelar esta conta');
+  if(!senhaOk) return;
   const motivo = await fpPrompt('Ficará registrado no histórico.', `Cancelar "${c.descricao}"`, {placeholder:'Ex: Pago de outra forma, duplicado...'});
-  if(motivo === null) return; // cancelou o prompt
+  if(motivo === null) return;
   const hojeIso = new Date().toISOString();
-
-  // Se já gerou lançamento no Financeiro, remove com segurança (zerando FKs antes)
-  if(c.lancamento_id){
-    await _deletarLancamentoSeguro(c.lancamento_id);
-  }
-
+  if(c.lancamento_id) await _deletarLancamentoSeguro(c.lancamento_id);
   const {error} = await sb.from('contas_pagar').update({
-    status: 'cancelado',
-    cancelamento_motivo: motivo||'Cancelado',
-    cancelado_em: hojeIso,
+    status: 'cancelado', cancelamento_motivo: motivo||'Cancelado', cancelado_em: hojeIso,
   }).eq('id', c.id);
-
   if(error){ notify('Erro: '+error.message,'error'); return; }
   notify('Conta cancelada e movida para histórico.','success');
   await cpCarregarContas();
@@ -388,7 +444,7 @@ async function cpCancelarConta(id){
   if(typeof renderDashboard==='function') renderDashboard();
 }
 
-// ══ EXCLUIR CONTA (remove permanentemente de todos os lugares) ══
+// ══ EXCLUIR CONTA ══
 async function cpExcluirConta(id){
   let c = _cpContas.find(x=>x.id===id);
   if(!c){
@@ -396,13 +452,10 @@ async function cpExcluirConta(id){
     c = data;
   }
   if(!c) return;
+  const senhaOk = await _cpPedirSenhaAdmin('excluir permanentemente');
+  if(!senhaOk) return;
   if(!await fpConfirm(`Excluir permanentemente "${c.descricao}"?\n\nIsso também remove qualquer lançamento no Financeiro vinculado. Essa ação não pode ser desfeita.`, 'Excluir conta')) return;
-
-  // Remove lançamento vinculado no Financeiro com segurança (zerando FKs antes)
-  if(c.lancamento_id){
-    await _deletarLancamentoSeguro(c.lancamento_id);
-  }
-
+  if(c.lancamento_id) await _deletarLancamentoSeguro(c.lancamento_id);
   const {error} = await sb.from('contas_pagar').delete().eq('id',id);
   if(error){ notify('Erro: '+error.message,'error'); return; }
   notify('Conta excluída permanentemente.','success');
@@ -413,7 +466,11 @@ async function cpExcluirConta(id){
 
 // ══ MARCAR COMO PAGO — abre modal de confirmação ══
 async function cpMarcarPago(id){
-  const c = _cpContas.find(x=>x.id===id);
+  let c = _cpContas.find(x=>x.id===id);
+  if(!c){
+    const {data} = await sb.from('contas_pagar').select('*,cartoes_credito(nome,dia_fechamento,dia_vencimento)').eq('id',id).maybeSingle();
+    c = data;
+  }
   if(!c || c.status==='pago') return;
   _cpPagamentoAtual = c;
 
@@ -425,30 +482,38 @@ async function cpMarcarPago(id){
   document.getElementById('cpc-forma').textContent = c.forma_pgto || '—';
   document.getElementById('cpc-valor').textContent = fmt(c.valor);
   document.getElementById('cpc-nf').value = '';
+  document.getElementById('cpc-forma-pago').value = '';
 
+  // Fatura de cartão: mostrar preview de conciliação
   const fatWrap    = document.getElementById('cpc-fatura-wrap');
   const fatPreview = document.getElementById('cpc-fatura-preview');
-  if(c.eh_fatura_cartao && c.fatura_periodo && fatWrap && fatPreview){
+
+  if(c.eh_fatura_cartao && c.fatura_periodo && c.qual_cartao_id && fatWrap && fatPreview){
     fatWrap.style.display = '';
-    fatPreview.textContent = 'Calculando gastos do período...';
-    const [anoStr, mesStr] = c.fatura_periodo.split('-');
-    const dataIni = `${c.fatura_periodo}-01`;
-    const dataFim = new Date(parseInt(anoStr), parseInt(mesStr), 0).toISOString().slice(0,10);
-    const {data: gastos} = await sb.from('contas_pagar')
-      .select('id,descricao,valor,vencimento')
-      .eq('forma_pgto','Cartão Crédito')
-      .eq('eh_fatura_cartao', false)
-      .in('status',['pendente','atrasado'])
-      .gte('vencimento', dataIni)
-      .lte('vencimento', dataFim);
-    const lista = gastos||[];
-    const totalGastos = lista.reduce((a,x)=>a+Number(x.valor),0);
-    if(!lista.length){
-      fatPreview.innerHTML = `<span style="color:var(--muted2)">Nenhum gasto com Cartão Crédito para ${mesStr}/${anoStr}.</span>`;
+    fatPreview.innerHTML = '<span style="color:var(--muted2)">Calculando gastos do período...</span>';
+    // Buscar gastos do cartão no período usando a lógica de janela de datas
+    const gastos = await cartaoBuscarGastos(c.qual_cartao_id, c.fatura_periodo);
+    const totalGastos = gastos.reduce((a,x)=>a+Number(x.valor),0);
+    const diff = Math.abs(totalGastos - Number(c.valor));
+    const bate = diff < 0.01; // tolerância de 1 centavo para arredondamento
+    if(!gastos.length){
+      fatPreview.innerHTML = `<span style="color:var(--muted2)">Nenhum gasto em conciliação para este cartão/período.</span>`;
     } else {
-      fatPreview.innerHTML = `<div style="margin-bottom:6px;color:var(--text2);font-weight:600">${lista.length} gasto${lista.length>1?'s':''} serão conciliados → ${fmt(totalGastos)}</div>` +
-        lista.map(g=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border2);color:var(--text2)"><span>${g.descricao}</span><span style="font-weight:600">${fmt(g.valor)}</span></div>`).join('') +
-        `<div style="font-size:11px;color:var(--muted2);margin-top:6px">A fatura não vai para o Financeiro. Cada gasto individual será lançado.</div>`;
+      const corTotal = bate ? '#166534' : '#b91c1c';
+      fatPreview.innerHTML =
+        `<div style="display:flex;justify-content:space-between;font-weight:700;font-size:13px;margin-bottom:8px;color:${corTotal}">
+          <span>${gastos.length} gasto${gastos.length>1?'s':''} em conciliação</span>
+          <span>${fmt(totalGastos)}</span>
+        </div>` +
+        gastos.map(g=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border2);color:var(--text2)"><span>${g.descricao}</span><span style="font-weight:600">${fmt(g.valor)}</span></div>`).join('') +
+        `<div style="margin-top:8px;padding:8px;border-radius:8px;background:${bate?'rgba(21,128,61,.08)':'rgba(220,38,38,.08)'};border:1px solid ${bate?'rgba(21,128,61,.25)':'rgba(220,38,38,.25)'}">
+          ${bate
+            ? `<span style="color:#166534;font-weight:600">✓ Valor bate com a fatura. Conciliação pode ser realizada.</span>`
+            : `<span style="color:#b91c1c;font-weight:600">✗ Diferença de ${fmt(diff)}. Ajuste os lançamentos antes de conciliar.</span>`
+          }
+        </div>`;
+      // Armazenar no elemento se bate ou não para bloquear na confirmação
+      fatWrap.dataset.bate = bate ? '1' : '0';
     }
   } else if(fatWrap){
     fatWrap.style.display = 'none';
@@ -462,64 +527,72 @@ async function cpConfirmarPagamento(){
   const c = _cpPagamentoAtual;
   if(!c || c.status==='pago') return;
 
-  const numNota = document.getElementById('cpc-nf')?.value?.trim()||null;
-  const hojeIso = new Date().toISOString();
+  const numNota   = document.getElementById('cpc-nf')?.value?.trim()||null;
+  const formaPago = document.getElementById('cpc-forma-pago')?.value||c.forma_pgto||null;
+  const hojeIso   = new Date().toISOString();
 
-  if(c.eh_fatura_cartao && c.fatura_periodo){
-    const [anoStr, mesStr] = c.fatura_periodo.split('-');
-    const dataIni = `${c.fatura_periodo}-01`;
-    const dataFim = new Date(parseInt(anoStr), parseInt(mesStr), 0).toISOString().slice(0,10);
-
-    const {data: gastos, error: errGastos} = await sb.from('contas_pagar')
-      .select('*')
-      .eq('forma_pgto','Cartão Crédito')
-      .eq('eh_fatura_cartao', false)
-      .in('status',['pendente','atrasado'])
-      .gte('vencimento', dataIni)
-      .lte('vencimento', dataFim);
-
-    if(errGastos){ notify('Erro ao buscar gastos: '+errGastos.message,'error'); return; }
-
-    const lista = gastos||[];
-    for(const g of lista){
+  // ── FATURA DE CARTÃO: concilia gastos ──
+  if(c.eh_fatura_cartao && c.fatura_periodo && c.qual_cartao_id){
+    // Verificar se valor bate
+    const fatWrap = document.getElementById('cpc-fatura-wrap');
+    if(fatWrap?.dataset.bate === '0'){
+      notify('Não é possível conciliar: o valor da fatura não bate com o total dos gastos. Ajuste os lançamentos primeiro.','error');
+      return;
+    }
+    const gastos = await cartaoBuscarGastos(c.qual_cartao_id, c.fatura_periodo);
+    const totalGastos = gastos.reduce((a,x)=>a+Number(x.valor),0);
+    const diff = Math.abs(totalGastos - Number(c.valor));
+    if(diff >= 0.01){
+      const fmt = v => Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+      notify(`Diferença de ${fmt(diff)} entre fatura e gastos. Conciliação bloqueada.`,'error');
+      return;
+    }
+    // Concilia cada gasto: vai ao Financeiro com forma_pgto='Cartão Crédito'
+    for(const g of gastos){
       const {data: lanc} = await sb.from('lancamentos').insert({
         tipo: 'despesa', categoria: g.categoria, descricao: g.descricao,
         valor: g.valor, data: hojeIso.slice(0,10),
-        veiculo_id: g.veiculo_id||null, forma_pgto: 'Cartão Crédito',
+        veiculo_id: g.veiculo_id||null,
+        forma_pgto: 'Cartão Crédito', // sempre cartão crédito para os gastos
         origem: 'contas_pagar', criado_por: currentUser?.id,
       }).select().single();
       await sb.from('contas_pagar').update({
         status: 'pago', data_pagamento: hojeIso,
         lancamento_id: lanc?.data?.id||null,
         conciliada_por: c.id,
+        forma_pgto_pago: formaPago, // forma como a fatura foi paga (PIX, boleto etc)
       }).eq('id', g.id);
     }
-
+    // Marca a fatura como paga — NÃO vai ao Financeiro
     await sb.from('contas_pagar').update({
       status: 'pago', data_pagamento: hojeIso, num_nota: numNota,
+      forma_pgto_pago: formaPago,
     }).eq('id', c.id);
 
     closeModal('conta-pagar-confirmar');
     _cpPagamentoAtual = null;
-    const n = lista.length;
-    notify(`Fatura paga! ${n} gasto${n!==1?'s':''} conciliado${n!==1?'s':''} no Financeiro.`,'success');
+    const n = gastos.length;
+    notify(`Fatura paga! ${n} gasto${n!==1?'s':''} conciliado${n!==1?'s':''} no Financeiro com Cartão Crédito.`,'success');
     await cpCarregarContas();
     if(typeof loadContasPagar==='function') await loadContasPagar();
     if(typeof renderDashboard==='function') renderDashboard();
     return;
   }
 
+  // ── CONTA NORMAL: cria lançamento no Financeiro ──
   const {data: lanc, error: errLanc} = await sb.from('lancamentos').insert({
     tipo: 'despesa', categoria: c.categoria, descricao: c.descricao,
     valor: c.valor, data: hojeIso.slice(0,10),
-    veiculo_id: c.veiculo_id||null, forma_pgto: c.forma_pgto||null,
+    veiculo_id: c.veiculo_id||null,
+    forma_pgto: formaPago||c.forma_pgto||null, // usa a forma real de pagamento
     num_nota: numNota, origem: 'contas_pagar', criado_por: currentUser?.id,
   }).select().single();
 
   if(errLanc){ notify('Erro ao lançar no financeiro: '+errLanc.message,'error'); return; }
 
   await sb.from('contas_pagar').update({
-    status: 'pago', data_pagamento: hojeIso, lancamento_id: lanc?.id||null, num_nota: numNota,
+    status: 'pago', data_pagamento: hojeIso, lancamento_id: lanc?.id||null,
+    num_nota: numNota, forma_pgto_pago: formaPago,
   }).eq('id', c.id);
 
   if(c.recorrente){
