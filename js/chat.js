@@ -1943,6 +1943,7 @@ function abrirCadastroClienteChat(){
   if(tel) tel.value = num.replace(/^55/,'');
   window._afterSalvarCliente = async ()=>{
     await loadClientes();
+    if(typeof renderDashboard==='function') renderDashboard();
     renderChatContacts();
     const c = allClientes.find(x=>(x.telefone||'').replace(/\D/g,'').slice(-11) === num.slice(-11));
     if(c){ activeChatId = c.id; abrirChat(c.id); }
@@ -1997,6 +1998,7 @@ async function salvarLeadRapido(){
     notify(`Lead "${nome}" cadastrado!`,'success');
     document.getElementById('m-lead-rapido')?.classList.remove('show');
     await loadClientes();
+    if(typeof renderDashboard==='function') renderDashboard();
     renderChatContacts();
     // Vincula conversa ao lead recém-criado
     if(data?.id){ activeChatId = data.id; abrirChat(data.id); }
@@ -2038,6 +2040,7 @@ async function converterEmCliente(){
     document.getElementById('m-converter-cliente')?.classList.remove('show');
     const cidConvertido = _ccLeadId;
     await loadClientes();
+    if(typeof renderDashboard==='function') renderDashboard();
     renderChatContacts();
     // Re-renderiza mensagens do chat atual (podem ter sumido durante o loadClientes)
     if(activeChatId === cidConvertido) {

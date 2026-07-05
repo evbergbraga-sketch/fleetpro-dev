@@ -484,7 +484,7 @@ async function _plAbrirModal(id){
     <!-- AÇÕES -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button onclick="closeModal('pl-modal');_plIrChat('${c.id}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;grid-column:span 2">${SVG.chat} Abrir chat</button>
-      <button onclick="closeModal('pl-modal');editarCliente('${c.id}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">${SVG.edit} Editar perfil</button>
+      <button onclick="closeModal('pl-modal');${c.tipo==='lead'?`editarLead('${c.id}')`:`editarCliente('${c.id}')`}" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">${SVG.edit} Editar perfil</button>
       ${c.tipo==='lead'?`<button onclick="closeModal('pl-modal');abrirConverterCliente('${c.id}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:rgba(21,128,61,.12);color:#166534;border:1px solid rgba(21,128,61,.3);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">${SVG.convert} Converter em cliente</button>`:`<div></div>`}
       <button onclick="_plExcluirLead('${c.id}','${c.nome.replace(/'/g,"\\'")}','${c.tipo}')" style="display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;background:rgba(220,38,38,.06);color:#b91c1c;border:1px solid rgba(220,38,38,.25);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;grid-column:span 2">${SVG.trash} Excluir</button>
     </div>
@@ -543,6 +543,41 @@ function _plVisu(modo){
 function _plIrChat(id){
   goPage('chat');
   setTimeout(()=>{ if(typeof abrirChat==='function') abrirChat(id); }, 300);
+}
+
+// ══ EDITAR LEAD (modal simples, sem CPF obrigatório) ══
+function editarLead(id){
+  const c = _plDados.find(x=>x.id===id) || allClientes.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('el-id').value = c.id;
+  document.getElementById('el-nome').value = c.nome||'';
+  document.getElementById('el-telefone').value = c.telefone||'';
+  document.getElementById('el-email').value = c.email||'';
+  document.getElementById('el-origem').value = c.origem||'';
+  document.getElementById('el-obs').value = c.observacoes||'';
+  document.getElementById('m-editar-lead').classList.add('show');
+}
+
+async function _plSalvarLead(){
+  const id    = document.getElementById('el-id').value;
+  const nome  = document.getElementById('el-nome').value.trim();
+  const tel   = document.getElementById('el-telefone').value.trim();
+  const email = document.getElementById('el-email').value.trim();
+  const origem = document.getElementById('el-origem').value;
+  const obs   = document.getElementById('el-obs').value.trim();
+
+  if(!nome){ notify('Nome é obrigatório','error'); return; }
+
+  const {error} = await sb.from('clientes').update({
+    nome, telefone: tel||null, email: email||null, origem: origem||null, observacoes: obs||null,
+  }).eq('id', id);
+
+  if(error){ notify('Erro: '+error.message,'error'); return; }
+  notify('Lead atualizado!','success');
+  closeModal('editar-lead');
+  await _plCarregarDados();
+  await loadClientes();
+  if(typeof renderChatContacts==='function') renderChatContacts();
 }
 
 async function _plExcluirLead(id, nome, tipo){

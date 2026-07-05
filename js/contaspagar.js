@@ -558,7 +558,7 @@ async function cpConfirmarPagamento(){
       }).select().single();
       await sb.from('contas_pagar').update({
         status: 'pago', data_pagamento: hojeIso,
-        lancamento_id: lanc?.data?.id||null,
+        lancamento_id: lanc?.id||null,
         conciliada_por: c.id,
         forma_pgto_pago: formaPago, // forma como a fatura foi paga (PIX, boleto etc)
       }).eq('id', g.id);

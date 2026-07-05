@@ -2168,6 +2168,43 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 </div>
 
 <!-- MODAL EDITAR CLIENTE -->
+<div class="modal-overlay" id="m-editar-lead">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><div class="modal-title">Editar Lead</div><button class="modal-close" onclick="closeModal('editar-lead')">✕</button></div>
+    <input type="hidden" id="el-id">
+    <div class="form-grid" style="padding:16px 20px">
+      <div class="form-group full">
+        <label>Nome completo</label>
+        <input type="text" id="el-nome" style="width:100%">
+      </div>
+      <div class="form-group">
+        <label>Telefone</label>
+        <input type="text" id="el-telefone" style="width:100%" placeholder="(00) 00000-0000">
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="el-email" style="width:100%">
+      </div>
+      <div class="form-group full">
+        <label>Veio de onde?</label>
+        <select id="el-origem" style="width:100%">
+          <option value="">— Selecione</option>
+          <option>Instagram</option><option>Facebook</option><option>Google</option>
+          <option>Indicação</option><option>WhatsApp</option><option>Passagem</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Observações</label>
+        <textarea id="el-obs" rows="3" style="width:100%"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('editar-lead')">Cancelar</button>
+      <button class="btn btn-primary" onclick="_plSalvarLead()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="m-editar-cliente">
   <div class="modal" style="max-width:720px">
     <div class="modal-header"><div class="modal-title">✏️ Editar Cliente</div><button class="modal-close" onclick="closeModal('editar-cliente')">✕</button></div>
