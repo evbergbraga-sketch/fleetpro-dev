@@ -530,6 +530,35 @@ function _atualizarNumContrato(){
   const el2 = document.getElementById('c-num-display'); if(el2) el2.textContent = `Contrato #${n}`;
 }
 
+// ══ BUSCA NOS SELECTS DE CLIENTE E VEÍCULO ══
+// Filtra as <option> já carregadas pelo texto digitado, sem alterar a
+// lógica de preenchimento existente (data-* e onchange permanecem intactos).
+function _filtrarSelectContrato(selectId, termo){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const t = termo.trim().toLowerCase();
+  const termoNum = termo.replace(/\D/g,''); // só dígitos, para busca por telefone
+
+  Array.from(sel.options).forEach(opt=>{
+    if(!opt.value){ opt.hidden = false; return; } // mantém sempre visível a opção vazia/placeholder, se houver
+    const texto = opt.textContent.toLowerCase();
+    const nome  = (opt.dataset.nome||'').toLowerCase();
+    const tel   = (opt.dataset.tel||'').replace(/\D/g,'');
+    const placa = (opt.dataset.placa||'').toLowerCase();
+    const modelo = (opt.dataset.modelo||'').toLowerCase();
+
+    let visivel;
+    if(!termo.trim()){
+      visivel = true;
+    } else if(selectId === 'c-cli'){
+      visivel = nome.includes(t) || texto.includes(t) || (termoNum && tel.includes(termoNum));
+    } else { // c-vei
+      visivel = placa.includes(t) || modelo.includes(t) || texto.includes(t);
+    }
+    opt.hidden = !visivel;
+  });
+}
+
 function autoFillContrato(){
   const opt = document.getElementById('c-vei')?.selectedOptions[0];
   if(!opt) return;
