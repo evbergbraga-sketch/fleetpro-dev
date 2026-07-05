@@ -17,7 +17,7 @@ const PAGE_CFG = {
   usuarios:    {title:'Usuários & Acessos',      action:'',                    modal:null,        roles:['admin']},
   investidores:{title:'Minha Carteira',          action:'',                    modal:null,        roles:['admin','investidor']},
   financeiro:  {title:'Financeiro',               action:'+ Lançamento',        modal:null,        roles:['admin']},
-  'contas-pagar': {title:'Contas a Pagar',         action:'+ Nova conta',        modal:null,        roles:['admin','atendente']},
+  'contas-pagar': {title:'Contas a Pagar',         action:'',                    modal:null,        roles:['admin','atendente']},
   portal:      {title:'Portal do Cliente',         action:'',                    modal:null,        roles:['admin']},
   ajuda:       {title:'Como Funciona',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
   denied:      {title:'Acesso negado',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
@@ -92,7 +92,6 @@ function goPage(id, navEl){
   }
   if(id==='contas-pagar'){
     if(typeof iniciarContasPagar==='function') iniciarContasPagar();
-    btn.onclick = ()=>{ if(typeof cpAbrirNovaConta==='function') cpAbrirNovaConta(); };
   }
   if(id==='ajuda' && typeof renderAjudaAcordeon==='function') renderAjudaAcordeon();
   if(id==='pipeline'  && typeof iniciarPipeline==='function')  iniciarPipeline();
