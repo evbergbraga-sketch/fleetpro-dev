@@ -23,6 +23,24 @@ const PAGE_CFG = {
   denied:      {title:'Acesso negado',           action:'',                    modal:null,        roles:['admin','atendente','investidor']},
 };
 
+// ══ HISTÓRICO DE NAVEGAÇÃO (botão Voltar interno) ══
+let _navHistory   = [];   // pilha de páginas visitadas
+let _navAtual     = null; // página atual
+let _navGoingBack = false; // evita reempilhar ao usar goVoltar
+
+function goVoltar(){
+  if(!_navHistory.length) return;
+  const anterior = _navHistory.pop();
+  _navGoingBack = true;
+  goPage(anterior);
+}
+
+function _navAtualizarBotaoVoltar(){
+  const btn = document.getElementById('btn-voltar');
+  if(!btn) return;
+  btn.style.display = _navHistory.length ? '' : 'none';
+}
+
 function goPage(id, navEl){
   const cfg=PAGE_CFG[id];
   if(!cfg) return;
@@ -37,6 +55,16 @@ function goPage(id, navEl){
   // Mantém a página atual sempre salva, para restaurar corretamente
   // se o Supabase recriar a sessão (visibilitychange) e reiniciar o app.
   if(id !== 'denied') sessionStorage.setItem('fp_last_page', id);
+
+  // Histórico interno de navegação (botão Voltar) — empilha a página que
+  // está sendo deixada, para não depender do botão voltar do navegador.
+  if(id !== 'denied' && !_navGoingBack && _navAtual && _navAtual !== id){
+    _navHistory.push(_navAtual);
+    if(_navHistory.length > 20) _navHistory.shift();
+  }
+  if(id !== 'denied') _navAtual = id;
+  _navGoingBack = false;
+  _navAtualizarBotaoVoltar();
 
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
