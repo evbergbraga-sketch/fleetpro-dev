@@ -458,6 +458,13 @@ function _preencherCamposClienteContrato(){
 }
 
 function populateContratosSelects(){
+  // Limpa os campos de busca visíveis (serão sincronizados de novo se
+  // algum valor for pré-selecionado logo em seguida, ex: vindo do chat/reserva)
+  const cliBusca = document.getElementById('c-cli-busca');
+  const veiBusca = document.getElementById('c-vei-busca');
+  if(cliBusca) cliBusca.value = '';
+  if(veiBusca) veiBusca.value = '';
+
   // Sincroniza número do contrato com o banco a cada abertura da aba
   _sincronizarNumContrato().then(maior=>{
     const proximo = maior + 1;
@@ -530,34 +537,81 @@ function _atualizarNumContrato(){
   const el2 = document.getElementById('c-num-display'); if(el2) el2.textContent = `Contrato #${n}`;
 }
 
-// ══ BUSCA NOS SELECTS DE CLIENTE E VEÍCULO ══
-// Filtra as <option> já carregadas pelo texto digitado, sem alterar a
-// lógica de preenchimento existente (data-* e onchange permanecem intactos).
-function _filtrarSelectContrato(selectId, termo){
+// ══ COMBOBOX DE BUSCA — CLIENTE E VEÍCULO ══
+// O <select> original fica escondido no DOM (preserva toda a lógica de
+// preenchimento existente via data-* e onchange). O <input> visível
+// dispara a busca e mostra os resultados como lista clicável.
+function _comboBuscar(selectId, termo){
   const sel = document.getElementById(selectId);
-  if(!sel) return;
+  const res = document.getElementById(selectId+'-resultados');
+  if(!sel || !res) return;
+
   const t = termo.trim().toLowerCase();
-  const termoNum = termo.replace(/\D/g,''); // só dígitos, para busca por telefone
+  const termoNum = termo.replace(/\D/g,'');
 
-  Array.from(sel.options).forEach(opt=>{
-    if(!opt.value){ opt.hidden = false; return; } // mantém sempre visível a opção vazia/placeholder, se houver
-    const texto = opt.textContent.toLowerCase();
-    const nome  = (opt.dataset.nome||'').toLowerCase();
-    const tel   = (opt.dataset.tel||'').replace(/\D/g,'');
-    const placa = (opt.dataset.placa||'').toLowerCase();
-    const modelo = (opt.dataset.modelo||'').toLowerCase();
-
-    let visivel;
-    if(!termo.trim()){
-      visivel = true;
-    } else if(selectId === 'c-cli'){
-      visivel = nome.includes(t) || texto.includes(t) || (termoNum && tel.includes(termoNum));
-    } else { // c-vei
-      visivel = placa.includes(t) || modelo.includes(t) || texto.includes(t);
+  const opcoes = Array.from(sel.options).filter(opt=>{
+    if(!opt.value) return false;
+    if(!t) return true;
+    if(selectId === 'c-cli'){
+      const nome = (opt.dataset.nome||'').toLowerCase();
+      const tel  = (opt.dataset.tel||'').replace(/\D/g,'');
+      return nome.includes(t) || (termoNum && tel.includes(termoNum));
+    } else {
+      const placa  = (opt.dataset.placa||'').toLowerCase();
+      const modelo = (opt.dataset.modelo||'').toLowerCase();
+      return placa.includes(t) || modelo.includes(t);
     }
-    opt.hidden = !visivel;
   });
+
+  if(!opcoes.length){
+    res.innerHTML = `<div style="padding:10px 14px;font-size:12px;color:var(--muted)">Nenhum resultado encontrado</div>`;
+    res.style.display = '';
+    return;
+  }
+
+  res.innerHTML = opcoes.slice(0,50).map(opt=>{
+    const sub = selectId === 'c-cli' ? (opt.dataset.tel||'') : (opt.dataset.placa||'');
+    return `<div class="search-result-item" style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)" onmousedown="event.preventDefault();_comboSelecionar('${selectId}','${opt.value}')">
+      <div style="font-weight:600;color:var(--text)">${opt.textContent}</div>
+      ${sub?`<div style="font-size:11px;color:var(--muted)">${sub}</div>`:''}
+    </div>`;
+  }).join('');
+  res.style.display = '';
 }
+
+function _comboSelecionar(selectId, value){
+  const sel = document.getElementById(selectId);
+  const inp = document.getElementById(selectId+'-busca');
+  const res = document.getElementById(selectId+'-resultados');
+  if(!sel) return;
+  sel.value = value;
+  const opt = sel.selectedOptions[0];
+  if(inp) inp.value = opt ? opt.textContent : '';
+  if(res) res.style.display = 'none';
+  sel.dispatchEvent(new Event('change'));
+}
+
+// Sincroniza o input visível a partir do valor atual do <select> — usado
+// quando o select é preenchido programaticamente (ex: vindo de uma reserva
+// ou do chat), sem passar por _comboSelecionar.
+function _comboSincronizarInput(selectId){
+  const sel = document.getElementById(selectId);
+  const inp = document.getElementById(selectId+'-busca');
+  if(!sel || !inp) return;
+  const opt = sel.selectedOptions[0];
+  inp.value = opt ? opt.textContent : '';
+}
+
+// Fecha a lista de resultados ao clicar fora
+document.addEventListener('click', (e)=>{
+  ['c-cli','c-vei'].forEach(id=>{
+    const res = document.getElementById(id+'-resultados');
+    const inp = document.getElementById(id+'-busca');
+    if(res && res.style.display !== 'none' && e.target!==inp && !res.contains(e.target)){
+      res.style.display = 'none';
+    }
+  });
+});
 
 function autoFillContrato(){
   const opt = document.getElementById('c-vei')?.selectedOptions[0];

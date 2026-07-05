@@ -471,15 +471,23 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
             <div class="form-section-title">👤 Cliente e veículo</div>
             <div class="form-grid">
-              <div class="form-group">
+              <div class="form-group" style="position:relative">
                 <label>Cliente</label>
-                <input type="text" id="c-cli-busca" placeholder="Buscar por nome ou telefone..." oninput="_filtrarSelectContrato('c-cli', this.value)" style="width:100%;margin-bottom:6px">
-                <select id="c-cli" style="width:100%" onchange="_carregarCondutoresCliente();previewContrato()"></select>
+                <input type="text" id="c-cli-busca" placeholder="Buscar por nome ou telefone..." autocomplete="off"
+                  oninput="_comboBuscar('c-cli', this.value)"
+                  onfocus="_comboBuscar('c-cli', this.value)"
+                  style="width:100%">
+                <div id="c-cli-resultados" class="search-results" style="display:none"></div>
+                <select id="c-cli" style="display:none" onchange="_carregarCondutoresCliente();previewContrato()"></select>
               </div>
-              <div class="form-group">
+              <div class="form-group" style="position:relative">
                 <label>Veículo</label>
-                <input type="text" id="c-vei-busca" placeholder="Buscar por placa ou modelo..." oninput="_filtrarSelectContrato('c-vei', this.value)" style="width:100%;margin-bottom:6px">
-                <select id="c-vei" style="width:100%" onchange="autoFillContrato();_verificarMotoContrato();previewContrato()"></select>
+                <input type="text" id="c-vei-busca" placeholder="Buscar por placa ou modelo..." autocomplete="off"
+                  oninput="_comboBuscar('c-vei', this.value)"
+                  onfocus="_comboBuscar('c-vei', this.value)"
+                  style="width:100%">
+                <div id="c-vei-resultados" class="search-results" style="display:none"></div>
+                <select id="c-vei" style="display:none" onchange="autoFillContrato();_verificarMotoContrato();previewContrato()"></select>
               </div>
             </div>
 

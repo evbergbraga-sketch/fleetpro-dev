@@ -1927,6 +1927,7 @@ function _chatAcaoContrato(){
         const sel = document.getElementById('c-cli');
         if(sel){
           sel.value = c.id;
+          if(typeof _comboSincronizarInput==='function') _comboSincronizarInput('c-cli');
           if(typeof _preencherCamposClienteContrato==='function') _preencherCamposClienteContrato();
           if(typeof previewContrato==='function') previewContrato();
         }

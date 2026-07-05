@@ -243,7 +243,7 @@ async function converterReservaContrato(id){
   setTimeout(()=>{
     // Cliente
     const selCli = document.getElementById('c-cli');
-    if(selCli){ selCli.value = r.cliente_id; }
+    if(selCli){ selCli.value = r.cliente_id; if(typeof _comboSincronizarInput==='function') _comboSincronizarInput('c-cli'); }
 
     // Veículo — adiciona o veículo reservado no select mesmo que não esteja "disponivel"
     const selVei = document.getElementById('c-vei');
@@ -259,6 +259,7 @@ async function converterReservaContrato(id){
         selVei.insertBefore(opt, selVei.firstChild);
       }
       selVei.value = r.veiculo_id;
+      if(typeof _comboSincronizarInput==='function') _comboSincronizarInput('c-vei');
       if(typeof previewContrato==='function') previewContrato();
     }
 
