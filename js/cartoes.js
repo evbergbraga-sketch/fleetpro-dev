@@ -145,17 +145,14 @@ async function cpValidarSenhaAdmin(senha){
 
 // ══ MODAL UNIFICADO: CARTÕES + CATEGORIAS ══
 async function abrirGerenciarCartoes(){
-  await cartoesCarregar();
-  _cartaoRenderLista();
   _abrirModalConfCat('cartoes');
 }
 
 async function abrirModalCategorias(){
   _abrirModalConfCat('categorias');
-  if(typeof catCarregarLista==='function') await catCarregarLista();
 }
 
-function _abrirModalConfCat(aba){
+async function _abrirModalConfCat(aba){
   document.getElementById('m-config-financeiro')?.classList.add('show');
   ['cartoes','categorias'].forEach(a=>{
     const tab = document.getElementById(`mcf-tab-${a}`);
@@ -168,6 +165,14 @@ function _abrirModalConfCat(aba){
     const sec = document.getElementById(`mcf-sec-${a}`);
     if(sec) sec.style.display = ativa ? '' : 'none';
   });
+  // Carrega os dados da aba selecionada — necessário tanto ao abrir o
+  // modal pela primeira vez quanto ao trocar de aba com o modal já aberto.
+  if(aba === 'cartoes'){
+    await cartoesCarregar();
+    _cartaoRenderLista();
+  } else if(aba === 'categorias'){
+    if(typeof catCarregarLista==='function') await catCarregarLista();
+  }
 }
 
 function _cartaoRenderLista(){
