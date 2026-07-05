@@ -1543,13 +1543,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
             <div class="form-group">
               <label>Tipo de despesa</label>
-              <select id="mcp-cat" style="width:100%"></select>
+              <select id="mcp-cat" onchange="cpToggleCategoriaFatura()" style="width:100%"></select>
             </div>
             <div class="form-group">
               <label>Valor (R$)</label>
               <input type="number" id="mcp-valor" placeholder="0,00" step="0.01" min="0" style="width:100%">
             </div>
-            <div class="form-group">
+
+            <!-- CAMPOS PADRÃO — escondidos quando a categoria for Fatura Cartão -->
+            <div class="form-group" id="mcp-vencimento-wrap">
               <label id="mcp-vencimento-label">Vencimento</label>
               <input type="date" id="mcp-vencimento" onchange="cpAtualizarInfoCartao()" style="width:100%">
             </div>
@@ -1573,13 +1575,13 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </select>
               <div id="mcp-cartao-info" style="font-size:11px;color:var(--muted2);margin-top:4px"></div>
             </div>
-            <div class="form-group full">
+            <div class="form-group full" id="mcp-vei-wrap">
               <label>Veículo (opcional)</label>
               <select id="mcp-vei" style="width:100%">
                 <option value="">— Nenhum —</option>
               </select>
             </div>
-            <div class="form-group full" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <div class="form-group full" id="mcp-recorrente-check-wrap" style="display:flex;align-items:center;gap:8px;margin-top:4px">
               <input type="checkbox" id="mcp-recorrente" onchange="cpToggleRecorrencia()" style="width:auto">
               <label style="margin:0">É uma conta recorrente</label>
             </div>
@@ -1592,16 +1594,29 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               </select>
               <div style="font-size:11px;color:var(--muted2);margin-top:4px">Ao marcar essa conta como paga, a próxima já é criada automaticamente com o mesmo valor.</div>
             </div>
-            <div class="form-group full" style="display:flex;align-items:center;gap:8px;margin-top:4px">
-              <input type="checkbox" id="mcp-eh-fatura" onchange="cpToggleFaturaCartao()" style="width:auto">
-              <label style="margin:0">É fatura de cartão de crédito</label>
+
+            <!-- CARD DE FATURA — aparece só quando categoria = Fatura Cartão -->
+            <div class="form-group full" id="mcp-fatura-card" style="display:none;background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(99,102,241,.02));border:1px solid rgba(99,102,241,.25);border-radius:12px;padding:16px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span style="font-size:13px;font-weight:700;color:var(--accent)">Fatura de Cartão de Crédito</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <label>Qual cartão <span style="color:var(--red)">*</span></label>
+                  <select id="mcp-fatura-cartao" style="width:100%">
+                    <option value="">— Selecione o cartão —</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Período da fatura <span style="color:var(--red)">*</span></label>
+                  <input type="month" id="mcp-fatura-periodo" style="width:100%">
+                </div>
+              </div>
+              <div style="font-size:11px;color:var(--muted2);margin-top:10px">Os gastos lançados nesse cartão dentro do período serão conciliados automaticamente ao marcar a fatura como paga. A fatura em si <strong>não</strong> entra no Financeiro — só os gastos individuais.</div>
             </div>
-            <div class="form-group full" id="mcp-fatura-wrap" style="display:none">
-              <label>Período da fatura</label>
-              <input type="month" id="mcp-fatura-periodo" style="width:100%">
-              <div style="font-size:11px;color:var(--muted2);margin-top:4px">Gastos de 01 até o último dia do mês selecionado com <strong>Cartão Crédito</strong> serão conciliados automaticamente ao marcar como pago. A fatura <strong>não</strong> vai para o Financeiro.</div>
-            </div>
-            <div class="form-group full">
+
+            <div class="form-group full" id="mcp-obs-wrap">
               <label>Observações (opcional)</label>
               <textarea id="mcp-obs" rows="2" style="width:100%"></textarea>
             </div>

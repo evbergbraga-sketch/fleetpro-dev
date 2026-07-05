@@ -20,7 +20,7 @@ const CP_RECORRENCIA_LABEL = { semanal:'Semanal', mensal:'Mensal', anual:'Anual'
 async function iniciarContasPagar(){
   if(typeof catPopularSelects==='function') await catPopularSelects();
   if(typeof cartoesCarregar==='function') await cartoesCarregar();
-  await cartaoPopularSelects(['mcp-cartao']);
+  await cartaoPopularSelects(['mcp-cartao','mcp-fatura-cartao']);
   cpPopularSelectVeiculo();
   cpAbrirAba('contas');
   await cpCarregarContas();
@@ -290,10 +290,40 @@ function cpToggleRecorrencia(){
   if(wrap) wrap.style.display = chk ? '' : 'none';
 }
 
-function cpToggleFaturaCartao(){
-  const chk  = document.getElementById('mcp-eh-fatura')?.checked;
-  const wrap = document.getElementById('mcp-fatura-wrap');
-  if(wrap) wrap.style.display = chk ? '' : 'none';
+const CP_CATEGORIA_FATURA = 'Fatura Cartão';
+
+function cpEhCategoriaFatura(){
+  return document.getElementById('mcp-cat')?.value === CP_CATEGORIA_FATURA;
+}
+
+function cpToggleCategoriaFatura(){
+  const ehFatura = cpEhCategoriaFatura();
+  const faturaCard   = document.getElementById('mcp-fatura-card');
+  const vencWrap     = document.getElementById('mcp-vencimento-wrap');
+  const veiWrap      = document.getElementById('mcp-vei-wrap');
+  const recCheckWrap = document.getElementById('mcp-recorrente-check-wrap');
+  const recWrap      = document.getElementById('mcp-recorrencia-wrap');
+  const formaSel     = document.getElementById('mcp-forma');
+  const cartaoWrap   = document.getElementById('mcp-cartao-wrap');
+
+  if(faturaCard)   faturaCard.style.display   = ehFatura ? '' : 'none';
+  if(vencWrap)     vencWrap.style.display     = ehFatura ? 'none' : '';
+  if(veiWrap)      veiWrap.style.display      = ehFatura ? 'none' : '';
+  if(recCheckWrap) recCheckWrap.style.display = ehFatura ? 'none' : 'flex';
+  if(ehFatura && recWrap) recWrap.style.display = 'none';
+
+  // Fatura sempre é paga no cartão — trava a forma de pagamento e some
+  // com o select genérico de cartão (usa o dedicado dentro do card)
+  if(formaSel)   formaSel.style.display   = ehFatura ? 'none' : '';
+  if(cartaoWrap) cartaoWrap.style.display = ehFatura ? 'none' : (formaSel?.value==='Cartão Crédito' ? '' : 'none');
+
+  if(ehFatura){
+    if(formaSel) formaSel.value = 'Cartão Crédito';
+    if(!document.getElementById('mcp-fatura-periodo').value){
+      const hoje = new Date();
+      document.getElementById('mcp-fatura-periodo').value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+    }
+  }
 }
 
 function cpAbrirNovaConta(){
@@ -305,16 +335,15 @@ function cpAbrirNovaConta(){
   document.getElementById('mcp-vencimento').value = '';
   document.getElementById('mcp-forma').value = '';
   document.getElementById('mcp-cartao').value = '';
+  document.getElementById('mcp-fatura-cartao').value = '';
   document.getElementById('mcp-vei').value = '';
   document.getElementById('mcp-recorrente').checked = false;
   document.getElementById('mcp-recorrencia-tipo').value = 'mensal';
   document.getElementById('mcp-obs').value = '';
-  document.getElementById('mcp-eh-fatura').checked = false;
-  const hoje = new Date();
-  document.getElementById('mcp-fatura-periodo').value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('mcp-fatura-periodo').value = '';
   cpToggleRecorrencia();
-  cpToggleFaturaCartao();
   cpToggleCartao();
+  cpToggleCategoriaFatura();
   cpPopularSelectVeiculo();
   document.getElementById('m-conta-pagar').classList.add('show');
 }
@@ -335,15 +364,15 @@ async function cpEditarConta(id){
   document.getElementById('mcp-vencimento').value = c.forma_pgto==='Cartão Crédito' && c.data_compra ? c.data_compra : c.vencimento;
   document.getElementById('mcp-forma').value = c.forma_pgto||'';
   document.getElementById('mcp-cartao').value = c.qual_cartao_id||'';
+  document.getElementById('mcp-fatura-cartao').value = c.qual_cartao_id||'';
   document.getElementById('mcp-vei').value = c.veiculo_id||'';
   document.getElementById('mcp-recorrente').checked = !!c.recorrente;
   document.getElementById('mcp-recorrencia-tipo').value = c.recorrencia_tipo||'mensal';
   document.getElementById('mcp-obs').value = c.observacoes||'';
-  document.getElementById('mcp-eh-fatura').checked = !!c.eh_fatura_cartao;
   if(c.fatura_periodo) document.getElementById('mcp-fatura-periodo').value = c.fatura_periodo;
   cpToggleRecorrencia();
-  cpToggleFaturaCartao();
   cpToggleCartao();
+  cpToggleCategoriaFatura();
   cpAtualizarInfoCartao();
 }
 
@@ -352,30 +381,60 @@ async function cpSalvarConta(){
   const desc       = document.getElementById('mcp-desc')?.value?.trim();
   const cat        = document.getElementById('mcp-cat')?.value;
   const valor      = parseFloat(document.getElementById('mcp-valor')?.value)||0;
-  const venc       = document.getElementById('mcp-vencimento')?.value;
-  const forma      = document.getElementById('mcp-forma')?.value||null;
-  const cartaoId   = document.getElementById('mcp-cartao')?.value||null;
-  const veiId      = document.getElementById('mcp-vei')?.value||null;
-  const recorrente = document.getElementById('mcp-recorrente')?.checked||false;
-  const recTipo    = recorrente ? (document.getElementById('mcp-recorrencia-tipo')?.value||'mensal') : null;
   const obs        = document.getElementById('mcp-obs')?.value?.trim()||null;
-  const ehFatura   = document.getElementById('mcp-eh-fatura')?.checked||false;
-  const fatPeriodo = ehFatura ? (document.getElementById('mcp-fatura-periodo')?.value||null) : null;
+  const ehFatura   = cpEhCategoriaFatura();
 
-  if(!desc || !valor || !venc || !forma){ notify('Preencha descrição, valor, vencimento e forma de pagamento','error'); return; }
-  if(forma==='Cartão Crédito' && !cartaoId && !ehFatura){ notify('Selecione o cartão de crédito','error'); return; }
-  if(ehFatura && !fatPeriodo){ notify('Informe o período da fatura','error'); return; }
-  if(ehFatura && !cartaoId){ notify('Selecione o cartão para esta fatura','error'); return; }
+  if(!desc || !valor){ notify('Preencha descrição e valor','error'); return; }
 
-  // Cartão de crédito (gasto comum, não fatura): o campo digitado é a
-  // DATA DA COMPRA. O vencimento real é calculado a partir do ciclo do
-  // cartão escolhido — nunca é o valor que o usuário digitou.
-  let vencimentoFinal = venc;
-  let dataCompra = null;
-  let statusInicial = undefined; // não altera se já existia
+  let obj;
 
-  if(forma==='Cartão Crédito' && !ehFatura && cartaoId){
-    if(typeof _cartoesLista !== 'undefined'){
+  if(ehFatura){
+    // ══ FATURA DE CARTÃO — vencimento calculado a partir do cartão + período ══
+    const cartaoId   = document.getElementById('mcp-fatura-cartao')?.value||null;
+    const fatPeriodo = document.getElementById('mcp-fatura-periodo')?.value||null;
+
+    if(!cartaoId){ notify('Selecione o cartão desta fatura','error'); return; }
+    if(!fatPeriodo){ notify('Informe o período da fatura','error'); return; }
+
+    const cartao = _cartoesLista.find(c=>c.id===cartaoId);
+    if(!cartao){ notify('Cartão não encontrado','error'); return; }
+
+    // Vencimento = dia_vencimento do cartão, no mês seguinte ao período de referência
+    const [anoRef, mesRef] = fatPeriodo.split('-').map(Number);
+    let mesVenc = mesRef; // fatura_periodo já é o mês de referência (fechamento); vencimento é no mês seguinte
+    let anoVenc = anoRef;
+    mesVenc += 1;
+    if(mesVenc > 12){ mesVenc = 1; anoVenc++; }
+    const diasNoMes = new Date(anoVenc, mesVenc, 0).getDate();
+    const diaVenc = Math.min(cartao.dia_vencimento, diasNoMes);
+    const vencimentoCalculado = `${anoVenc}-${String(mesVenc).padStart(2,'0')}-${String(diaVenc).padStart(2,'0')}`;
+
+    obj = {
+      descricao: desc, categoria: cat, valor, vencimento: vencimentoCalculado,
+      data_compra: null,
+      forma_pgto: 'Cartão Crédito', qual_cartao_id: cartaoId, veiculo_id: null,
+      recorrente: false, recorrencia_tipo: null, observacoes: obs,
+      eh_fatura_cartao: true, fatura_periodo: fatPeriodo,
+    };
+  } else {
+    // ══ CONTA NORMAL (inclui gasto avulso no cartão) ══
+    const venc       = document.getElementById('mcp-vencimento')?.value;
+    const forma      = document.getElementById('mcp-forma')?.value||null;
+    const cartaoId   = document.getElementById('mcp-cartao')?.value||null;
+    const veiId      = document.getElementById('mcp-vei')?.value||null;
+    const recorrente = document.getElementById('mcp-recorrente')?.checked||false;
+    const recTipo    = recorrente ? (document.getElementById('mcp-recorrencia-tipo')?.value||'mensal') : null;
+
+    if(!venc || !forma){ notify('Preencha vencimento e forma de pagamento','error'); return; }
+    if(forma==='Cartão Crédito' && !cartaoId){ notify('Selecione o cartão de crédito','error'); return; }
+
+    // Cartão de crédito (gasto comum): o campo digitado é a DATA DA COMPRA.
+    // O vencimento real é calculado a partir do ciclo do cartão escolhido.
+    let vencimentoFinal = venc;
+    let dataCompra = null;
+    let statusInicial = undefined; // não altera se já existia
+
+    if(forma==='Cartão Crédito' && cartaoId){
       const cartao = _cartoesLista.find(c=>c.id===cartaoId);
       if(cartao){
         const fat = cartaoCalcularFatura(cartao, venc);
@@ -384,18 +443,18 @@ async function cpSalvarConta(){
           vencimentoFinal = fat.vencimento;
         }
       }
+      if(!id) statusInicial = 'em_conciliacao';
     }
-    if(!id) statusInicial = 'em_conciliacao';
-  }
 
-  const obj = {
-    descricao: desc, categoria: cat, valor, vencimento: vencimentoFinal,
-    data_compra: dataCompra,
-    forma_pgto: forma, qual_cartao_id: cartaoId||null, veiculo_id: veiId||null,
-    recorrente, recorrencia_tipo: recTipo, observacoes: obs,
-    eh_fatura_cartao: ehFatura, fatura_periodo: fatPeriodo,
-    ...(statusInicial ? {status: statusInicial} : {}),
-  };
+    obj = {
+      descricao: desc, categoria: cat, valor, vencimento: vencimentoFinal,
+      data_compra: dataCompra,
+      forma_pgto: forma, qual_cartao_id: cartaoId||null, veiculo_id: veiId||null,
+      recorrente, recorrencia_tipo: recTipo, observacoes: obs,
+      eh_fatura_cartao: false, fatura_periodo: null,
+      ...(statusInicial ? {status: statusInicial} : {}),
+    };
+  }
 
   let error;
   if(id){
@@ -405,7 +464,7 @@ async function cpSalvarConta(){
       if(lancId){
         await sb.from('lancamentos').update({
           descricao: desc, categoria: cat, valor,
-          veiculo_id: veiId||null, forma_pgto: forma||null,
+          veiculo_id: obj.veiculo_id||null, forma_pgto: obj.forma_pgto||null,
         }).eq('id', lancId);
       }
     }

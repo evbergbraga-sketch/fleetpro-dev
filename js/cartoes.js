@@ -262,7 +262,7 @@ async function _cartaoSalvar(){
   _cartaoLimparForm();
   await cartoesCarregar();
   _cartaoRenderLista();
-  await cartaoPopularSelects(['mcp-cartao','cp-filtro-cartao']);
+  await cartaoPopularSelects(['mcp-cartao','mcp-fatura-cartao','cp-filtro-cartao']);
 }
 
 async function _cartaoToggleAtivo(id){
