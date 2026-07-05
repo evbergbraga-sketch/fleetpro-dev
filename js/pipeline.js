@@ -811,21 +811,99 @@ async function _plConfigNovoStatus(){
 }
 
 // ══ FOLLOW-UP EM MASSA ══════════════════════════════════════
-function _plFollowupMassa(){
+// Busca a última mensagem recebida (direção='entrada') de cada lead.
+// Retorna um Map: chave = cliente_id (ou últimos 11 dígitos do telefone) → data ISO da última mensagem
+let _fuUltimasInteracoes = null;
+async function _fuMassaBuscarInteracoes(){
+  const {data, error} = await sb.from('wpp_mensagens')
+    .select('cliente_id,numero,created_at')
+    .eq('direcao','entrada')
+    .order('created_at',{ascending:true}); // ascendente: a última sobrescreve no map, ficando com a mais recente
+  if(error){ console.warn('[followup]',error.message); return new Map(); }
+  const mapa = new Map();
+  (data||[]).forEach(m=>{
+    if(m.cliente_id) mapa.set(m.cliente_id, m.created_at);
+    const num11 = (m.numero||'').replace(/\D/g,'').slice(-11);
+    if(num11) mapa.set('tel:'+num11, m.created_at);
+  });
+  return mapa;
+}
+
+function _fuUltimaInteracao(lead){
+  if(!_fuUltimasInteracoes) return null;
+  if(_fuUltimasInteracoes.has(lead.id)) return _fuUltimasInteracoes.get(lead.id);
+  const num11 = (lead.telefone||'').replace(/\D/g,'').slice(-11);
+  if(num11 && _fuUltimasInteracoes.has('tel:'+num11)) return _fuUltimasInteracoes.get('tel:'+num11);
+  return null;
+}
+
+async function _plFollowupMassa(){
   // Popula o select de status com os status ativos
   const sel = document.getElementById('fu-massa-status');
   if(!sel) return;
   sel.innerHTML = '<option value="">Todos os status</option>' +
     _PL_STATUS.map(s=>`<option value="${s.key}">${s.label} (${_plDados.filter(c=>c.status_crm===s.key||c.status_crm===s.label).length})</option>`).join('');
+
+  // Reseta o filtro de período para "Todos" a cada abertura
+  const selPeriodo = document.getElementById('fu-massa-periodo');
+  if(selPeriodo) selPeriodo.value = '';
+  const wrapCustom = document.getElementById('fu-massa-periodo-custom');
+  if(wrapCustom) wrapCustom.style.display = 'none';
+
+  _fuUltimasInteracoes = await _fuMassaBuscarInteracoes();
   _fuMassaAtualizar();
   document.getElementById('m-followup-massa').classList.add('show');
 }
 
-function _fuMassaAtualizar(){
+function _fuMassaTogglePeriodo(){
+  const val = document.getElementById('fu-massa-periodo')?.value;
+  const wrap = document.getElementById('fu-massa-periodo-custom');
+  if(wrap) wrap.style.display = val === 'custom' ? '' : 'none';
+  _fuMassaAtualizar();
+}
+
+// Filtra os leads pelo status selecionado + janela de última interação
+function _fuMassaFiltrarLeads(){
   const statusSel = document.getElementById('fu-massa-status')?.value || '';
-  const leads = statusSel
+  const periodo   = document.getElementById('fu-massa-periodo')?.value || '';
+
+  let leads = statusSel
     ? _plDados.filter(c=>c.status_crm===statusSel||c.status_crm===_PL_STATUS.find(s=>s.key===statusSel)?.label)
     : _plDados;
+
+  if(periodo === 'todos' || !periodo) return leads; // sem filtro de tempo
+
+  const agora = new Date();
+  let limite = null;
+
+  if(periodo === '23h'){
+    limite = new Date(agora.getTime() - 23*60*60*1000);
+  } else if(periodo === 'hoje'){
+    limite = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()); // 00:00 de hoje
+  } else if(periodo === 'custom'){
+    const dataIni = document.getElementById('fu-massa-data-ini')?.value;
+    const dataFim = document.getElementById('fu-massa-data-fim')?.value;
+    if(!dataIni) return leads; // sem data informada ainda, não filtra
+    const iniObj = new Date(dataIni+'T00:00:00');
+    const fimObj = dataFim ? new Date(dataFim+'T23:59:59') : agora;
+    return leads.filter(c=>{
+      const ult = _fuUltimaInteracao(c);
+      if(!ult) return false;
+      const d = new Date(ult);
+      return d >= iniObj && d <= fimObj;
+    });
+  }
+
+  if(!limite) return leads;
+  return leads.filter(c=>{
+    const ult = _fuUltimaInteracao(c);
+    if(!ult) return false;
+    return new Date(ult) >= limite;
+  });
+}
+
+function _fuMassaAtualizar(){
+  const leads = _fuMassaFiltrarLeads();
   const comTel = leads.filter(c=>c.telefone);
   const semTel = leads.length - comTel.length;
   const el = document.getElementById('fu-massa-preview');
@@ -840,17 +918,14 @@ function _fuMassaAtualizar(){
 }
 
 async function _fuMassaEnviar(){
-  const statusSel = document.getElementById('fu-massa-status')?.value || '';
-  const msg       = document.getElementById('fu-massa-msg')?.value?.trim() || '';
-  const btn       = document.getElementById('fu-massa-btn');
+  const msg = document.getElementById('fu-massa-msg')?.value?.trim() || '';
+  const btn = document.getElementById('fu-massa-btn');
 
   if(!msg){ notify('Digite a mensagem antes de enviar.','error'); return; }
 
-  const leads = (statusSel
-    ? _plDados.filter(c=>c.status_crm===statusSel||c.status_crm===_PL_STATUS.find(s=>s.key===statusSel)?.label)
-    : _plDados).filter(c=>c.telefone);
+  const leads = _fuMassaFiltrarLeads().filter(c=>c.telefone);
 
-  if(!leads.length){ notify('Nenhum lead com telefone para este status.','error'); return; }
+  if(!leads.length){ notify('Nenhum lead com telefone para os filtros selecionados.','error'); return; }
   if(!await fpConfirm(`Enviar mensagem para ${leads.length} lead${leads.length!==1?'s':''}?`, 'Confirmar envio', {confirmLabel:'Enviar', danger:false})) return;
 
   btn.disabled=true; btn.textContent='⏳ Enviando...';

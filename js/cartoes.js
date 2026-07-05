@@ -158,9 +158,15 @@ async function abrirModalCategorias(){
 function _abrirModalConfCat(aba){
   document.getElementById('m-config-financeiro')?.classList.add('show');
   ['cartoes','categorias'].forEach(a=>{
-    document.getElementById(`mcf-tab-${a}`)?.classList.toggle('active', a===aba);
+    const tab = document.getElementById(`mcf-tab-${a}`);
+    const ativa = a===aba;
+    if(tab){
+      tab.classList.toggle('active', ativa);
+      tab.style.borderBottomColor = ativa ? 'var(--accent)' : 'transparent';
+      tab.style.color = ativa ? 'var(--accent)' : 'var(--muted)';
+    }
     const sec = document.getElementById(`mcf-sec-${a}`);
-    if(sec) sec.style.display = a===aba ? '' : 'none';
+    if(sec) sec.style.display = ativa ? '' : 'none';
   });
 }
 

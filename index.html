@@ -1504,8 +1504,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <input type="date" id="cp-filtro-data-fim" onchange="cpCarregarContas()" style="font-size:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;color:var(--text)">
               </div>
             </div>
-            <button id="cp-btn-categorias" class="btn btn-ghost" style="font-size:12px;display:flex;align-items:center;gap:5px" onclick="abrirModalCategorias()">Categorias</button>
-            <button class="btn btn-ghost" style="font-size:12px;display:flex;align-items:center;gap:5px" onclick="abrirGerenciarCartoes()">Cartões</button>
+            <button id="cp-btn-categorias" class="btn btn-ghost" style="font-size:12px;display:flex;align-items:center;gap:5px" onclick="abrirGerenciarCartoes()">Configurações</button>
           </div>
 
           <div class="card">
@@ -1895,6 +1894,20 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                   <option value="">Todos os status</option>
                 </select>
               </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Última interação</label>
+                <select id="fu-massa-periodo" style="width:100%;padding:8px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px" onchange="_fuMassaTogglePeriodo()">
+                  <option value="">Todos (sem filtro de tempo)</option>
+                  <option value="23h">Últimas 23 horas</option>
+                  <option value="hoje">Hoje</option>
+                  <option value="custom">Período personalizado</option>
+                </select>
+                <div id="fu-massa-periodo-custom" style="display:none;margin-top:8px;display:flex;gap:8px;align-items:center">
+                  <input type="date" id="fu-massa-data-ini" onchange="_fuMassaAtualizar()" style="flex:1;padding:7px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px">
+                  <span style="font-size:12px;color:var(--muted)">até</span>
+                  <input type="date" id="fu-massa-data-fim" onchange="_fuMassaAtualizar()" style="flex:1;padding:7px 10px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px">
+                </div>
+              </div>
               <div id="fu-massa-preview" style="font-size:12px;color:var(--muted);padding:8px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border2)">
                 Selecione um status para ver quantos leads serão impactados.
               </div>
@@ -2219,7 +2232,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 </div>
 
 <div class="modal-overlay" id="m-editar-cliente">
-  <div class="modal" style="max-width:720px">
+  <div class="modal" style="max-width:920px;width:92vw">
     <div class="modal-header"><div class="modal-title">✏️ Editar Cliente</div><button class="modal-close" onclick="closeModal('editar-cliente')">✕</button></div>
     <input type="hidden" id="ec-id">
     <div style="max-height:78vh;overflow-y:auto;padding:16px 20px">
@@ -2480,7 +2493,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
 <!-- MODAL CADASTRAR CLIENTE -->
 <div class="modal-overlay" id="m-cliente">
-  <div class="modal" style="max-width:720px">
+  <div class="modal" style="max-width:920px;width:92vw">
     <div class="modal-header"><div class="modal-title">Cadastrar Cliente</div><button class="modal-close" onclick="closeModal('cliente')">✕</button></div>
     <div style="max-height:78vh;overflow-y:auto;padding:16px 20px">
 
@@ -2903,7 +2916,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
 <!-- MODAL DETALHES DA LOCAÇÃO -->
 <div class="modal-overlay" id="m-locacao-detalhe">
-  <div class="modal" style="max-width:700px;max-height:90vh;overflow-y:auto">
+  <div class="modal" style="max-width:920px;width:92vw;max-height:90vh;overflow-y:auto">
     <div class="modal-header">
       <div class="modal-title">📋 Detalhes da Locação</div>
       <button class="modal-close" onclick="closeModal('locacao-detalhe')">✕</button>
@@ -2914,7 +2927,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
 <!-- MODAL NOVA RESERVA -->
 <div class="modal-overlay" id="m-reserva">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:920px;width:92vw">
     <div class="modal-header">
       <div class="modal-title">🗓️ Nova Reserva</div>
       <button class="modal-close" onclick="closeModal('reserva')">✕</button>
