@@ -1684,7 +1684,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:18px">
               <div id="cart-form-title" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:14px">Novo Cartão</div>
               <input type="hidden" id="cart-id">
-              <div style="display:grid;grid-template-columns:1fr 160px;gap:12px;align-items:end">
+              <div style="display:grid;grid-template-columns:1fr 160px 160px;gap:12px;align-items:end">
                 <div>
                   <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px">Nome do cartão</label>
                   <input type="text" id="cart-nome" placeholder="Ex: Nubank Final 5565" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--text);font-size:14px">
@@ -1693,9 +1693,13 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                   <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px">Dia de vencimento da fatura</label>
                   <input type="number" id="cart-dia-vencimento" placeholder="Ex: 7" min="1" max="31" oninput="_cartaoAtualizarPreview()" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--text);font-size:14px">
                 </div>
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px">Dias antes p/ fechar</label>
+                  <input type="number" id="cart-dias-antecedencia" placeholder="Ex: 10" min="1" max="30" value="10" oninput="_cartaoAtualizarPreview()" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--text);font-size:14px">
+                </div>
               </div>
               <div id="cart-fechamento-preview" style="font-size:12px;color:var(--accent);margin-top:10px;min-height:18px"></div>
-              <div style="font-size:11px;color:var(--muted2);margin-top:4px">O dia de fechamento é calculado automaticamente: 10 dias antes do vencimento.</div>
+              <div style="font-size:11px;color:var(--muted2);margin-top:4px">O dia de fechamento é calculado automaticamente com base nos dias de antecedência informados.</div>
               <div style="display:flex;gap:10px;margin-top:14px">
                 <button onclick="_cartaoSalvar()" class="btn btn-primary" style="font-size:13px">Salvar cartão</button>
                 <button onclick="_cartaoLimparForm()" class="btn btn-ghost" style="font-size:13px">Limpar</button>

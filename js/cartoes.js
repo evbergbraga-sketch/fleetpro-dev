@@ -4,16 +4,17 @@
 let _cartoesLista = [];
 
 // ══ CALCULAR DIA DE FECHAMENTO AUTOMATICAMENTE ══
-// Fechamento = vencimento - 10 dias. Se resultado ≤ 0, cai no mês anterior.
-// Ex: vence dia 7 → fecha dia 27 (mês anterior); vence dia 15 → fecha dia 5 (mesmo mês)
-function _calcDiaFechamento(diaVenc) {
-  const diff = diaVenc - 10;
-  return diff > 0 ? diff : 30 + diff; // 30 + diff quando negativo (ex: 7-10=-3 → 27)
+// Fechamento = vencimento - N dias (N configurável por cartão). Se resultado ≤ 0, cai no mês anterior.
+// Ex: vence dia 7, 10 dias de antecedência → fecha dia 27 (mês anterior)
+// Ex: vence dia 15, 5 dias de antecedência → fecha dia 10 (mesmo mês)
+function _calcDiaFechamento(diaVenc, diasAntecedencia=10) {
+  const diff = diaVenc - diasAntecedencia;
+  return diff > 0 ? diff : 30 + diff; // 30 + diff quando negativo
 }
 
 // Retorna true se o fechamento é no mês anterior ao vencimento
-function _fechamentoMesAnterior(diaVenc) {
-  return (diaVenc - 10) <= 0;
+function _fechamentoMesAnterior(diaVenc, diasAntecedencia=10) {
+  return (diaVenc - diasAntecedencia) <= 0;
 }
 
 // ══ CARREGAR CARTÕES ══
@@ -35,7 +36,7 @@ async function cartaoPopularSelects(seletores=[]){
     const isObrig = el.dataset.obrigatorio === 'true';
     el.innerHTML = (isObrig ? '<option value="">— Selecione o cartão —</option>' : '<option value="">Todos os cartões</option>') +
       ativos.map(c=>{
-        const diaFech = _calcDiaFechamento(c.dia_vencimento);
+        const diaFech = _calcDiaFechamento(c.dia_vencimento, c.dias_antecedencia_fechamento);
         return `<option value="${c.id}">${c.nome} (fecha dia ${diaFech}, vence dia ${c.dia_vencimento})</option>`;
       }).join('');
   });
@@ -57,8 +58,8 @@ function cartaoCalcularFatura(cartao, dataCompraStr) {
   const anoCompra = compra.getFullYear();
   const mesCompra = compra.getMonth(); // 0-based
 
-  const diaFech = _calcDiaFechamento(cartao.dia_vencimento);
-  const fechMesAnterior = _fechamentoMesAnterior(cartao.dia_vencimento);
+  const diaFech = _calcDiaFechamento(cartao.dia_vencimento, cartao.dias_antecedencia_fechamento);
+  const fechMesAnterior = _fechamentoMesAnterior(cartao.dia_vencimento, cartao.dias_antecedencia_fechamento);
 
   let mesRef, anoRef;
   if(fechMesAnterior){
@@ -100,8 +101,8 @@ async function cartaoBuscarGastos(cartaoId, periodo){
   if(!cartao) return [];
 
   const [anoRef, mesRef] = periodo.split('-').map(Number);
-  const diaFech = _calcDiaFechamento(cartao.dia_vencimento);
-  const fechMesAnterior = _fechamentoMesAnterior(cartao.dia_vencimento);
+  const diaFech = _calcDiaFechamento(cartao.dia_vencimento, cartao.dias_antecedencia_fechamento);
+  const fechMesAnterior = _fechamentoMesAnterior(cartao.dia_vencimento, cartao.dias_antecedencia_fechamento);
 
   let dataIni, dataFim;
 
@@ -184,8 +185,8 @@ function _cartaoRenderLista(){
   }
   const SVG_EDIT = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
   tb.innerHTML = _cartoesLista.map(c=>{
-    const diaFech = _calcDiaFechamento(c.dia_vencimento);
-    const fechInfo = _fechamentoMesAnterior(c.dia_vencimento) ? `dia ${diaFech} (mês ant.)` : `dia ${diaFech}`;
+    const diaFech = _calcDiaFechamento(c.dia_vencimento, c.dias_antecedencia_fechamento);
+    const fechInfo = _fechamentoMesAnterior(c.dia_vencimento, c.dias_antecedencia_fechamento) ? `dia ${diaFech} (mês ant.)` : `dia ${diaFech}`;
     return `<tr>
       <td style="font-size:13px;font-weight:600;color:var(--text)">${c.nome}</td>
       <td style="font-size:12px;color:var(--muted2);text-align:center">${fechInfo}</td>
@@ -205,6 +206,7 @@ function _cartaoLimparForm(){
   document.getElementById('cart-id').value = '';
   document.getElementById('cart-nome').value = '';
   document.getElementById('cart-dia-vencimento').value = '';
+  document.getElementById('cart-dias-antecedencia').value = '10';
   document.getElementById('cart-fechamento-preview').textContent = '';
   document.getElementById('cart-form-title').textContent = 'Novo Cartão';
 }
@@ -215,17 +217,19 @@ function _cartaoEditar(id){
   document.getElementById('cart-id').value = c.id;
   document.getElementById('cart-nome').value = c.nome;
   document.getElementById('cart-dia-vencimento').value = c.dia_vencimento;
+  document.getElementById('cart-dias-antecedencia').value = c.dias_antecedencia_fechamento||10;
   document.getElementById('cart-form-title').textContent = 'Editar Cartão';
   _cartaoAtualizarPreview();
 }
 
 function _cartaoAtualizarPreview(){
   const diaVenc = parseInt(document.getElementById('cart-dia-vencimento')?.value)||0;
+  const diasAntecedencia = parseInt(document.getElementById('cart-dias-antecedencia')?.value)||10;
   const prev = document.getElementById('cart-fechamento-preview');
   if(!prev) return;
   if(!diaVenc || diaVenc < 1 || diaVenc > 31){ prev.textContent = ''; return; }
-  const diaFech = _calcDiaFechamento(diaVenc);
-  const mesAnterior = _fechamentoMesAnterior(diaVenc);
+  const diaFech = _calcDiaFechamento(diaVenc, diasAntecedencia);
+  const mesAnterior = _fechamentoMesAnterior(diaVenc, diasAntecedencia);
   prev.innerHTML = `Fechamento calculado: <strong>dia ${diaFech}${mesAnterior?' (mês anterior ao vencimento)':''}</strong>`;
 }
 
@@ -233,16 +237,20 @@ async function _cartaoSalvar(){
   const id      = document.getElementById('cart-id')?.value;
   const nome    = document.getElementById('cart-nome')?.value?.trim();
   const diaVenc = parseInt(document.getElementById('cart-dia-vencimento')?.value)||0;
+  const diasAntecedencia = parseInt(document.getElementById('cart-dias-antecedencia')?.value)||0;
 
-  if(!nome || !diaVenc){
-    notify('Preencha o nome e o dia de vencimento','error'); return;
+  if(!nome || !diaVenc || !diasAntecedencia){
+    notify('Preencha o nome, o dia de vencimento e os dias de antecedência','error'); return;
   }
   if(diaVenc < 1 || diaVenc > 31){
     notify('Dia de vencimento deve ser entre 1 e 31','error'); return;
   }
+  if(diasAntecedencia < 1 || diasAntecedencia > 30){
+    notify('Dias de antecedência deve ser entre 1 e 30','error'); return;
+  }
 
-  const diaFech = _calcDiaFechamento(diaVenc);
-  const obj = {nome, dia_fechamento: diaFech, dia_vencimento: diaVenc};
+  const diaFech = _calcDiaFechamento(diaVenc, diasAntecedencia);
+  const obj = {nome, dia_fechamento: diaFech, dia_vencimento: diaVenc, dias_antecedencia_fechamento: diasAntecedencia};
   let error;
   if(id){
     ({error} = await sb.from('cartoes_credito').update(obj).eq('id',id));
