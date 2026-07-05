@@ -126,9 +126,13 @@ function cpToggleCartao(){
   const forma = document.getElementById('mcp-forma')?.value;
   const wrap  = document.getElementById('mcp-cartao-wrap');
   const info  = document.getElementById('mcp-cartao-info');
+  const label = document.getElementById('mcp-vencimento-label');
   if(!wrap) return;
-  wrap.style.display = forma==='Cartão Crédito' ? '' : 'none';
-  if(forma!=='Cartão Crédito' && info) info.textContent = '';
+  const ehCartao = forma==='Cartão Crédito';
+  wrap.style.display = ehCartao ? '' : 'none';
+  if(label) label.textContent = ehCartao ? 'Data da compra' : 'Vencimento';
+  if(!ehCartao && info) info.textContent = '';
+  if(ehCartao) cpAtualizarInfoCartao();
 }
 
 function cpAtualizarInfoCartao(){
@@ -328,7 +332,7 @@ async function cpEditarConta(id){
   document.getElementById('mcp-desc').value = c.descricao||'';
   document.getElementById('mcp-cat').value = c.categoria||'Outros';
   document.getElementById('mcp-valor').value = c.valor;
-  document.getElementById('mcp-vencimento').value = c.vencimento;
+  document.getElementById('mcp-vencimento').value = c.forma_pgto==='Cartão Crédito' && c.data_compra ? c.data_compra : c.vencimento;
   document.getElementById('mcp-forma').value = c.forma_pgto||'';
   document.getElementById('mcp-cartao').value = c.qual_cartao_id||'';
   document.getElementById('mcp-vei').value = c.veiculo_id||'';
@@ -363,24 +367,30 @@ async function cpSalvarConta(){
   if(ehFatura && !fatPeriodo){ notify('Informe o período da fatura','error'); return; }
   if(ehFatura && !cartaoId){ notify('Selecione o cartão para esta fatura','error'); return; }
 
-  // Status automático: gastos no cartão entram como em_conciliacao
+  // Cartão de crédito (gasto comum, não fatura): o campo digitado é a
+  // DATA DA COMPRA. O vencimento real é calculado a partir do ciclo do
+  // cartão escolhido — nunca é o valor que o usuário digitou.
+  let vencimentoFinal = venc;
+  let dataCompra = null;
   let statusInicial = undefined; // não altera se já existia
-  if(!id && forma==='Cartão Crédito' && !ehFatura){
-    // Calcular vencimento correto baseado no ciclo do cartão
-    statusInicial = 'em_conciliacao';
-    if(cartaoId && typeof _cartoesLista !== 'undefined'){
+
+  if(forma==='Cartão Crédito' && !ehFatura && cartaoId){
+    if(typeof _cartoesLista !== 'undefined'){
       const cartao = _cartoesLista.find(c=>c.id===cartaoId);
-      if(cartao && venc){
+      if(cartao){
         const fat = cartaoCalcularFatura(cartao, venc);
-        // O vencimento do lançamento é o vencimento da fatura calculado
-        // (não a data da compra)
-        // Mantenha venc como data da compra para referência, mas o status entra em conciliação
+        if(fat){
+          dataCompra = venc;
+          vencimentoFinal = fat.vencimento;
+        }
       }
     }
+    if(!id) statusInicial = 'em_conciliacao';
   }
 
   const obj = {
-    descricao: desc, categoria: cat, valor, vencimento: venc,
+    descricao: desc, categoria: cat, valor, vencimento: vencimentoFinal,
+    data_compra: dataCompra,
     forma_pgto: forma, qual_cartao_id: cartaoId||null, veiculo_id: veiId||null,
     recorrente, recorrencia_tipo: recTipo, observacoes: obs,
     eh_fatura_cartao: ehFatura, fatura_periodo: fatPeriodo,
