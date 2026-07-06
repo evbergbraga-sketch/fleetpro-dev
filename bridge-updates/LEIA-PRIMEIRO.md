@@ -1,21 +1,55 @@
 # Aplicação das mudanças no Bridge Server — Passo a Passo
 
-## Ordem de aplicação
+## PASSO C — Script automatizado (recomendado, sem edição manual)
 
-1. **PASSO C** (arquivo `PASSO-C-instrucoes-webhook.txt`) — edite o
-   webhook existente para capturar o ID da mensagem recebida. É o único
-   passo que edita código já existente; siga com atenção.
+Em vez de editar o arquivo manualmente com `nano`, use o script
+`aplicar_passo_c.py`. Ele:
+- Faz backup automático antes de qualquer mudança
+- Aplica as 3 substituições necessárias com precisão exata
+- Valida a sintaxe com `node --check` logo em seguida
+- Se der qualquer erro, **restaura o backup automaticamente** — o
+  arquivo original nunca fica em estado quebrado
+- Se rodado duas vezes, detecta que já foi aplicado e para sem tocar
+  no arquivo
 
-2. **PASSO A e B** (arquivo `PASSO-A-B-codigo-para-colar.js`) — este
-   arquivo tem 3 blocos de código prontos para colar:
-   - Substitua o endpoint `/api/enviar-mensagem` já existente pelo do PASSO A
-   - Cole os dois endpoints novos do PASSO B logo abaixo dele
-     (`/api/enviar-midia` e `/api/deletar-mensagem`)
+### Como rodar
 
-   Localização exata no arquivo original: logo antes da seção
-   `// ══ PORTAL DO CLIENTE ══` (comentário já existente no arquivo).
+```bash
+# 1. Copie o arquivo aplicar_passo_c.py para o VPS, por exemplo colando
+#    o conteúdo direto com nano num arquivo novo:
+#    nano /root/aplicar_passo_c.py
+#    (cole o conteúdo do arquivo, salve e saia)
 
-## Depois de aplicar os 2 passos
+# 2. Rode o script apontando para o bridge:
+python3 /root/aplicar_passo_c.py /root/fleetpro-bridge/fleetpro-bridge-server.js
+```
+
+Saída esperada em caso de sucesso:
+```
+Backup salvo em: /root/fleetpro-bridge/fleetpro-bridge-server.js.bak_20260706_030452
+Arquivo modificado: /root/fleetpro-bridge/fleetpro-bridge-server.js
+
+✓ Sintaxe validada com sucesso (node --check).
+✓ As 3 substituições foram aplicadas corretamente.
+
+Próximo passo: docker service update --force fleetpro-bridge
+```
+
+Se aparecer `ERRO: não encontrei o trecho da SUBSTITUIÇÃO ...`, o
+arquivo não foi modificado — me avise a mensagem completa antes de
+tentar de novo.
+
+## PASSO A e B — Código para colar (arquivo `PASSO-A-B-codigo-para-colar.js`)
+
+Este arquivo tem 3 blocos de código prontos:
+- Substitua o endpoint `/api/enviar-mensagem` já existente pelo do PASSO A
+- Cole os dois endpoints novos do PASSO B logo abaixo dele
+  (`/api/enviar-midia` e `/api/deletar-mensagem`)
+
+Localização exata no arquivo original: logo antes da seção
+`// ══ PORTAL DO CLIENTE ══` (comentário já existente no arquivo).
+
+## Depois de aplicar os passos A, B e C
 
 ```bash
 # 1. Validar sintaxe ANTES de reiniciar (crítico — evita bridge quebrado)
@@ -56,3 +90,6 @@ frontend atualizado também.
   `docker service logs fleetpro-bridge --tail 100` e me cole o erro.
 - `node --check` acusa erro de sintaxe: me cole a mensagem de erro
   completa (ela aponta a linha exata) antes de tentar corrigir sozinho.
+- Precisa reverter tudo: os backups ficam salvos ao lado do arquivo
+  original, com sufixo `.bak_AAAAMMDD_HHMMSS`. Para restaurar:
+  `cp fleetpro-bridge-server.js.bak_XXXXXXXX_XXXXXX fleetpro-bridge-server.js`
