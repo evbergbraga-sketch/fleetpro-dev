@@ -2136,10 +2136,16 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
         if(!_cTel){ notify('Cliente sem telefone cadastrado','error'); return; }
         btnEl.disabled=true; btnEl.textContent='⏳ Enviando...';
         try{
-          await evoSendText(_cTel, msgWpp);
+          const result = await evoSendText(_cTel, msgWpp);
           btnEl.textContent='✅ Enviado!';
           btnEl.style.background='var(--green)';
           notify('Mensagem enviada no WhatsApp ✓','success');
+          if(result.salvo === false){
+            await fpAlert(
+              'A mensagem foi entregue ao cliente pelo WhatsApp, mas o sistema de registro (bridge) está fora do ar no momento — essa mensagem NÃO ficará salva no histórico do FleetPro.',
+              'Mensagem não foi salva no sistema'
+            );
+          }
         }catch(e){
           btnEl.disabled=false; btnEl.textContent='💬 Enviar no WhatsApp';
           notify('Erro no WhatsApp: '+e.message,'error');

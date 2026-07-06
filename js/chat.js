@@ -515,17 +515,21 @@ async function evoSendText(telefone, texto){
         nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
       })
     });
-    if(r.ok) return await r.json();
-  }catch(_){}
+    if(r.ok) return { ...(await r.json()), salvo: true };
+    console.warn('[evoSendText] bridge respondeu erro:', r.status, await r.text().catch(()=>''));
+  }catch(e){
+    console.warn('[evoSendText] bridge inacessível, caindo no fallback:', e.message);
+  }
 
-  // Fallback: envia direto pelo Evolution (sem salvar no banco)
+  // Fallback: envia direto pelo Evolution (NÃO salva no banco — a
+  // mensagem chega ao cliente, mas não fica registrada no FleetPro)
   const r = await fetch(cfg.apiUrl+'/message/sendText/'+cfg.instancia,{
     method:'POST',
     headers:{'apikey':cfg.apiKey,'Content-Type':'application/json'},
     body:JSON.stringify({number:num, text:texto, delay:500})
   });
   if(!r.ok){ const t=await r.text(); throw new Error(t); }
-  return await r.json();
+  return { ...(await r.json()), salvo: false };
 }
 
 // ── SEPARADORES DE DATA ──
@@ -1542,7 +1546,13 @@ async function sendMsg(){
   _registrarMsgEnviada(textoFinal);
   inp.value = '';
   try{
-    await evoSendText(telefone, textoFinal);
+    const result = await evoSendText(telefone, textoFinal);
+    if(result.salvo === false){
+      await fpAlert(
+        'A mensagem foi entregue ao cliente pelo WhatsApp, mas o sistema de registro (bridge) está fora do ar no momento — ela NÃO ficará salva no histórico do FleetPro e outros atendentes não vão vê-la.',
+        'Mensagem não foi salva no sistema'
+      );
+    }
   }catch(e){
     notify('Erro ao enviar: '+e.message,'error');
   }
@@ -1817,10 +1827,16 @@ async function enviarContratoWpp(){
   }
   texto += `\n_FleetPro Locadora 🚗🏍️_`;
   try{
-    await evoSendText(c.telefone, texto);
+    const result = await evoSendText(c.telefone, texto);
     // bridge salva no banco — não duplicar aqui
     adicionarMsgLocal(activeChatId, texto, 'text', null);
     notify('Contrato enviado ✓','success');
+    if(result.salvo === false){
+      await fpAlert(
+        'O contrato foi entregue ao cliente pelo WhatsApp, mas o sistema de registro (bridge) está fora do ar no momento — essa mensagem NÃO ficará salva no histórico do FleetPro.',
+        'Mensagem não foi salva no sistema'
+      );
+    }
   }catch(e){
     notify('Erro: '+e.message,'error');
   }
@@ -1989,9 +2005,15 @@ async function crSalvarReserva(notificar=false){
 ` +
           `_Locadora Royal — aguardamos você!_ 🏍️🚗`;
         try{
-          await evoSendText(telefone, msg);
+          const result = await evoSendText(telefone, msg);
           // bridge salva no banco — não duplicar aqui
           notify('Reserva criada e cliente notificado no WhatsApp! ✅','success');
+          if(result.salvo === false){
+            await fpAlert(
+              'A notificação foi entregue ao cliente pelo WhatsApp, mas o sistema de registro (bridge) está fora do ar no momento — essa mensagem NÃO ficará salva no histórico do FleetPro.',
+              'Mensagem não foi salva no sistema'
+            );
+          }
         }catch(_){
           notify('Reserva criada! Falha ao enviar WhatsApp.','error');
         }

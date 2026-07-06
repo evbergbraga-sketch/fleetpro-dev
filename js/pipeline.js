@@ -930,11 +930,12 @@ async function _fuMassaEnviar(){
 
   btn.disabled=true; btn.textContent='⏳ Enviando...';
 
-  let ok=0, err=0;
+  let ok=0, err=0, naoSalvas=0;
   for(const c of leads){
     const texto = msg.replace(/\{nome\}/gi, c.nome?.split(' ')[0]||c.nome||'');
     try{
-      await evoSendText(c.telefone, texto);
+      const result = await evoSendText(c.telefone, texto);
+      if(result.salvo === false) naoSalvas++;
       ok++;
     }catch(e){
       err++;
@@ -945,5 +946,11 @@ async function _fuMassaEnviar(){
 
   btn.disabled=false; btn.textContent='📨 Enviar follow-up';
   notify(`✅ ${ok} mensagem${ok!==1?'s':''} enviada${ok!==1?'s':''}${err>0?` · ⚠️ ${err} falha${err!==1?'s':''}`:''}.`,'success');
+  if(naoSalvas > 0){
+    await fpAlert(
+      `${naoSalvas} de ${ok} mensagens foram entregues pelo WhatsApp, mas o sistema de registro (bridge) esteve fora do ar durante o envio — essas mensagens NÃO ficarão salvas no histórico do FleetPro.`,
+      'Mensagens não foram salvas no sistema'
+    );
+  }
   closeModal('followup-massa');
 }
