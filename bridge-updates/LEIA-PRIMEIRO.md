@@ -1,55 +1,63 @@
 # Aplicação das mudanças no Bridge Server — Passo a Passo
 
-## PASSO C — Script automatizado (recomendado, sem edição manual)
+Duas mudanças, dois scripts. Ambos seguem o mesmo padrão de segurança:
+backup automático antes de escrever, validação de sintaxe com
+`node --check` logo depois, e restauração automática do backup se
+qualquer coisa der errado.
 
-Em vez de editar o arquivo manualmente com `nano`, use o script
-`aplicar_passo_c.py`. Ele:
-- Faz backup automático antes de qualquer mudança
-- Aplica as 3 substituições necessárias com precisão exata
-- Valida a sintaxe com `node --check` logo em seguida
-- Se der qualquer erro, **restaura o backup automaticamente** — o
-  arquivo original nunca fica em estado quebrado
-- Se rodado duas vezes, detecta que já foi aplicado e para sem tocar
-  no arquivo
+## PASSO C — `aplicar_passo_c.py` (já aplicado ✓)
+
+Captura o `wpp_message_id` das mensagens recebidas via webhook —
+necessário para poder responder/apagar mensagens recebidas no futuro.
+
+```bash
+python3 /root/aplicar_passo_c.py /root/fleetpro-bridge/fleetpro-bridge-server.js
+```
+
+## PASSO A/B — `aplicar_passo_ab.py`
+
+- Substitui o endpoint `/api/enviar-mensagem` (adiciona suporte a
+  responder mensagem específica via `quotedMsgId`)
+- Adiciona `/api/enviar-midia` (envia áudio/imagem/documento pela
+  Evolution API e salva no banco — corrige o bug do áudio, que hoje
+  nunca persiste e usa uma blob URL local que expira)
+- Adiciona `/api/deletar-mensagem` (apaga a mensagem no WhatsApp para
+  todos + marca como apagada no banco)
 
 ### Como rodar
 
-```bash
-# 1. Copie o arquivo aplicar_passo_c.py para o VPS, por exemplo colando
-#    o conteúdo direto com nano num arquivo novo:
-#    nano /root/aplicar_passo_c.py
-#    (cole o conteúdo do arquivo, salve e saia)
+Copie o conteúdo de `aplicar_passo_ab.py` para o VPS (mesmo processo
+do script anterior: `nano /root/aplicar_passo_ab.py`, cola, salva) e
+rode:
 
-# 2. Rode o script apontando para o bridge:
-python3 /root/aplicar_passo_c.py /root/fleetpro-bridge/fleetpro-bridge-server.js
+```bash
+python3 /root/aplicar_passo_ab.py /root/fleetpro-bridge/fleetpro-bridge-server.js
 ```
 
 Saída esperada em caso de sucesso:
 ```
-Backup salvo em: /root/fleetpro-bridge/fleetpro-bridge-server.js.bak_20260706_030452
+Backup salvo em: /root/fleetpro-bridge/fleetpro-bridge-server.js.bak_20260706_031439
 Arquivo modificado: /root/fleetpro-bridge/fleetpro-bridge-server.js
 
 ✓ Sintaxe validada com sucesso (node --check).
-✓ As 3 substituições foram aplicadas corretamente.
+✓ Endpoint /api/enviar-mensagem atualizado (suporte a resposta/quoted).
+✓ Endpoint /api/enviar-midia adicionado.
+✓ Endpoint /api/deletar-mensagem adicionado.
 
 Próximo passo: docker service update --force fleetpro-bridge
 ```
 
-Se aparecer `ERRO: não encontrei o trecho da SUBSTITUIÇÃO ...`, o
-arquivo não foi modificado — me avise a mensagem completa antes de
-tentar de novo.
+Testado localmente antes de entregar: reconstruí um cenário completo
+do bridge (com o endpoint `/api/enviar-mensagem` original + a seção
+`PORTAL DO CLIENTE` que vem depois dele no arquivo real) e confirmei
+que:
+- As 3 mudanças são aplicadas corretamente, sem sobrar nem faltar nada
+- A seção `PORTAL DO CLIENTE` (e qualquer coisa depois dela) permanece
+  100% intacta
+- Rodar o script duas vezes é seguro — na segunda vez ele detecta que
+  o endpoint original não existe mais e para sem tocar no arquivo
 
-## PASSO A e B — Código para colar (arquivo `PASSO-A-B-codigo-para-colar.js`)
-
-Este arquivo tem 3 blocos de código prontos:
-- Substitua o endpoint `/api/enviar-mensagem` já existente pelo do PASSO A
-- Cole os dois endpoints novos do PASSO B logo abaixo dele
-  (`/api/enviar-midia` e `/api/deletar-mensagem`)
-
-Localização exata no arquivo original: logo antes da seção
-`// ══ PORTAL DO CLIENTE ══` (comentário já existente no arquivo).
-
-## Depois de aplicar os passos A, B e C
+## Depois de aplicar os dois passos
 
 ```bash
 # 1. Validar sintaxe ANTES de reiniciar (crítico — evita bridge quebrado)
@@ -64,14 +72,14 @@ docker service update --force fleetpro-bridge
 docker service logs fleetpro-bridge --tail 30
 ```
 
-## Testes de verificação (rode um por vez)
+## Testes de verificação
 
 ```bash
-# Teste 1 — health check simples (confirma que o serviço está no ar)
+# Teste 1 — health check simples
 docker exec $(docker ps -q -f name=fleetpro-bridge) wget -qO- http://localhost:3001/health
 
-# Teste 2 — enviar uma mensagem de texto simples (endpoint já existia,
-# só confirma que a mudança do PASSO A não quebrou nada)
+# Teste 2 — enviar mensagem de texto simples (confirma que a mudança
+# do endpoint /api/enviar-mensagem não quebrou o fluxo já existente)
 docker exec $(docker ps -q -f name=fleetpro-bridge) wget -qO- \
   --header="x-secret: FleetPro2025" \
   --header="Content-Type: application/json" \
@@ -79,10 +87,10 @@ docker exec $(docker ps -q -f name=fleetpro-bridge) wget -qO- \
   http://localhost:3001/api/enviar-mensagem
 ```
 
-Depois desses 2 testes básicos passarem, me avise — vou te dar o passo
-de teste do áudio (Teste 3) e do deletar (Teste 4), que dependem de um
-áudio real gravado no FleetPro, então prefiro validar isso já com o
-frontend atualizado também.
+Depois desses 2 testes passarem, me avise — sigo com o frontend
+(botão de responder, botão de apagar, correção do envio de áudio) que
+vai consumir esses novos endpoints. Os testes de áudio e deletar são
+mais fáceis de validar já com a UI pronta.
 
 ## Se algo der errado
 
