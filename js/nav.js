@@ -145,6 +145,7 @@ async function carregarTudo(){
     loadReservas(),
     loadLocacoesCompletas(),
   ];
+  if(typeof _plCarregarStatus==='function') promises.push(_plCarregarStatus());
   if(currentPerfil?.perfil==='admin' || currentPerfil?.perfil==='atendente') promises.push(loadContasPagar(), loadCategoriasFinanceiras());
   await Promise.all(promises);
   expirarReservas();

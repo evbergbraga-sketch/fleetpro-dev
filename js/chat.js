@@ -2065,6 +2065,16 @@ function _chatAcaoContrato(){
           if(typeof _preencherCamposClienteContrato==='function') _preencherCamposClienteContrato();
           if(typeof previewContrato==='function') previewContrato();
         }
+        // Se o cliente tiver uma reserva ativa, vincula como origem — assim,
+        // ao salvar o contrato, a reserva é marcada como 'convertida'
+        // automaticamente (mesmo comportamento do botão dedicado em Reservas)
+        const reservaAtiva = (typeof allReservas!=='undefined' ? allReservas : [])
+          .find(r=>r.cliente_id===c.id && r.status==='ativa');
+        if(reservaAtiva){
+          window._reservaOrigemId  = reservaAtiva.id;
+          window._reservaValorPago = reservaAtiva.valor_pago||0;
+          window._reservaVeiculoId = reservaAtiva.veiculo_id;
+        }
       }, 400);
     }
   }, 400);
