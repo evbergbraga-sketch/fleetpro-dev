@@ -521,15 +521,29 @@ async function evoSendText(telefone, texto){
     console.warn('[evoSendText] bridge inacessível, caindo no fallback:', e.message);
   }
 
-  // Fallback: envia direto pelo Evolution (NÃO salva no banco — a
-  // mensagem chega ao cliente, mas não fica registrada no FleetPro)
+  // Fallback: envia direto pelo Evolution, e salva no banco diretamente
+  // por aqui (a política RLS de wpp_mensagens já permite INSERT público —
+  // não precisamos da chave service_role do bridge para persistir).
   const r = await fetch(cfg.apiUrl+'/message/sendText/'+cfg.instancia,{
     method:'POST',
     headers:{'apikey':cfg.apiKey,'Content-Type':'application/json'},
     body:JSON.stringify({number:num, text:texto, delay:500})
   });
   if(!r.ok){ const t=await r.text(); throw new Error(t); }
-  return { ...(await r.json()), salvo: false };
+  const evoResult = await r.json();
+
+  const cIdParaSalvar = activeChatId && activeChatId.includes('-') ? activeChatId : null;
+  const { error: erroSalvar } = await sb.from('wpp_mensagens').insert({
+    cliente_id: cIdParaSalvar,
+    numero:     num,
+    texto,
+    tipo:       'text',
+    direcao:    'saida',
+    media_url:  null,
+    created_at: new Date().toISOString()
+  });
+  if(erroSalvar) console.warn('[evoSendText] fallback: falha ao salvar direto no banco:', erroSalvar.message);
+  return { ...evoResult, salvo: !erroSalvar };
 }
 
 // ── SEPARADORES DE DATA ──
