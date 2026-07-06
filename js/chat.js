@@ -1741,7 +1741,7 @@ async function iniciarGravacao(e){
       _recMostrarBarra(false);
       if(audioChunks.length===0){ resetMicBtn(); return; }
       const blob = new Blob(audioChunks,{type:'audio/ogg;codecs=opus'});
-      if(blob.size < 500){ notify('Áudio muito curto — segure mais tempo','error'); resetMicBtn(); return; }
+      if(blob.size < 500){ notify('Áudio muito curto — grave por mais tempo antes de enviar','error'); resetMicBtn(); return; }
       _mediaFile = new File([blob],'audio_'+Date.now()+'.ogg',{type:'audio/ogg'});
       _mediaType = 'audio';
       if(_mediaPreviewUrl) URL.revokeObjectURL(_mediaPreviewUrl);
