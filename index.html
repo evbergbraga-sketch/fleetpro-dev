@@ -3089,45 +3089,12 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/reservas.js"></script>
 <script src="js/locacoes.js"></script>
 <script src="js/chat.js"></script>
+<script src="js/respostas-rapidas.js"></script>
 <script src="js/investidores.js"></script>
 <script src="js/boot.js"></script>
 
 <script>
-(function(){
-  const RQ_KEY = 'fp_rq';
-  const DEF = ['Olá! Como posso ajudar? 😊','Carros a partir de R$ 120/dia. Motos a partir de R$ 60/dia.','Preciso de CNH, CPF e comprovante de residência.','Posso gerar o contrato agora! Quando retira o veículo?','Devolução das 8h às 19h.','Veículo entregue! Obrigado pela preferência 🚗✅'];
-  function getRQ(){ try{ return JSON.parse(localStorage.getItem(RQ_KEY))||DEF; }catch(_){ return DEF; } }
-  function saveRQ(lista){ localStorage.setItem(RQ_KEY, JSON.stringify(lista)); }
-  window.renderRQ = function(){
-    const el = document.getElementById('chat-respostas-rapidas'); if(!el) return;
-    el.innerHTML = getRQ().map(r=>`<div class="qr" onclick="setMsg(this.dataset.t)" data-t="${r.replace(/"/g,'&quot;')}">${r}</div>`).join('');
-  };
-  window.gerenciarRespostas = function(){
-    const lista = getRQ();
-    const el = document.getElementById('rq-lista'); if(!el) return;
-    el.innerHTML = lista.map((r,i)=>`
-      <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border2)">
-        <div style="flex:1;font-size:13px;cursor:pointer" onclick="editarRQ(${i})" title="Clique para editar">${r}</div>
-        <button onclick="excluirRQ(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 6px;flex-shrink:0">✕</button>
-      </div>`).join('');
-    document.getElementById('m-respostas-rapidas').classList.add('show');
-  };
-  window.editarRQ = function(idx){
-    const lista = getRQ();
-    const nova = prompt('Editar resposta:', lista[idx]);
-    if(nova === null || !nova.trim()) return;
-    lista[idx] = nova.trim(); saveRQ(lista); renderRQ(); gerenciarRespostas();
-  };
-  window.excluirRQ = function(idx){
-    const lista = getRQ(); lista.splice(idx, 1); saveRQ(lista); renderRQ(); gerenciarRespostas();
-  };
-  window.adicionarRQ = function(){
-    const inp = document.getElementById('rq-nova');
-    const txt = inp?.value.trim(); if(!txt) return;
-    const lista = getRQ(); lista.push(txt); saveRQ(lista); inp.value = ''; renderRQ(); gerenciarRespostas();
-  };
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(window.renderRQ, 800));
-})();
 </script>
 
 
