@@ -1567,7 +1567,6 @@ async function _enviarMidiaWpp(c){
   const fileName = _mediaFile.name;
   const tipo     = _mediaType;
   const fileRef  = _mediaFile;
-  const localUrl = _mediaPreviewUrl;
   notify('Enviando...','success');
   try{
     let base64 = '';
@@ -1577,39 +1576,33 @@ async function _enviarMidiaWpp(c){
       base64 = await _lerBase64(fileRef);
     }
     const num = fmtPhone(telefone);
-    let endpoint = '', body = {};
-    if(tipo==='image'){
-      endpoint = 'sendMedia';
-      body = {number:num, mediatype:'image', media:base64, caption:''};
-    } else if(tipo==='audio'){
-      endpoint = 'sendWhatsAppAudio';
-      body = {number:num, audio:base64, encoding:true};
-    } else {
-      endpoint = 'sendMedia';
-      body = {number:num, mediatype:'document', media:base64, fileName, caption:''};
-    }
-    const r = await fetch(cfg.apiUrl+'/message/'+endpoint+'/'+cfg.instancia,{
+
+    // Envia pelo bridge — salva no banco e no Storage automaticamente
+    // (endpoint /api/enviar-midia, mesmo padrão de evoSendText)
+    const bridgeUrl = cfg.bridgeUrl || cfg.apiUrl.replace('evo.','bridge.');
+    const r = await fetch(bridgeUrl+'/api/enviar-midia', {
       method:'POST',
-      headers:{'apikey':cfg.apiKey,'Content-Type':'application/json'},
-      body: JSON.stringify(body)
+      headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+      body: JSON.stringify({
+        numero: num,
+        tipo,
+        base64,
+        fileName: fileName||null,
+        clienteId: activeChatId||null,
+        nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
+      })
     });
     if(!r.ok){
       const t = await r.text();
       let msg = t;
-      try{ msg = JSON.parse(t)?.message||t; }catch(_){}
+      try{ msg = JSON.parse(t)?.error||t; }catch(_){}
       throw new Error(msg);
     }
-    let storageUrl = null;
-    try{
-      const ext = fileRef.name.split('.').pop();
-      const nomeSeguro = fileRef.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `chat/${Date.now()}_${nomeSeguro}`;
-      const { data: upData, error: upErr } = await sb.storage.from('wpp-media').upload(path, fileRef);
-      if(!upErr && upData){
-        storageUrl = `https://jjeogfafgbexgxqhubha.supabase.co/storage/v1/object/wpp-media/${path}`;
-      }
-    }catch(_){}
-    adicionarMsgLocal(activeChatId, fileName||'Arquivo', tipo, localUrl);
+    const result = await r.json();
+
+    // Renderiza localmente com a URL real do Storage (não a blob local,
+    // que expira ao recarregar a página)
+    adicionarMsgLocal(activeChatId, fileName||(tipo==='audio'?'Áudio':tipo==='image'?'Imagem':'Arquivo'), tipo, result.mediaUrl||null);
     cancelarMidia();
     notify('Arquivo enviado ✓','success');
   }catch(err){
