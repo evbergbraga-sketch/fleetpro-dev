@@ -1075,29 +1075,48 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <span id="media-preview-txt" style="flex:1"></span>
                 <button onclick="cancelarMidia()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px">✕</button>
               </div>
-              <!-- Ferramentas à esquerda -->
-              <div style="display:flex;gap:2px;align-items:center">
-                <button class="chat-tool-btn" title="Enviar contrato" onclick="enviarContratoWpp()">📄</button>
-                <label class="chat-tool-btn" title="Enviar imagem">
-                  📷<input type="file" accept="image/*" style="display:none" onchange="enviarArquivo(this,'image')">
-                </label>
-                <label class="chat-tool-btn" title="Enviar documento">
-                  📎<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="enviarArquivo(this,'document')">
-                </label>
+
+              <!-- BARRA DE GRAVAÇÃO — estilo WhatsApp, substitui a área normal durante a gravação -->
+              <div id="recording-bar" style="display:none;flex:1;align-items:center;gap:10px;background:#2a3942;border-radius:24px;padding:6px 8px 6px 14px;height:42px">
+                <button onclick="pararGravacaoSemEnviar()" title="Cancelar gravação" style="background:none;border:none;cursor:pointer;color:#ef4444;padding:4px;display:flex;align-items:center;flex-shrink:0">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                </button>
+                <div style="width:9px;height:9px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:recPulse 1.2s ease-in-out infinite"></div>
+                <span id="rec-timer" style="color:#e9edef;font-size:14px;font-variant-numeric:tabular-nums;flex-shrink:0;min-width:36px">0:00</span>
+                <canvas id="rec-waveform" width="300" height="32" style="flex:1;height:32px"></canvas>
+                <button onclick="pararGravacao()" title="Enviar áudio" style="background:#00a884;border:none;cursor:pointer;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
               </div>
-              <!-- Campo de texto -->
-              <div class="chat-input-wrap">
-                <label class="chat-tool-btn" title="Enviar áudio" style="padding:4px">
-                  🎵<input type="file" accept="audio/*" style="display:none" onchange="enviarArquivo(this,'audio')">
-                </label>
-                <input class="chat-input" id="chat-msg-input" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
-                <button id="btn-mic" class="chat-tool-btn" onmousedown="iniciarGravacao(event)" onmouseup="pararGravacao()" onmouseleave="pararGravacaoSemEnviar()" ontouchstart="iniciarGravacao(event)" ontouchend="pararGravacao()" title="Segurar para gravar" style="padding:4px">🎙️</button>
+
+              <!-- ÁREA NORMAL DE DIGITAÇÃO — escondida durante a gravação -->
+              <div id="chat-input-normal" style="display:flex;flex:1;gap:8px;align-items:flex-end">
+                <!-- Ferramentas à esquerda -->
+                <div style="display:flex;gap:2px;align-items:center">
+                  <button class="chat-tool-btn" title="Enviar contrato" onclick="enviarContratoWpp()">📄</button>
+                  <label class="chat-tool-btn" title="Enviar imagem">
+                    📷<input type="file" accept="image/*" style="display:none" onchange="enviarArquivo(this,'image')">
+                  </label>
+                  <label class="chat-tool-btn" title="Enviar documento">
+                    📎<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" style="display:none" onchange="enviarArquivo(this,'document')">
+                  </label>
+                </div>
+                <!-- Campo de texto -->
+                <div class="chat-input-wrap">
+                  <label class="chat-tool-btn" title="Enviar áudio" style="padding:4px">
+                    🎵<input type="file" accept="audio/*" style="display:none" onchange="enviarArquivo(this,'audio')">
+                  </label>
+                  <input class="chat-input" id="chat-msg-input" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
+                  <button id="btn-mic" class="chat-tool-btn" onmousedown="iniciarGravacao(event)" onmouseup="pararGravacao()" onmouseleave="pararGravacaoSemEnviar()" ontouchstart="iniciarGravacao(event)" ontouchend="pararGravacao()" title="Segurar para gravar" style="padding:4px">🎙️</button>
+                </div>
               </div>
+
               <!-- Botão enviar -->
-              <button class="chat-btn-send" onclick="sendMsg()" title="Enviar">
+              <button class="chat-btn-send" id="btn-enviar-normal" onclick="sendMsg()" title="Enviar">
                 <svg viewBox="0 0 24 24"><path d="M1.101 21.757 23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"/></svg>
               </button>
             </div>
+            <style>@keyframes recPulse{0%,100%{opacity:1}50%{opacity:.3}}</style>
           </div>
           <div class="chat-side scrollbar-thin">
 

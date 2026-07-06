@@ -1648,10 +1648,87 @@ function _comprimirImagem(file, maxWidth=800){
 // ── GRAVAÇÃO DE ÁUDIO ──
 let mediaRecorder = null, audioChunks = [], _streamAtivo = null;
 
+// ── BARRA DE GRAVAÇÃO (cronômetro + forma de onda, estilo WhatsApp) ──
+let _recTimerInterval = null, _recStartTime = null;
+let _recAudioCtx = null, _recAnalyser = null, _recAnimFrame = null;
+
+function _recMostrarBarra(mostrar){
+  const barra  = document.getElementById('recording-bar');
+  const normal = document.getElementById('chat-input-normal');
+  const btnEnv = document.getElementById('btn-enviar-normal');
+  if(barra)  barra.style.display  = mostrar ? 'flex' : 'none';
+  if(normal) normal.style.display = mostrar ? 'none' : 'flex';
+  if(btnEnv) btnEnv.style.display = mostrar ? 'none' : 'flex';
+}
+
+function _recIniciarCronometro(){
+  _recStartTime = Date.now();
+  const el = document.getElementById('rec-timer');
+  _recTimerInterval = setInterval(()=>{
+    const seg = Math.floor((Date.now()-_recStartTime)/1000);
+    const m = Math.floor(seg/60);
+    const s = seg%60;
+    if(el) el.textContent = `${m}:${String(s).padStart(2,'0')}`;
+  }, 200);
+}
+
+function _recPararCronometro(){
+  if(_recTimerInterval){ clearInterval(_recTimerInterval); _recTimerInterval = null; }
+  const el = document.getElementById('rec-timer');
+  if(el) el.textContent = '0:00';
+}
+
+// Desenha a forma de onda em tempo real a partir do volume captado do microfone
+function _recIniciarWaveform(stream){
+  const canvas = document.getElementById('rec-waveform');
+  if(!canvas) return;
+  const ctx2d = canvas.getContext('2d');
+
+  _recAudioCtx  = new (window.AudioContext||window.webkitAudioContext)();
+  const source  = _recAudioCtx.createMediaStreamSource(stream);
+  _recAnalyser  = _recAudioCtx.createAnalyser();
+  _recAnalyser.fftSize = 64;
+  source.connect(_recAnalyser);
+
+  const bufferLen = _recAnalyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLen);
+  const historico = new Array(40).fill(4); // barras já desenhadas, estilo "trilha" do WhatsApp
+
+  function desenhar(){
+    _recAnimFrame = requestAnimationFrame(desenhar);
+    _recAnalyser.getByteFrequencyData(dataArray);
+    const media = dataArray.reduce((a,b)=>a+b,0) / bufferLen;
+    const altura = Math.max(4, Math.min(28, (media/255)*32));
+
+    historico.push(altura);
+    historico.shift();
+
+    const w = canvas.width, h = canvas.height;
+    ctx2d.clearRect(0,0,w,h);
+    ctx2d.fillStyle = '#00a884';
+    const barW = 3, gap = 3;
+    const totalBarras = Math.floor(w/(barW+gap));
+    const visiveis = historico.slice(-totalBarras);
+    visiveis.forEach((barH,i)=>{
+      const x = i*(barW+gap);
+      const y = (h-barH)/2;
+      ctx2d.fillRect(x, y, barW, barH);
+    });
+  }
+  desenhar();
+}
+
+function _recPararWaveform(){
+  if(_recAnimFrame){ cancelAnimationFrame(_recAnimFrame); _recAnimFrame = null; }
+  if(_recAudioCtx){ _recAudioCtx.close().catch(()=>{}); _recAudioCtx = null; }
+  _recAnalyser = null;
+  const canvas = document.getElementById('rec-waveform');
+  if(canvas) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+}
+
 async function iniciarGravacao(e){
   if(e) e.preventDefault();
   if(mediaRecorder && mediaRecorder.state==='recording') return;
-  const btn = document.getElementById('btn-mic');
   try{
     _streamAtivo = await navigator.mediaDevices.getUserMedia({audio:true});
     audioChunks = [];
@@ -1659,6 +1736,9 @@ async function iniciarGravacao(e){
     mediaRecorder.ondataavailable = ev=>{ if(ev.data.size>0) audioChunks.push(ev.data); };
     mediaRecorder.onstop = ()=>{
       if(_streamAtivo){ _streamAtivo.getTracks().forEach(t=>t.stop()); _streamAtivo=null; }
+      _recPararCronometro();
+      _recPararWaveform();
+      _recMostrarBarra(false);
       if(audioChunks.length===0){ resetMicBtn(); return; }
       const blob = new Blob(audioChunks,{type:'audio/ogg;codecs=opus'});
       if(blob.size < 500){ notify('Áudio muito curto — segure mais tempo','error'); resetMicBtn(); return; }
@@ -1671,8 +1751,9 @@ async function iniciarGravacao(e){
       _enviarMidiaWpp(c);
     };
     mediaRecorder.start();
-    if(btn){ btn.textContent='🔴'; btn.style.background='rgba(239,68,68,.2)'; btn.style.borderColor='var(--red)'; btn.style.color='var(--red)'; }
-    notify('Gravando... Solte para enviar 🎙️','success');
+    _recMostrarBarra(true);
+    _recIniciarCronometro();
+    _recIniciarWaveform(_streamAtivo);
   }catch(err){
     notify('Erro no microfone: '+err.message,'error');
     resetMicBtn();
@@ -1688,6 +1769,9 @@ function pararGravacaoSemEnviar(){
     audioChunks = [];
     mediaRecorder.stop();
   }
+  _recPararCronometro();
+  _recPararWaveform();
+  _recMostrarBarra(false);
   resetMicBtn();
 }
 
