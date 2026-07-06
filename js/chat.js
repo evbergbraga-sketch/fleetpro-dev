@@ -250,6 +250,16 @@ function _registrarMsgEnviada(texto){
   setTimeout(()=>_msgEnviadasRecentes.delete(key), 15000); // limpa após 15s
 }
 
+// Mesma proteção contra eco do SSE, mas por ID — usada para mídia
+// (áudio/imagem/documento), onde o texto é sempre genérico ("Áudio",
+// "Imagem") e não serve como chave única de deduplicação.
+const _msgEnviadasPorId = new Set();
+
+function _registrarMsgEnviadaPorId(id){
+  _msgEnviadasPorId.add(id);
+  setTimeout(()=>_msgEnviadasPorId.delete(id), 15000);
+}
+
 // Trunca created_at ao minuto (evita diff de milissegundos entre SSE e banco)
 function _msgKey(m){
   const ts = (m.created_at||'').slice(0,16); // YYYY-MM-DDTHH:MM
@@ -270,8 +280,11 @@ function receberMsgSSE(msg){
     || msg.fromMe===true || msg.fromMe==='true'
     || msg.from_me===true || msg.from_me==='true';
 
-  // Se é mensagem do atendente (não SARA) e está no set de recentes, é eco do bridge — ignora
+  // Se é mensagem do atendente (não SARA) e está no set de recentes, é eco do bridge — ignora.
+  // Checa primeiro por ID (mais confiável, cobre mídia com texto genérico),
+  // depois por texto (compatibilidade com mensagens de texto simples).
   if(isAtendente && !isSara){
+    if(msg.id && _msgEnviadasPorId.has(msg.id)) return;
     const textoEco = (msg.texto||'').trim().slice(0,100);
     if(_msgEnviadasRecentes.has(textoEco)) return; // eco do próprio envio via bridge
   }
@@ -308,7 +321,9 @@ function receberMsgSSE(msg){
       // Se chegou via SSE com created_at idêntico, também ignora.
       const textoSSE = (msgObj.texto||'').trim().slice(0,100);
       const isSaida  = msgObj.direcao==='saida' || msgObj.out===true || msgObj.fromMe===true || msgObj.atendente===true;
-      const ehEco    = isSaida && _msgEnviadasRecentes.has(textoSSE);
+      const ehEcoPorId   = isSaida && msg.id && _msgEnviadasPorId.has(msg.id);
+      const ehEcoPorTexto = isSaida && _msgEnviadasRecentes.has(textoSSE);
+      const ehEco    = ehEcoPorId || ehEcoPorTexto;
       const jaTemBalao = ehEco || !!area.querySelector(`[data-created-at="${msgObj.created_at}"]`);
       if(!jaTemBalao){
         area.insertAdjacentHTML('beforeend', renderMsgItem(msgObj));
@@ -1599,6 +1614,12 @@ async function _enviarMidiaWpp(c){
       throw new Error(msg);
     }
     const result = await r.json();
+
+    // Registra o ID desta mensagem como "recém enviada" — o broadcast SSE
+    // do bridge vai chegar com esse mesmo id, e o eco deve ser ignorado
+    // (evita duplicar o balão na tela; ao recarregar a página, o banco
+    // já mostra 1 única mensagem — o problema era só de renderização local)
+    if(result.id) _registrarMsgEnviadaPorId(result.id);
 
     // Renderiza localmente com a URL real do Storage (não a blob local,
     // que expira ao recarregar a página)
