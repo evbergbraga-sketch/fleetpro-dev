@@ -84,14 +84,47 @@ function cartaoCalcularFatura(cartao, dataCompraStr) {
 
   const periodo = `${anoRef}-${String(mesRef+1).padStart(2,'0')}`;
 
-  let mesVenc = mesRef + 1;
-  let anoVenc = anoRef;
-  if(mesVenc > 11){ mesVenc = 0; anoVenc++; }
+  // O vencimento depende de onde o fechamento cai em relação ao vencimento:
+  // - fechMesAnterior=true: fechamento é no mês ANTERIOR ao vencimento
+  //   (ex: fecha dia 27, vence dia 7) → vencimento é no mês seguinte a mesRef
+  // - fechMesAnterior=false: fechamento é no MESMO mês do vencimento
+  //   (ex: fecha dia 3, vence dia 10) → vencimento é no mesmo mês de mesRef
+  let mesVenc, anoVenc;
+  if(fechMesAnterior){
+    mesVenc = mesRef + 1;
+    anoVenc = anoRef;
+    if(mesVenc > 11){ mesVenc = 0; anoVenc++; }
+  } else {
+    mesVenc = mesRef;
+    anoVenc = anoRef;
+  }
   const diasNoMes = new Date(anoVenc, mesVenc+1, 0).getDate();
   const diaVencAdj = Math.min(cartao.dia_vencimento, diasNoMes);
   const vencimento = `${anoVenc}-${String(mesVenc+1).padStart(2,'0')}-${String(diaVencAdj).padStart(2,'0')}`;
 
   return { periodo, vencimento };
+}
+
+// ══ VENCIMENTO DA FATURA A PARTIR DO PERÍODO (usado ao cadastrar a fatura direto,
+// sem passar por uma data de compra — ex: categoria 'Fatura Cartão') ══
+// Mesma regra de cartaoCalcularFatura: se o fechamento é no mês anterior ao
+// vencimento, o vencimento cai no mês seguinte ao período; se o fechamento é
+// no mesmo mês do vencimento, o vencimento fica no mesmo mês do período.
+function cartaoVencimentoDoPeriodo(cartao, periodoStr){
+  const [anoRef, mesRef1] = periodoStr.split('-').map(Number);
+  const mesRef = mesRef1 - 1; // 0-based, mesma convenção de cartaoCalcularFatura
+  const fechMesAnterior = _fechamentoMesAnterior(cartao.dia_vencimento, cartao.dias_antecedencia_fechamento);
+
+  let mesVenc, anoVenc;
+  if(fechMesAnterior){
+    mesVenc = mesRef + 1; anoVenc = anoRef;
+    if(mesVenc > 11){ mesVenc = 0; anoVenc++; }
+  } else {
+    mesVenc = mesRef; anoVenc = anoRef;
+  }
+  const diasNoMes = new Date(anoVenc, mesVenc+1, 0).getDate();
+  const diaVencAdj = Math.min(cartao.dia_vencimento, diasNoMes);
+  return `${anoVenc}-${String(mesVenc+1).padStart(2,'0')}-${String(diaVencAdj).padStart(2,'0')}`;
 }
 
 // ══ BUSCAR GASTOS PARA CONCILIAÇÃO ══
@@ -100,34 +133,17 @@ async function cartaoBuscarGastos(cartaoId, periodo){
   const cartao = _cartoesLista.find(c=>c.id===cartaoId);
   if(!cartao) return [];
 
-  const [anoRef, mesRef] = periodo.split('-').map(Number);
-  const diaFech = _calcDiaFechamento(cartao.dia_vencimento, cartao.dias_antecedencia_fechamento);
-  const fechMesAnterior = _fechamentoMesAnterior(cartao.dia_vencimento, cartao.dias_antecedencia_fechamento);
-
-  let dataIni, dataFim;
-
-  if(fechMesAnterior){
-    const mesAnterior = mesRef - 1;
-    const anoAnterior = mesAnterior < 1 ? anoRef - 1 : anoRef;
-    const mesAnteriorAdj = mesAnterior < 1 ? 12 : mesAnterior;
-    const diasMesAnt = new Date(anoAnterior, mesAnteriorAdj, 0).getDate();
-    const diaIniReal = Math.min(diaFech, diasMesAnt);
-    dataIni = `${anoAnterior}-${String(mesAnteriorAdj).padStart(2,'0')}-${String(diaIniReal).padStart(2,'0')}`;
-    const diasMesRef = new Date(anoRef, mesRef, 0).getDate();
-    dataFim = `${anoRef}-${String(mesRef).padStart(2,'0')}-${String(diasMesRef).padStart(2,'0')}`;
-  } else {
-    dataIni = `${anoRef}-${String(mesRef).padStart(2,'0')}-01`;
-    const diasMesRef = new Date(anoRef, mesRef, 0).getDate();
-    const diaFimReal = Math.min(diaFech - 1, diasMesRef);
-    dataFim = `${anoRef}-${String(mesRef).padStart(2,'0')}-${String(Math.max(1,diaFimReal)).padStart(2,'0')}`;
-  }
+  // Todo gasto que pertence à mesma fatura tem o MESMO vencimento
+  // (calculado por cartaoCalcularFatura ao salvar). Em vez de reconstruir
+  // uma janela de datas de compra, calculamos direto o vencimento
+  // esperado da fatura desse período e comparamos exatamente com isso.
+  const vencimentoEsperado = cartaoVencimentoDoPeriodo(cartao, periodo);
 
   const {data, error} = await sb.from('contas_pagar')
     .select('*,veiculos!contas_pagar_veiculo_id_fkey(placa)')
     .eq('status','em_conciliacao')
     .eq('qual_cartao_id', cartaoId)
-    .gte('vencimento', dataIni)
-    .lte('vencimento', dataFim);
+    .eq('vencimento', vencimentoEsperado);
 
   if(error){ console.warn('[cartao gastos]', error.message); return []; }
   return data || [];

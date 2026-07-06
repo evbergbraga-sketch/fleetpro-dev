@@ -399,15 +399,9 @@ async function cpSalvarConta(){
     const cartao = _cartoesLista.find(c=>c.id===cartaoId);
     if(!cartao){ notify('Cartão não encontrado','error'); return; }
 
-    // Vencimento = dia_vencimento do cartão, no mês seguinte ao período de referência
-    const [anoRef, mesRef] = fatPeriodo.split('-').map(Number);
-    let mesVenc = mesRef; // fatura_periodo já é o mês de referência (fechamento); vencimento é no mês seguinte
-    let anoVenc = anoRef;
-    mesVenc += 1;
-    if(mesVenc > 12){ mesVenc = 1; anoVenc++; }
-    const diasNoMes = new Date(anoVenc, mesVenc, 0).getDate();
-    const diaVenc = Math.min(cartao.dia_vencimento, diasNoMes);
-    const vencimentoCalculado = `${anoVenc}-${String(mesVenc).padStart(2,'0')}-${String(diaVenc).padStart(2,'0')}`;
+    // Vencimento = calculado a partir do cartão + período (mesma lógica
+    // usada em cartaoBuscarGastos, via cartaoVencimentoDoPeriodo)
+    const vencimentoCalculado = cartaoVencimentoDoPeriodo(cartao, fatPeriodo);
 
     obj = {
       descricao: desc, categoria: cat, valor, vencimento: vencimentoCalculado,
