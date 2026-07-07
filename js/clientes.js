@@ -402,14 +402,35 @@ async function salvarCliente(){
   if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
   try{
     const extras = _coletarCamposCliente('mc');
-    const {data, error} = await sb.from('clientes').insert({
-      nome, cpf, observacoes:obs, ...extras
-    }).select().single();
+
+    // Verifica se já existe um LEAD com o mesmo telefone principal —
+    // nesse caso, converte o lead existente em cliente (UPDATE) em vez
+    // de criar um registro novo (evita duplicação: mesma pessoa
+    // aparecendo como lead E cliente ao mesmo tempo no CRM).
+    const digitosNovo = (extras.telefone||'').replace(/\D/g,'');
+    const leadExistente = digitosNovo
+      ? (allClientes||[]).find(c => c.tipo==='lead' && (c.telefone||'').replace(/\D/g,'')===digitosNovo)
+      : null;
+
+    let data, error, convertidoDeLead = false;
+    if(leadExistente){
+      ({data, error} = await sb.from('clientes')
+        .update({ nome, cpf, observacoes:obs, tipo:'cliente', ...extras })
+        .eq('id', leadExistente.id)
+        .select().single());
+      convertidoDeLead = true;
+    } else {
+      ({data, error} = await sb.from('clientes').insert({
+        nome, cpf, observacoes:obs, ...extras
+      }).select().single());
+    }
     if(error) throw error;
     // Upload anexos
     const novosUrls = await _uploadAnexosCli('mc', data.id);
     if(novosUrls.length) await sb.from('clientes').update({anexos_urls:JSON.stringify(novosUrls)}).eq('id',data.id);
-    notify('Cliente cadastrado com sucesso!','success');
+    notify(convertidoDeLead
+      ? `Lead "${leadExistente.nome}" convertido em cliente automaticamente (mesmo telefone já cadastrado)!`
+      : 'Cliente cadastrado com sucesso!', 'success');
     closeModal('cliente');
     _limparFormCliente('mc');
     if(window._afterSalvarCliente){ await window._afterSalvarCliente(); window._afterSalvarCliente=null; }
