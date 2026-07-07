@@ -245,6 +245,13 @@ a { color: inherit; text-decoration: none; }
   transition: background .2s;
 }
 .btn-green:active { background: var(--green2); }
+.card-desconto {
+  font-size: 12px;
+  color: var(--green);
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.4;
+}
 .btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -530,6 +537,7 @@ a { color: inherit; text-decoration: none; }
         <button class="btn-green" id="btn-prox-pagar" style="display:none" onclick="pagarProxima()">
           Pagar agora
         </button>
+        <div class="card-desconto" id="prox-desconto" style="display:none"></div>
       </div>
       <div class="inicio-card-sorteio" id="card-sorteio-home">
         <div class="sorteio-emoji">🎯</div>
@@ -824,7 +832,7 @@ function _fmtData(s) {
 }
 
 function _fmtValor(v) {
-  return 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  return 'R$ ' + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // ══ INÍCIO ════════════════════════════════════════════════
@@ -843,9 +851,25 @@ function renderInicio(loc, parcelas, sorteios) {
       document.getElementById('btn-prox-pagar').dataset.valor = prox.valor;
       document.getElementById('btn-prox-pagar').dataset.venc = prox.data_vencimento;
     }
+
+    // Desconto de 5% por antecipação — vale até 2 dias antes do vencimento
+    const elDesconto = document.getElementById('prox-desconto');
+    const vencimento = new Date(prox.data_vencimento + 'T00:00:00');
+    const limiteDesconto = new Date(vencimento);
+    limiteDesconto.setDate(limiteDesconto.getDate() - 2);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+    if (prox.status === 'pendente' && hoje <= limiteDesconto) {
+      const valorComDesconto = prox.valor * 0.95;
+      elDesconto.textContent = `Pague até ${_fmtData(limiteDesconto.toISOString().slice(0,10))} e ganhe 5% de desconto: ${_fmtValor(valorComDesconto)}`;
+      elDesconto.style.display = '';
+    } else {
+      elDesconto.style.display = 'none';
+    }
   } else {
     document.getElementById('prox-valor').textContent = 'Em dia';
     document.getElementById('prox-data').textContent = 'Nenhuma parcela pendente';
+    document.getElementById('prox-desconto').style.display = 'none';
   }
 
   // Resumo
@@ -943,12 +967,13 @@ function renderParcelas(parcelas) {
     const btnPagar = p.status !== 'pago'
       ? `<button class="btn-pagar" id="btn-pagar-${p.id}" onclick="buscarLinkPagar('${p.id}','${p.numero_semana}','${p.valor}','${p.data_vencimento}',this)">Pagar</button>`
       : '';
+    const valorExibido = (p.status === 'pago' && p.valor_pago != null) ? p.valor_pago : p.valor;
     return `
       <div class="parcela-item">
         <div class="parcela-num">Sem. ${p.numero_semana}</div>
         <div class="parcela-info">
           <div class="parcela-data">${_fmtData(p.data_vencimento)}</div>
-          <div class="parcela-valor">${_fmtValor(p.valor)}</div>
+          <div class="parcela-valor">${_fmtValor(valorExibido)}</div>
         </div>
         <span class="badge-status ${statusClass}">${statusTxt}</span>
         ${btnPagar}
