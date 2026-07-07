@@ -483,4 +483,44 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
     border-radius: 8px !important;
     white-space: nowrap;
   }
+
+  /* Barra de digitação: ferramentas viram sheet acionado pelo + */
+  #chat-plus-btn { display:flex !important; align-items:center; }
+  #chat-tools-left {
+    display: none !important;
+    position: absolute;
+    bottom: 64px;
+    left: 8px;
+    flex-direction: column;
+    gap: 4px !important;
+    background: #233138;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    padding: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    z-index: 60;
+  }
+  #chat-tools-left.open { display: flex !important; }
+  #chat-tools-left .chat-tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 20px;
+    border-radius: 10px;
+  }
+  #chat-tools-left .chat-tool-btn::after {
+    font-size: 13px;
+    color: #e9edef;
+    content: attr(title);
+  }
+  /* Botão de áudio-arquivo dentro do campo: escondido no mobile (mic já cobre) */
+  .chat-input-wrap > label.chat-tool-btn { display: none; }
+
+  /* Campos com 16px: evita o zoom automático do iOS ao focar */
+  .chat-input, #chat-search { font-size: 16px !important; }
+
+  /* Bolhas mais largas e header mais justo no mobile */
+  .msg { max-width: 82%; }
+  .chat-top { padding: 8px 10px; gap: 8px; }
 }

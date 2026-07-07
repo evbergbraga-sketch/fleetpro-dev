@@ -1094,8 +1094,12 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 
               <!-- ÁREA NORMAL DE DIGITAÇÃO — escondida durante a gravação -->
               <div id="chat-input-normal" style="display:flex;flex:1;gap:8px;align-items:flex-end">
+                <!-- Botão + (mobile): abre o menu de anexos -->
+                <button id="chat-plus-btn" onclick="_chatToggleAnexos(event)" title="Anexar" style="display:none;background:none;border:none;color:#8696a0;cursor:pointer;padding:8px 4px;flex-shrink:0">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
                 <!-- Ferramentas à esquerda -->
-                <div style="display:flex;gap:2px;align-items:center">
+                <div id="chat-tools-left" style="display:flex;gap:2px;align-items:center">
                   <button class="chat-tool-btn" title="Enviar contrato" onclick="enviarContratoWpp()">📄</button>
                   <label class="chat-tool-btn" title="Enviar imagem">
                     📷<input type="file" accept="image/*" style="display:none" onchange="enviarArquivo(this,'image')">

@@ -1582,10 +1582,18 @@ function _chatToggleAcoes(e){
   const acts = document.querySelector('.chat-top-actions');
   if(acts) acts.classList.toggle('open');
 }
-// Fecha o menu ao clicar em qualquer lugar (ou em uma ação)
+// ── MOBILE: sheet de anexos (+) ──
+function _chatToggleAnexos(e){
+  e.stopPropagation();
+  const tools = document.getElementById('chat-tools-left');
+  if(tools) tools.classList.toggle('open');
+}
+// Fecha menus mobile ao clicar em qualquer lugar (ou em uma ação)
 document.addEventListener('click', ()=>{
   const acts = document.querySelector('.chat-top-actions');
   if(acts) acts.classList.remove('open');
+  const tools = document.getElementById('chat-tools-left');
+  if(tools) tools.classList.remove('open');
 });
 
 // Auto-grow do campo de digitação (cresce com quebras de linha, até 120px)
