@@ -1576,6 +1576,18 @@ function adicionarMsgLocal(cid, texto, tipo, mediaUrl){
   renderChatContacts();
 }
 
+// ── MOBILE: menu de ações do header (⋮) ──
+function _chatToggleAcoes(e){
+  e.stopPropagation();
+  const acts = document.querySelector('.chat-top-actions');
+  if(acts) acts.classList.toggle('open');
+}
+// Fecha o menu ao clicar em qualquer lugar (ou em uma ação)
+document.addEventListener('click', ()=>{
+  const acts = document.querySelector('.chat-top-actions');
+  if(acts) acts.classList.remove('open');
+});
+
 // Auto-grow do campo de digitação (cresce com quebras de linha, até 120px)
 function _chatInputAutoGrow(el){
   el.style.height = 'auto';
