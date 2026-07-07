@@ -1106,7 +1106,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                   <label class="chat-tool-btn" title="Enviar áudio" style="padding:4px">
                     🎵<input type="file" accept="audio/*" style="display:none" onchange="enviarArquivo(this,'audio')">
                   </label>
-                  <input class="chat-input" id="chat-msg-input" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
+                  <textarea class="chat-input" id="chat-msg-input" rows="1" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.ctrlKey){event.preventDefault();sendMsg();}else if(event.key==='Enter'&&event.ctrlKey){event.preventDefault();const s=this.selectionStart;this.value=this.value.slice(0,s)+'\n'+this.value.slice(this.selectionEnd);this.selectionStart=this.selectionEnd=s+1;_chatInputAutoGrow(this);}" oninput="_chatInputAutoGrow(this)"></textarea>
                   <button id="btn-mic" class="chat-tool-btn" onclick="iniciarGravacao(event)" title="Clique para gravar áudio" style="padding:4px">🎙️</button>
                 </div>
               </div>

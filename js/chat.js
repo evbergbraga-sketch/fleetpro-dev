@@ -1531,6 +1531,12 @@ function adicionarMsgLocal(cid, texto, tipo, mediaUrl){
   renderChatContacts();
 }
 
+// Auto-grow do campo de digitação (cresce com quebras de linha, até 120px)
+function _chatInputAutoGrow(el){
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
 async function sendMsg(){
   if(!activeChatId){ notify('Selecione um contato','error'); return; }
   if(_mediaFile){
@@ -1559,6 +1565,7 @@ async function sendMsg(){
   adicionarMsgLocal(activeChatId, textoFinal, 'text', null);
   _registrarMsgEnviada(textoFinal);
   inp.value = '';
+  _chatInputAutoGrow(inp);
   try{
     const result = await evoSendText(telefone, textoFinal);
     if(result.salvo === false){
