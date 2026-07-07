@@ -1074,6 +1074,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
             <div class="chat-msgs scrollbar-thin" id="chat-msgs"><div style="text-align:center;font-size:12px;color:var(--muted2);margin:20px 0">Selecione uma conversa</div></div>
             <div class="chat-input-area">
+              <!-- Painel de emojis -->
+              <div id="chat-emoji-panel" onclick="event.stopPropagation()" style="display:none;position:absolute;bottom:64px;left:8px;right:8px;max-width:420px;background:#233138;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:60;max-height:220px;overflow-y:auto"></div>
               <div id="media-preview" style="display:none;font-size:12px;color:#8696a0;padding:6px 12px;background:#182229;border-radius:8px;align-items:center;gap:8px;margin-bottom:4px;position:absolute;bottom:70px;left:12px;right:12px;z-index:2;border:1px solid rgba(255,255,255,0.08)">
                 <span id="media-preview-txt" style="flex:1"></span>
                 <button onclick="cancelarMidia()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px">✕</button>
@@ -1110,6 +1112,9 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 </div>
                 <!-- Campo de texto -->
                 <div class="chat-input-wrap">
+                  <button id="chat-emoji-btn" class="chat-tool-btn" onclick="_chatToggleEmojis(event)" title="Emoji" style="padding:4px;display:flex;align-items:center">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8696a0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                  </button>
                   <label class="chat-tool-btn" title="Enviar áudio" style="padding:4px">
                     🎵<input type="file" accept="audio/*" style="display:none" onchange="enviarArquivo(this,'audio')">
                   </label>

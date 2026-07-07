@@ -1576,6 +1576,42 @@ function adicionarMsgLocal(cid, texto, tipo, mediaUrl){
   renderChatContacts();
 }
 
+// ── EMOJI PICKER ──
+const _CHAT_EMOJIS = [
+  '😀','😃','😄','😁','😅','😂','🤣','😊','😍','😘','😉','😎','🤩','🥳','😇','🙂',
+  '😋','😜','🤪','🤔','🤗','🤝','🙏','👏','👍','👎','👊','✌️','🤞','💪','👌','🫡',
+  '❤️','💚','💙','💛','🧡','💜','🖤','💯','🔥','⭐','✨','🎉','🎊','🏆','🎯','💰',
+  '😢','😭','😤','😡','😱','😴','🤒','🥺','😬','🙄','😐','🤦','🤷','🫠','😳','🥶',
+  '🏍️','🛵','🚗','🚙','🛞','⛽','🔧','🛠️','📄','📋','📎','📷','📱','💳','🗓️','⏰',
+  '✅','❌','⚠️','❗','❓','💬','📣','🔔','🚀','💨','🙌','👀','🤑','🆗','🆕','🏁',
+];
+function _chatToggleEmojis(e){
+  e.stopPropagation();
+  const panel = document.getElementById('chat-emoji-panel');
+  if(!panel) return;
+  if(panel.style.display==='none'){
+    // Render lazy na primeira abertura
+    if(!panel.innerHTML){
+      panel.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:2px">' +
+        _CHAT_EMOJIS.map(em=>`<button onclick="_chatInserirEmoji('${em}')" style="background:none;border:none;font-size:24px;padding:5px;cursor:pointer;border-radius:8px;line-height:1" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background='none'">${em}</button>`).join('') +
+        '</div>';
+    }
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
+}
+function _chatInserirEmoji(em){
+  const inp = document.getElementById('chat-msg-input');
+  if(!inp) return;
+  const s = inp.selectionStart ?? inp.value.length;
+  const f = inp.selectionEnd ?? inp.value.length;
+  inp.value = inp.value.slice(0,s) + em + inp.value.slice(f);
+  inp.selectionStart = inp.selectionEnd = s + em.length;
+  inp.focus();
+  _chatInputAutoGrow(inp);
+}
+
 // ── MOBILE: menu de ações do header (⋮) ──
 function _chatToggleAcoes(e){
   e.stopPropagation();
@@ -1594,6 +1630,8 @@ document.addEventListener('click', ()=>{
   if(acts) acts.classList.remove('open');
   const tools = document.getElementById('chat-tools-left');
   if(tools) tools.classList.remove('open');
+  const emoji = document.getElementById('chat-emoji-panel');
+  if(emoji) emoji.style.display = 'none';
 });
 
 // Auto-grow do campo de digitação (cresce com quebras de linha, até 120px)
