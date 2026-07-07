@@ -1,5 +1,5 @@
 // sw-portal.js — Service Worker Portal Royal
-const CACHE = 'royal-portal-v7';
+const CACHE = 'royal-portal-v8';
 const ASSETS = [
   '/portal.html',
   '/manifest-portal.json',
@@ -25,14 +25,35 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Rede primeiro para APIs, cache para assets estáticos
   const url = new URL(e.request.url);
+
+  // APIs (portal/bridge): sempre rede, nunca cache
   if (url.pathname.startsWith('/portal/') || url.hostname.includes('bridge')) {
     e.respondWith(fetch(e.request).catch(() => new Response('{"error":"offline"}', {
       headers: { 'Content-Type': 'application/json' }
     })));
     return;
   }
+
+  // Navegação de página (abrir/recarregar o app) e o próprio portal.html:
+  // Network First — busca a versão mais nova do servidor; só usa o cache
+  // se a rede falhar de verdade (offline). Isso garante que reabrir o
+  // app instalado sempre traz a versão publicada mais recente.
+  const ehNavegacao = e.request.mode === 'navigate' || url.pathname.endsWith('/portal.html');
+  if (ehNavegacao) {
+    e.respondWith(
+      fetch(e.request)
+        .then(resp => {
+          caches.open(CACHE).then(c => c.put(e.request, resp.clone()));
+          return resp;
+        })
+        .catch(() => caches.match(e.request).then(cached => cached || caches.match('/portal.html')))
+    );
+    return;
+  }
+
+  // Demais assets estáticos (ícones, manifest): Cache First — raramente
+  // mudam, prioriza velocidade e funcionamento offline.
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );

@@ -675,9 +675,31 @@ function fecharBanner() {
   localStorage.setItem('rp_banner_fechado', '1');
 }
 
-// ══ SERVICE WORKER ════════════════════════════════════════
+// ══ SERVICE WORKER — atualização automática ═══════════════
+// Sempre que uma versão nova do sw-portal.js for publicada, o app
+// detecta sozinho e recarrega a página assim que a nova versão assumir
+// o controle — sem precisar que o usuário saia e volte manualmente.
+// (self.skipWaiting() já existe dentro do próprio SW, então o novo
+// worker assume o controle assim que termina de instalar; aqui só
+// precisamos reagir a essa troca.)
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw-portal.js').catch(() => {});
+  let _swJaRecarregou = false;
+
+  navigator.serviceWorker.register('/sw-portal.js').then(registration => {
+    // Verifica se há uma versão nova toda vez que o app volta ao
+    // primeiro plano (usuário reabre o app instalado, troca de aba, etc.)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') registration.update();
+    });
+  }).catch(() => {});
+
+  // Quando o novo SW assume o controle da página, recarrega uma única
+  // vez para os dados/HTML mais recentes entrarem em vigor
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_swJaRecarregou) return;
+    _swJaRecarregou = true;
+    window.location.reload();
+  });
 }
 
 // ══ INIT ══════════════════════════════════════════════════
