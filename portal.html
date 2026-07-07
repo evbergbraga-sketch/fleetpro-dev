@@ -309,6 +309,77 @@ a { color: inherit; text-decoration: none; }
 }
 .btn-ghost:active { background: var(--card2); }
 
+/* ══ HERO DO VEÍCULO ═════════════════════════════════════ */
+.hero-moto {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0f2540 0%, #142240 55%, #0a1a30 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.hero-moto::before {
+  content: '';
+  position: absolute;
+  top: -60px; right: -60px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(0,196,106,.12), transparent 70%);
+  pointer-events: none;
+}
+.hero-moto-icone {
+  width: 64px; height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,196,106,.08);
+  border: 1px solid rgba(0,196,106,.18);
+  border-radius: 14px;
+}
+.hero-moto-icone svg { width: 38px; height: 38px; stroke: var(--green); }
+.hero-moto-icone img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 14px;
+}
+.hero-moto-info { flex: 1; min-width: 0; }
+.hero-moto-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+}
+.hero-moto-nome {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hero-moto-detalhes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.hero-moto-placa {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+}
+.hero-moto-cor { font-size: 12px; color: var(--muted); }
+
 /* ══ INÍCIO ══════════════════════════════════════════════ */
 .inicio-header {
   display: flex;
@@ -608,6 +679,7 @@ a { color: inherit; text-decoration: none; }
 
   <!-- Páginas -->
   <div id="pg-inicio" class="page ativa">
+    <div id="hero-moto-wrap"></div>
     <div class="inicio-header">
       <div class="inicio-card-venc">
         <div class="card-titulo">Próximo Vencimento</div>
@@ -982,6 +1054,33 @@ function _fmtValor(v) {
 // ══ INÍCIO ════════════════════════════════════════════════
 function renderInicio(loc, parcelas, sorteios) {
   if (!loc) return;
+
+  // Hero do veículo
+  const vei = _dados?.veiculo;
+  const heroWrap = document.getElementById('hero-moto-wrap');
+  if (heroWrap && vei) {
+    const icone = vei.foto_url
+      ? `<img src="${vei.foto_url}" alt="${vei.modelo}">`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+           <circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/>
+           <path d="M5.5 17h4l2.5-5h3.5"/><path d="M15.5 12l-1.5-4h-2.5"/>
+           <path d="M13 6.5h3.5l2 5.5"/><path d="M8 9.5h3"/>
+         </svg>`;
+    heroWrap.innerHTML = `
+      <div class="hero-moto">
+        <div class="hero-moto-icone">${icone}</div>
+        <div class="hero-moto-info">
+          <div class="hero-moto-label">Seu veículo</div>
+          <div class="hero-moto-nome">${vei.marca || ''} ${vei.modelo || ''}</div>
+          <div class="hero-moto-detalhes">
+            <span class="hero-moto-placa">${vei.placa || '—'}</span>
+            ${vei.cor ? `<span class="hero-moto-cor">${vei.cor}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+  } else if (heroWrap) {
+    heroWrap.innerHTML = '';
+  }
 
   // Próxima parcela pendente
   const prox = (parcelas || []).find(p => p.status === 'pendente' || p.status === 'vencido');
