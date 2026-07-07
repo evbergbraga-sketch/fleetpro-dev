@@ -456,6 +456,26 @@ a { color: inherit; text-decoration: none; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ══ PULL-TO-REFRESH ═════════════════════════════════════ */
+#ptr-indicador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 0;
+  overflow: hidden;
+  transition: height .2s ease-out;
+}
+#ptr-indicador.ptr-arrastando { transition: none; }
+#ptr-spinner {
+  width: 26px; height: 26px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  opacity: .4;
+}
+#ptr-indicador.ptr-pronto #ptr-spinner { opacity: 1; }
+#ptr-indicador.ptr-atualizando #ptr-spinner { animation: spin .6s linear infinite; opacity: 1; }
+
 /* ══ INSTALAR BANNER ═════════════════════════════════════ */
 #banner-instalar {
   display: none;
@@ -516,6 +536,11 @@ a { color: inherit; text-decoration: none; }
 
 <!-- ══ APP ════════════════════════════════════════════════ -->
 <div id="app">
+
+  <!-- Indicador de Pull-to-Refresh -->
+  <div id="ptr-indicador">
+    <div id="ptr-spinner"></div>
+  </div>
 
   <!-- Header -->
   <div class="header">
@@ -683,6 +708,60 @@ function fecharBanner() {
   localStorage.setItem('rp_banner_fechado', '1');
 }
 
+// ══ PULL-TO-REFRESH ═══════════════════════════════════════
+// Arrastar a tela pra baixo (só quando já está no topo do scroll)
+// dispara _recarregarDados() — a mesma função já usada em background.
+(function initPullToRefresh() {
+  const THRESHOLD = 70; // px de arrasto necessários para soltar e atualizar
+  const MAX_ARRASTO = 100; // limite visual do indicador
+  const el = document.getElementById('ptr-indicador');
+  if (!el) return;
+
+  let startY = 0;
+  let arrastando = false;
+  let atualizando = false;
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY > 0 || atualizando) return;
+    startY = e.touches[0].clientY;
+    arrastando = true;
+    el.classList.add('ptr-arrastando');
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!arrastando) return;
+    const delta = e.touches[0].clientY - startY;
+    if (delta <= 0) {
+      // Usuário empurrou de volta pra cima no meio do gesto — recolhe o indicador
+      el.style.height = '0px';
+      el.classList.remove('ptr-pronto');
+      return;
+    }
+    e.preventDefault(); // bloqueia o bounce nativo do navegador só durante este gesto
+    const altura = Math.min(delta * 0.5, MAX_ARRASTO); // resistência elástica
+    el.style.height = altura + 'px';
+    el.classList.toggle('ptr-pronto', altura >= THRESHOLD * 0.5);
+  }, { passive: false });
+
+  document.addEventListener('touchend', async () => {
+    if (!arrastando) return;
+    arrastando = false;
+    el.classList.remove('ptr-arrastando');
+    const alturaAtual = parseFloat(el.style.height) || 0;
+
+    if (alturaAtual >= THRESHOLD * 0.5) {
+      atualizando = true;
+      el.classList.add('ptr-atualizando');
+      el.classList.remove('ptr-pronto');
+      el.style.height = '54px';
+      await _recarregarDados();
+      atualizando = false;
+      el.classList.remove('ptr-atualizando');
+    }
+    el.style.height = '0px';
+  }, { passive: true });
+})();
+
 // ══ SERVICE WORKER — atualização automática ═══════════════
 // Sempre que uma versão nova do sw-portal.js for publicada, o app
 // detecta sozinho e recarrega a página assim que a nova versão assumir
@@ -738,10 +817,12 @@ async function _recarregarDados() {
     if (!json.cliente) return;
     _dados = json;
     localStorage.setItem(DADOS_KEY, JSON.stringify(json));
-    // Re-renderiza só os blocos dinâmicos sem piscar a tela
+    // Re-renderiza todos os blocos dinâmicos sem piscar a tela
     renderComunicados(_dados.comunicados);
     renderSorteios(_dados.sorteios, _dados.locacao);
     renderInicio(_dados.locacao, _dados.parcelas, _dados.sorteios);
+    renderParcelas(_dados.parcelas);
+    renderContrato(_dados.locacao, _dados.veiculo);
   } catch(e) { /* silencioso — não quebra o app */ }
 }
 
