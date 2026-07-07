@@ -1160,6 +1160,15 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                   <!-- preenchido dinamicamente por _crmRenderStatusBtns() -->
                 </div>
 
+                <!-- Data/hora da retirada — visível apenas com status "Aguardando retirada" -->
+                <div id="crm-retirada-wrap" style="display:none">
+                  <div style="font-size:10px;color:#f5b942;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Retirada agendada</div>
+                  <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center">
+                    <input type="datetime-local" id="crm-retirada" style="flex:1;font-size:12px;background:#202c33;border:1px solid rgba(245,185,66,.3);color:#e9edef;border-radius:8px;padding:6px 8px;outline:none">
+                    <button onclick="_crmSalvarRetirada()" style="font-size:11px;padding:6px 10px;background:rgba(245,185,66,.15);color:#f5b942;border:1px solid rgba(245,185,66,.3);border-radius:7px;cursor:pointer;white-space:nowrap">💾 Salvar</button>
+                  </div>
+                </div>
+
                 <!-- Follow-up -->
                 <div style="font-size:10px;color:#8696a0;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Follow-up</div>
                 <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center">

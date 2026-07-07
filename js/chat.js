@@ -1371,6 +1371,17 @@ async function _crmCarregarPainel(cid){
   const fu = document.getElementById('crm-followup');
   if(fu) fu.value = c.followup_em||'';
 
+  // Data/hora da retirada — só aparece com status "Aguardando retirada"
+  const retWrap = document.getElementById('crm-retirada-wrap');
+  if(retWrap){
+    const isAguardandoRetirada = (c.status_crm||'').toLowerCase().includes('retirada');
+    retWrap.style.display = isAguardandoRetirada ? '' : 'none';
+    if(isAguardandoRetirada){
+      const inp = document.getElementById('crm-retirada');
+      if(inp) inp.value = _tsToLocalInput(c.retirada_em);
+    }
+  }
+
   // Carrega histórico (encaminhamentos + notas)
   await _crmCarregarHistorico(cid);
 }
@@ -1479,6 +1490,32 @@ async function _crmSetStatus(status){
     _crmCarregarPainel(activeChatId);
     renderChatContacts();
     notify('Status atualizado!','success');
+  }catch(e){ notify('Erro: '+e.message,'error'); }
+}
+
+// Converte timestamptz → formato do input datetime-local (horário local)
+function _tsToLocalInput(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  if(isNaN(d)) return '';
+  const p = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+async function _crmSalvarRetirada(){
+  if(!activeChatId) return;
+  const c = allClientes?.find(x=>x.id===activeChatId);
+  if(!c){ notify('Cliente não cadastrado','error'); return; }
+  const val = document.getElementById('crm-retirada')?.value||null;
+  try{
+    const iso = val ? new Date(val).toISOString() : null;
+    await sb.from('clientes').update({retirada_em: iso}).eq('id',c.id);
+    c.retirada_em = iso;
+    if(typeof _plDados !== 'undefined'){
+      const pc = _plDados.find(x=>x.id===c.id);
+      if(pc) pc.retirada_em = iso;
+    }
+    notify(val ? 'Retirada agendada para '+new Date(val).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : 'Data de retirada removida','success');
   }catch(e){ notify('Erro: '+e.message,'error'); }
 }
 
