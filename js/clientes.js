@@ -495,16 +495,23 @@ async function atualizarCliente(){
 }
 
 // ══ PERFIL EXPANDIDO ══
+// Controla se o botão "Editar" aparece no modal — só quando aberto
+// pela tela de Clientes. No chat, a edição deve ser feita indo até a
+// tela de Clientes (o botão "Editar" já existe lá, na linha da tabela).
+let _perfilOrigemChat = false;
+
 async function verPerfilCliente(){
   if(!activeChatId) return;
   const c = allClientes.find(x=>x.id===activeChatId);
   if(!c){ notify('Selecione um cliente cadastrado','error'); return; }
+  _perfilOrigemChat = true;
   await _renderPerfilCliente(c);
 }
 
 async function verPerfilClienteById(id){
   const c = allClientes.find(x=>x.id===id);
   if(!c) return;
+  _perfilOrigemChat = false;
   await _renderPerfilCliente(c);
 }
 
@@ -564,7 +571,7 @@ async function _renderPerfilCliente(c){
         </div>
         <div style="font-size:12px;color:var(--muted)">${mails[0]?.email||c.email||'sem email'}</div>
       </div>
-      <button class="btn btn-ghost" style="font-size:12px" onclick="editarCliente('${c.id}');closeModal('perfil-cliente')">✏️ Editar</button>
+      ${_perfilOrigemChat ? '' : `<button class="btn btn-ghost" style="font-size:12px" onclick="editarCliente('${c.id}');closeModal('perfil-cliente')">✏️ Editar</button>`}
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
       <div style="background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.12);padding:12px;border-radius:10px;text-align:center">
