@@ -953,7 +953,7 @@ function renderChatContacts(){
           <div style="font-size:12px;color:${nl>0?'#e9edef':'#8696a0'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${previewIcon}${_esc(String(preview).slice(0,40))}</div>
           ${badge}
         </div>
-        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span>${_crmFollowupBadge(c)}</div>` : _crmFollowupBadge(c) ? `<div style="margin-top:3px">${_crmFollowupBadge(c)}</div>` : ''}
+        ${c.status_crm && c.status_crm!=='sem_status' ? `<div style="margin-top:3px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:${_crmBadgeBg(c.status_crm)};color:${_crmBadgeColor(c.status_crm)}">${_crmLabel(c.status_crm)}</span>${_crmRespBadge(c)}${_crmFollowupBadge(c)}</div>` : (_crmRespBadge(c)||_crmFollowupBadge(c)) ? `<div style="margin-top:3px">${_crmRespBadge(c)}${_crmFollowupBadge(c)}</div>` : ''}
         ${c.tipo==='lead' ? `<div style="margin-top:2px"><span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:600;background:rgba(139,92,246,.2);color:#A78BFA;border:1px solid rgba(139,92,246,.3)">⚡ Lead</span></div>` : ''}
       </div>
     </div>`;
@@ -962,6 +962,14 @@ function renderChatContacts(){
 function filtrarContatos(){ renderChatContacts(); }
 
 // ── CRM: helpers de badge na lista de contatos ──
+// Badge com o primeiro nome do responsável pelo contato
+function _crmRespBadge(c){
+  if(!c.responsavel_id) return '';
+  const p = (allPerfis||[]).find(x=>x.id===c.responsavel_id);
+  if(!p?.nome) return '';
+  const nome = _esc(p.nome.split(' ')[0]);
+  return `<span style="font-size:10px;padding:1px 7px;border-radius:999px;font-weight:500;background:rgba(255,255,255,.07);color:#aebac1;border:1px solid rgba(255,255,255,.1);margin-left:4px;display:inline-flex;align-items:center;gap:3px"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${nome}</span>`;
+}
 function _crmLabel(s){
   if(typeof _PL_STATUS!=='undefined' && _PL_STATUS.length){
     const found = _PL_STATUS.find(x=>x.label===s||x.key===s);
