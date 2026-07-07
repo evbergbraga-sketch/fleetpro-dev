@@ -404,14 +404,23 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 
 /* Botão voltar: oculto no desktop, visível só no mobile via media query */
 .chat-back-btn { display: none; }
+/* Elementos exclusivos do mobile (menu ⋮, gaveta lateral, engrenagem da lista) */
+.chat-menu-mobile-only { display: none; }
+#chat-side-fechar { display: none; }
+#chat-list-gear { display: none; }
+@media (max-width:768px) { #chat-list-gear { display: flex; } }
 
 /* ── CHAT MOBILE ── */
 @media (max-width:768px) {
+  /* Altura real do viewport (100vh no iOS inclui a barra de URL e corta o rodapé) */
+  .main { height: 100dvh; }
+  /* Chat em tela cheia: anula o padding do .content e a altura fixa de desktop */
+  #page-chat { margin: -14px -12px; height: calc(100% + 28px) !important; }
+  #page-chat .chat-layout { height: 100% !important; border-radius: 0; border: none; }
   /* Layout: 3 colunas vira 1 coluna empilhada */
   .chat-layout {
     grid-template-columns: 100% !important;
     grid-template-rows: 1fr;
-    height: calc(100vh - 68px);
     position: relative;
     overflow: hidden;
   }
@@ -433,10 +442,19 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
     transform: translateX(100%);
     transition: transform .28s cubic-bezier(.4,0,.2,1);
   }
-  /* Painel lateral: escondido no mobile */
+  /* Painel lateral: vira gaveta deslizante da direita */
   .chat-side {
-    display: none !important;
+    display: flex !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    z-index: 80;
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    background: #111b21;
   }
+  .chat-layout.side-open .chat-side { transform: translateX(0); }
+  #chat-side-fechar { display: flex !important; }
   /* Quando uma conversa está aberta: lista some, janela aparece */
   .chat-layout.chat-open .chat-list {
     transform: translateX(-100%);
@@ -458,7 +476,11 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
     flex-shrink: 0;
   }
   /* Header do chat: ações viram menu dropdown acionado pelo kebab (⋮) */
+  .chat-top { z-index: 70; }
+  .chat-input-area { z-index: 65; }
+  .chat-msgs { padding: 12px 10px; }
   #chat-kebab { display:flex !important; align-items:center; }
+  .chat-menu-mobile-only { display: block !important; }
   .chat-top-actions {
     display: none;
     position: absolute;

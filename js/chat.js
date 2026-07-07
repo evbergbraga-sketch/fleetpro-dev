@@ -1612,6 +1612,11 @@ function _chatInserirEmoji(em){
   _chatInputAutoGrow(inp);
 }
 
+// ── MOBILE: gaveta do painel lateral (CRM, notas, conexão WhatsApp) ──
+function _chatToggleSide(){
+  document.querySelector('.chat-layout')?.classList.toggle('side-open');
+}
+
 // ── MOBILE: menu de ações do header (⋮) ──
 function _chatToggleAcoes(e){
   e.stopPropagation();
@@ -2353,4 +2358,5 @@ function _chatAbrirMobile(){
 
 function _chatVoltar(){
   document.querySelector('.chat-layout')?.classList.remove('chat-open');
+  document.querySelector('.chat-layout')?.classList.remove('side-open');
 }
