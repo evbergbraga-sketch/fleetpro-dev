@@ -135,8 +135,8 @@ function _plRenderKanban(dados){
           const hojeOuPassou = rdDia <= hoje;
           const SVG_KEY = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
           retHtml = hojeOuPassou
-            ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 8px;border-radius:999px;background:#F5B942;color:#1a1a1a;font-weight:800;box-shadow:0 0 0 1px rgba(245,185,66,.5)">${SVG_KEY} Retirada ${rdFmt}</span>`
-            : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(245,185,66,.18);color:#F5B942;border:1px solid rgba(245,185,66,.45);font-weight:700">${SVG_KEY} Retirada ${rdFmt}</span>`;
+            ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:3px 9px;border-radius:999px;background:#B45309;color:#fff;font-weight:800;box-shadow:0 1px 3px rgba(180,83,9,.4)">${SVG_KEY} Retirada ${rdFmt}</span>`
+            : `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:3px 9px;border-radius:999px;background:#FDE68A;color:#78350F;border:1px solid #D9A62E;font-weight:800">${SVG_KEY} Retirada ${rdFmt}</span>`;
         }
       }
 
