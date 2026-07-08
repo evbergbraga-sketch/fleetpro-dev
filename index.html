@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="Royal">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>FleetPro | Plataforma de Locadoras</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
@@ -846,7 +846,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                 <div style="font-weight:700;font-size:14px;color:var(--accent)" id="ctchk-titulo">📋 Checklist de Vistoria — Saída</div>
                 <button onclick="_toggleChecklistInline()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+              <div class="mob-stack" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
                 <div class="form-group" style="margin:0"><label>Km saída</label><input type="number" id="ctchk-km" placeholder="0" style="width:100%"></div>
                 <div class="form-group" style="margin:0"><label>Nível combustível</label>
                   <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px">
@@ -914,7 +914,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
                   <div style="font-size:9px;color:#666"><span id="ct-data"></span></div>
                 </div>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+              <div class="mob-stack" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
                 <div style="border:1px solid #ddd;border-radius:6px;overflow:hidden">
                   <div style="background:#006400;color:#fff;font-size:9px;font-weight:700;padding:3px 6px">CLIENTE</div>
                   <div style="padding:6px;font-size:10px">
@@ -1292,7 +1292,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <!-- FINANCEIRO -->
       <div class="page" id="page-financeiro">
         <!-- CARDS RESUMO -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+        <div class="mob-2col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
           <div class="card" style="text-align:center;padding:16px">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Receita <span id="fin-label-periodo-1">do período</span></div>
             <div id="fin-receita-mes" style="font-size:24px;font-weight:800;color:var(--green)">R$ 0</div>
@@ -1497,7 +1497,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <!-- SEÇÃO CONTAS -->
         <div id="cp-sec-contas">
           <!-- CARDS RESUMO -->
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px">
+          <div class="stats-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px">
             <div class="card" style="text-align:center;padding:16px">
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">A vencer</div>
               <div id="cp-total-pendente" style="font-size:22px;font-weight:800;color:var(--text)">R$ 0</div>
@@ -1749,7 +1749,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:18px">
               <div id="cart-form-title" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:14px">Novo Cartão</div>
               <input type="hidden" id="cart-id">
-              <div style="display:grid;grid-template-columns:1fr 160px 160px;gap:12px;align-items:end">
+              <div class="mob-stack" style="display:grid;grid-template-columns:1fr 160px 160px;gap:12px;align-items:end">
                 <div>
                   <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px">Nome do cartão</label>
                   <input type="text" id="cart-nome" placeholder="Ex: Nubank Final 5565" style="width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--text);font-size:14px">
@@ -1840,7 +1840,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <!-- PIPELINE CRM -->
       <!-- API LOGS -->
       <div class="page" id="page-apilogs">
-        <div id="apilogs-metricas" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+        <div id="apilogs-metricas" class="mob-2col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
 
         <!-- TABS -->
         <div style="display:flex;gap:0;border-bottom:2px solid var(--border2);margin-bottom:20px">
@@ -1921,7 +1921,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="page" id="page-pipeline">
 
         <!-- MÉTRICAS (Fase 5) -->
-        <div id="pipeline-metricas" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px"></div>
+        <div id="pipeline-metricas" class="stats-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px"></div>
 
         <!-- FILTROS -->
         <div class="card" style="padding:12px 16px;margin-bottom:16px">

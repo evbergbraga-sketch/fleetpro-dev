@@ -1,4 +1,23 @@
 // ui.js — Camadas, modais, notificações, utilitários
+
+// ══ ALTURA REAL DO VIEWPORT (MOBILE) ══
+// iOS Safari: 100vh/100dvh não refletem a altura visível real quando as barras
+// do navegador expandem/recolhem ou o teclado abre. Medimos via visualViewport
+// e alimentamos a var --app-vh, usada pelo CSS mobile em #layer-app/.main.
+(function initAppVh(){
+  const vv = window.visualViewport;
+  function setVh(){
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-vh', h + 'px');
+    // Safari "empurra" a página ao abrir o teclado — traz de volta ao topo
+    if(window.scrollY > 0) window.scrollTo(0, 0);
+  }
+  if(vv) vv.addEventListener('resize', setVh);
+  window.addEventListener('resize', setVh);
+  window.addEventListener('orientationchange', ()=>setTimeout(setVh, 100));
+  setVh();
+})();
+
 // ══ LAYERS ══
 function goLayer(id){
   document.querySelectorAll('.layer').forEach(l=>l.classList.remove('active'));
