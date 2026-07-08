@@ -125,6 +125,21 @@ function _plRenderKanban(dados){
       else if(fu&&fu<hoje) fuHtml = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.3);font-weight:600"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Atrasado</span>`;
       else if(fu)          fuHtml = `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg3,rgba(0,0,0,.15));color:var(--muted2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${fu.split('-').reverse().join('/')}</span>`;
 
+      // Badge de retirada agendada — destaque dourado, forte quando é hoje/atrasada
+      let retHtml = '';
+      if(c.retirada_em){
+        const rd = new Date(c.retirada_em);
+        if(!isNaN(rd)){
+          const rdDia = rd.toISOString().slice(0,10);
+          const rdFmt = rd.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + rd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+          const hojeOuPassou = rdDia <= hoje;
+          const SVG_KEY = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+          retHtml = hojeOuPassou
+            ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 8px;border-radius:999px;background:#F5B942;color:#1a1a1a;font-weight:800;box-shadow:0 0 0 1px rgba(245,185,66,.5)">${SVG_KEY} Retirada ${rdFmt}</span>`
+            : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(245,185,66,.18);color:#F5B942;border:1px solid rgba(245,185,66,.45);font-weight:700">${SVG_KEY} Retirada ${rdFmt}</span>`;
+        }
+      }
+
       return `<div
         draggable="true"
         data-id="${c.id}"
@@ -153,7 +168,8 @@ function _plRenderKanban(dados){
 
         ${resumo ? `<div style="font-size:11px;color:var(--text);opacity:.72;line-height:1.5;margin-bottom:8px;padding:6px 8px;background:rgba(0,0,0,.05);border-radius:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${resumo}</div>` : ''}
 
-        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:${(fuHtml||resp||c.origem)?'6px':'0'}">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:${(retHtml||fuHtml||resp||c.origem)?'6px':'0'}">
+          ${retHtml}
           ${fuHtml}
           ${resp ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${resp.nome.split(' ')[0]}</span>` : ''}
           ${c.origem ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg> ${c.origem}</span>` : ''}
@@ -433,6 +449,7 @@ async function _plAbrirModal(id){
         <div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:5px">${SVG.origin} Origem</div>
         <div style="font-size:13px;font-weight:500;color:var(--text)">${c.origem||'—'}</div>
       </div>
+      ${c.retirada_em?(()=>{const rd=new Date(c.retirada_em);return isNaN(rd)?'':`<div style="background:rgba(245,185,66,.1);border-radius:10px;padding:12px;border:1px solid rgba(245,185,66,.4);grid-column:span 2;display:flex;align-items:center;gap:10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F5B942" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#F5B942;margin-bottom:2px">Retirada agendada</div><div style="font-size:14px;font-weight:700;color:var(--text)">${rd.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})} às ${rd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div></div></div>`;})():''}
       ${c.motivo_perda?`<div style="background:rgba(220,38,38,.06);border-radius:10px;padding:12px;border:1px solid rgba(220,38,38,.2);grid-column:span 2"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#b91c1c;margin-bottom:5px">Motivo de perda</div><div style="font-size:13px;font-weight:500;color:var(--text)">${c.motivo_perda}</div></div>`:''}
       ${c.observacoes?`<div style="background:var(--bg2);border-radius:10px;padding:12px;border:1px solid var(--border2);grid-column:span 2"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);margin-bottom:5px">Observações</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">${c.observacoes}</div></div>`:''}
     </div>
@@ -460,7 +477,11 @@ async function _plAbrirModal(id){
           <label style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;display:block">Follow-up em</label>
           <input type="date" id="plm-followup" value="${fu}" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:13px">
         </div>
-        <div style="display:flex;align-items:flex-end">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#F5B942;margin-bottom:4px;display:block">Retirada agendada</label>
+          <input type="datetime-local" id="plm-retirada" value="${(typeof _tsToLocalInput==='function')?_tsToLocalInput(c.retirada_em):''}" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(245,185,66,.45);background:var(--card);color:var(--text);font-size:13px">
+        </div>
+        <div style="display:flex;align-items:flex-end;grid-column:span 2">
           <button onclick="_plModalSalvar()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">${SVG.save} Salvar alterações</button>
         </div>
       </div>
@@ -498,15 +519,17 @@ async function _plModalSalvar(){
   const status   = document.getElementById('plm-status')?.value;
   const interesse= document.getElementById('plm-interesse')?.value;
   const followup = document.getElementById('plm-followup')?.value||null;
+  const retVal   = document.getElementById('plm-retirada')?.value||null;
+  const retirada = retVal ? new Date(retVal).toISOString() : null;
   try{
-    await sb.from('clientes').update({status_crm:status, interesse_veiculo:interesse, followup_em:followup}).eq('id',_plModalData.id);
+    await sb.from('clientes').update({status_crm:status, interesse_veiculo:interesse, followup_em:followup, retirada_em:retirada}).eq('id',_plModalData.id);
     // Atualiza _plDados local
     const idx = _plDados.findIndex(x=>x.id===_plModalData.id);
-    if(idx>=0){ _plDados[idx].status_crm=status; _plDados[idx].interesse_veiculo=interesse; _plDados[idx].followup_em=followup; }
+    if(idx>=0){ _plDados[idx].status_crm=status; _plDados[idx].interesse_veiculo=interesse; _plDados[idx].followup_em=followup; _plDados[idx].retirada_em=retirada; }
     // Sincroniza allClientes (chat)
     if(typeof allClientes !== 'undefined'){
       const cc = allClientes.find(x=>x.id===_plModalData.id);
-      if(cc){ cc.status_crm=status; cc.interesse_veiculo=interesse; cc.followup_em=followup; }
+      if(cc){ cc.status_crm=status; cc.interesse_veiculo=interesse; cc.followup_em=followup; cc.retirada_em=retirada; }
     }
     if(typeof renderChatContacts==='function') renderChatContacts();
     if(typeof activeChatId!=='undefined' && activeChatId===_plModalData.id && typeof _crmCarregarPainel==='function') _crmCarregarPainel(activeChatId);
