@@ -841,17 +841,23 @@ async function _plConfigNovoStatus(){
 // Retorna um Map: chave = cliente_id (ou últimos 11 dígitos do telefone) → data ISO da última mensagem
 let _fuUltimasInteracoes = null;
 async function _fuMassaBuscarInteracoes(){
-  const {data, error} = await sb.from('wpp_mensagens')
-    .select('cliente_id,numero,created_at')
-    .eq('direcao','entrada')
-    .order('created_at',{ascending:true}); // ascendente: a última sobrescreve no map, ficando com a mais recente
-  if(error){ console.warn('[followup]',error.message); return new Map(); }
+  // View agregada: UMA linha por contato com a última mensagem recebida.
+  // (Buscar direto de wpp_mensagens estourava o limite de 1000 linhas do
+  // Supabase e retornava só as mensagens mais antigas — filtros zeravam.)
   const mapa = new Map();
-  (data||[]).forEach(m=>{
-    if(m.cliente_id) mapa.set(m.cliente_id, m.created_at);
-    const num11 = (m.numero||'').replace(/\D/g,'').slice(-11);
-    if(num11) mapa.set('tel:'+num11, m.created_at);
-  });
+  const PAGINA = 1000;
+  for(let de = 0; ; de += PAGINA){
+    const {data, error} = await sb.from('wpp_ultima_interacao')
+      .select('cliente_id,num11,ultima')
+      .order('ultima', {ascending:false})
+      .range(de, de + PAGINA - 1);
+    if(error){ console.warn('[followup]', error.message); break; }
+    (data||[]).forEach(m=>{
+      if(m.cliente_id && !mapa.has(m.cliente_id)) mapa.set(m.cliente_id, m.ultima);
+      if(m.num11 && !mapa.has('tel:'+m.num11)) mapa.set('tel:'+m.num11, m.ultima);
+    });
+    if(!data || data.length < PAGINA) break;
+  }
   return mapa;
 }
 
