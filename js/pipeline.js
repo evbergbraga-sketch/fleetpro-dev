@@ -881,6 +881,7 @@ async function _plFollowupMassa(){
   if(selPeriodo) selPeriodo.value = '';
   const wrapCustom = document.getElementById('fu-massa-periodo-custom');
   if(wrapCustom) wrapCustom.style.display = 'none';
+  _fuMassaRemoverFoto();
 
   _fuUltimasInteracoes = await _fuMassaBuscarInteracoes();
   _fuMassaAtualizar();
@@ -969,28 +970,100 @@ function _fuMassaAtualizar(){
     </div>`;
 }
 
+// ── Foto opcional do follow-up em massa ──
+let _fuMassaFoto = null;
+
+function _fuMassaSelecionarFoto(input){
+  const file = input.files[0]; if(!file) return;
+  _fuMassaFoto = file;
+  const prev = document.getElementById('fu-massa-foto-preview');
+  const vazio = document.getElementById('fu-massa-foto-vazio');
+  const img = document.getElementById('fu-massa-foto-img');
+  const nome = document.getElementById('fu-massa-foto-nome');
+  if(img) img.src = URL.createObjectURL(file);
+  if(nome) nome.textContent = file.name + ' (' + Math.round(file.size/1024) + 'KB)';
+  if(prev) prev.style.display = 'flex';
+  if(vazio) vazio.style.display = 'none';
+  input.value = '';
+}
+
+function _fuMassaRemoverFoto(){
+  _fuMassaFoto = null;
+  const img = document.getElementById('fu-massa-foto-img');
+  if(img?.src) URL.revokeObjectURL(img.src);
+  const prev = document.getElementById('fu-massa-foto-preview');
+  const vazio = document.getElementById('fu-massa-foto-vazio');
+  if(prev) prev.style.display = 'none';
+  if(vazio) vazio.style.display = '';
+}
+
+// Envia a foto para um número via bridge (mesmo endpoint do chat: salva no
+// banco e no Storage, aparecendo no histórico da conversa)
+async function _fuMassaEnviarFoto(numero, clienteId, base64, fileName){
+  const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+  if(!cfg.apiUrl) throw new Error('Evolution API não configurada');
+  const bridgeUrl = cfg.bridgeUrl || cfg.apiUrl.replace('evo.','bridge.');
+  const r = await fetch(bridgeUrl+'/api/enviar-midia', {
+    method:'POST',
+    headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+    body: JSON.stringify({
+      numero, tipo:'image', base64, fileName: fileName||null,
+      clienteId: clienteId||null,
+      nomeAtendente: (typeof currentPerfil!=='undefined' && currentPerfil?.nome) ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
+    })
+  });
+  if(!r.ok){
+    const t = await r.text();
+    let msg = t; try{ msg = JSON.parse(t)?.error||t; }catch(_){}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
 async function _fuMassaEnviar(){
   const msg = document.getElementById('fu-massa-msg')?.value?.trim() || '';
   const btn = document.getElementById('fu-massa-btn');
   const statusSel = document.getElementById('fu-massa-status')?.value || '';
 
   if(!statusSel){ notify('Selecione um status antes de enviar — o envio em massa é sempre por status.','error'); return; }
-  if(!msg){ notify('Digite a mensagem antes de enviar.','error'); return; }
+  if(!msg && !_fuMassaFoto){ notify('Digite a mensagem ou anexe uma foto antes de enviar.','error'); return; }
 
   const stCfg = _PL_STATUS.find(s=>s.key===statusSel);
   const leads = _fuMassaFiltrarLeads().filter(c=>c.telefone);
 
   if(!leads.length){ notify('Nenhum lead com telefone para os filtros selecionados.','error'); return; }
-  if(!await fpConfirm(`Enviar mensagem para ${leads.length} lead${leads.length!==1?'s':''} do status "${stCfg?.label||statusSel}"?`, 'Confirmar envio', {confirmLabel:'Enviar', danger:false})) return;
+  const oQue = _fuMassaFoto ? (msg ? 'foto + mensagem' : 'foto') : 'mensagem';
+  if(!await fpConfirm(`Enviar ${oQue} para ${leads.length} lead${leads.length!==1?'s':''} do status "${stCfg?.label||statusSel}"?`, 'Confirmar envio', {confirmLabel:'Enviar', danger:false})) return;
 
   btn.disabled=true; btn.textContent='⏳ Enviando...';
+
+  // Comprime a foto UMA vez (mesma rotina do chat) e reaproveita para todos
+  let fotoBase64 = null, fotoNome = null;
+  if(_fuMassaFoto){
+    try{
+      fotoBase64 = (typeof _comprimirImagem==='function')
+        ? await _comprimirImagem(_fuMassaFoto, 800)
+        : await _lerBase64(_fuMassaFoto);
+      fotoNome = _fuMassaFoto.name;
+    }catch(e){
+      btn.disabled=false; btn.textContent='📨 Enviar follow-up';
+      notify('Erro ao processar a foto: '+e.message,'error');
+      return;
+    }
+  }
 
   let ok=0, err=0, naoSalvas=0;
   for(const c of leads){
     const texto = msg.replace(/\{nome\}/gi, c.nome?.split(' ')[0]||c.nome||'');
     try{
-      const result = await evoSendText(c.telefone, texto);
-      if(result.salvo === false) naoSalvas++;
+      if(fotoBase64){
+        await _fuMassaEnviarFoto(fmtPhone(c.telefone), c.id, fotoBase64, fotoNome);
+        await new Promise(r=>setTimeout(r,350)); // pausa entre foto e texto
+      }
+      if(texto){
+        const result = await evoSendText(c.telefone, texto);
+        if(result.salvo === false) naoSalvas++;
+      }
       ok++;
     }catch(e){
       err++;
