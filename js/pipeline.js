@@ -873,7 +873,7 @@ async function _plFollowupMassa(){
   // Popula o select de status com os status ativos
   const sel = document.getElementById('fu-massa-status');
   if(!sel) return;
-  sel.innerHTML = '<option value="">Todos os status</option>' +
+  sel.innerHTML = '<option value="">— Selecione um status (obrigatório) —</option>' +
     _PL_STATUS.map(s=>`<option value="${s.key}">${s.label} (${_plDados.filter(c=>c.status_crm===s.key||c.status_crm===s.label).length})</option>`).join('');
 
   // Reseta o filtro de período para "Todos" a cada abertura
@@ -894,14 +894,26 @@ function _fuMassaTogglePeriodo(){
   _fuMassaAtualizar();
 }
 
-// Filtra os leads pelo status selecionado + janela de última interação
+// Filtra os leads pelo status selecionado + janela de última interação.
+// STATUS É OBRIGATÓRIO: sem seleção, retorna vazio (nunca dispara em massa
+// para a base inteira — já causou envio indevido a clientes Em Locação).
 function _fuMassaFiltrarLeads(){
   const statusSel = document.getElementById('fu-massa-status')?.value || '';
   const periodo   = document.getElementById('fu-massa-periodo')?.value || '';
 
-  let leads = statusSel
-    ? _plDados.filter(c=>c.status_crm===statusSel||c.status_crm===_PL_STATUS.find(s=>s.key===statusSel)?.label)
-    : _plDados;
+  if(!statusSel) return [];
+
+  const stCfg = _PL_STATUS.find(s=>s.key===statusSel);
+  const leads = _plDados.filter(c=>c.status_crm===statusSel || (stCfg && c.status_crm===stCfg.label));
+
+  // Última interação: última msg recebida OU criação do lead (leads da SARA/n8n
+  // não têm mensagens em wpp_mensagens — a criação conta como interação).
+  const ultimaDe = (c)=>{
+    const msg = _fuUltimaInteracao(c);
+    const criado = c.created_at || null;
+    if(msg && criado) return new Date(msg) > new Date(criado) ? msg : criado;
+    return msg || criado;
+  };
 
   if(periodo === 'todos' || !periodo) return leads; // sem filtro de tempo
 
@@ -919,7 +931,7 @@ function _fuMassaFiltrarLeads(){
     const iniObj = new Date(dataIni+'T00:00:00');
     const fimObj = dataFim ? new Date(dataFim+'T23:59:59') : agora;
     return leads.filter(c=>{
-      const ult = _fuUltimaInteracao(c);
+      const ult = ultimaDe(c);
       if(!ult) return false;
       const d = new Date(ult);
       return d >= iniObj && d <= fimObj;
@@ -928,21 +940,29 @@ function _fuMassaFiltrarLeads(){
 
   if(!limite) return leads;
   return leads.filter(c=>{
-    const ult = _fuUltimaInteracao(c);
+    const ult = ultimaDe(c);
     if(!ult) return false;
     return new Date(ult) >= limite;
   });
 }
 
 function _fuMassaAtualizar(){
+  const statusSel = document.getElementById('fu-massa-status')?.value || '';
+  const el = document.getElementById('fu-massa-preview');
+  if(!el) return;
+  if(!statusSel){
+    el.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:#b45309;margin-bottom:4px">Selecione um status</div>
+      <div style="font-size:11px;color:var(--muted)">O envio em massa só funciona para UM status por vez, para evitar mensagens indevidas.</div>`;
+    return;
+  }
+  const stCfg = _PL_STATUS.find(s=>s.key===statusSel);
   const leads = _fuMassaFiltrarLeads();
   const comTel = leads.filter(c=>c.telefone);
   const semTel = leads.length - comTel.length;
-  const el = document.getElementById('fu-massa-preview');
-  if(!el) return;
   el.innerHTML = `
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">
-      ${comTel.length} lead${comTel.length!==1?'s':''} serão impactados
+      ${comTel.length} lead${comTel.length!==1?'s':''} serão impactados <span style="font-weight:600;color:var(--muted)">— somente status "${stCfg?.label||statusSel}"</span>
     </div>
     <div style="font-size:11px;color:var(--muted)">
       ${semTel>0 ? `⚠️ ${semTel} lead${semTel!==1?'s':''} sem telefone serão ignorados.` : '✅ Todos têm telefone cadastrado.'}
@@ -952,13 +972,16 @@ function _fuMassaAtualizar(){
 async function _fuMassaEnviar(){
   const msg = document.getElementById('fu-massa-msg')?.value?.trim() || '';
   const btn = document.getElementById('fu-massa-btn');
+  const statusSel = document.getElementById('fu-massa-status')?.value || '';
 
+  if(!statusSel){ notify('Selecione um status antes de enviar — o envio em massa é sempre por status.','error'); return; }
   if(!msg){ notify('Digite a mensagem antes de enviar.','error'); return; }
 
+  const stCfg = _PL_STATUS.find(s=>s.key===statusSel);
   const leads = _fuMassaFiltrarLeads().filter(c=>c.telefone);
 
   if(!leads.length){ notify('Nenhum lead com telefone para os filtros selecionados.','error'); return; }
-  if(!await fpConfirm(`Enviar mensagem para ${leads.length} lead${leads.length!==1?'s':''}?`, 'Confirmar envio', {confirmLabel:'Enviar', danger:false})) return;
+  if(!await fpConfirm(`Enviar mensagem para ${leads.length} lead${leads.length!==1?'s':''} do status "${stCfg?.label||statusSel}"?`, 'Confirmar envio', {confirmLabel:'Enviar', danger:false})) return;
 
   btn.disabled=true; btn.textContent='⏳ Enviando...';
 
