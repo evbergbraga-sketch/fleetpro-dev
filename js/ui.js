@@ -27,6 +27,11 @@
   }
   window.addEventListener('resize', fit);
   window.addEventListener('orientationchange', ()=>setTimeout(fit, 120));
+  // WebKit às vezes NÃO dispara resize do visualViewport ao fechar o teclado:
+  // reforça no foco/desfoco de qualquer campo e mantém um watchdog leve.
+  document.addEventListener('focusin', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
+  document.addEventListener('focusout', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
+  setInterval(()=>{ if(window.innerWidth <= 768) fit(); }, 500);
   // Reajusta quando o app é ativado (login → app)
   const obs = new MutationObserver(fit);
   document.addEventListener('DOMContentLoaded', ()=>{
