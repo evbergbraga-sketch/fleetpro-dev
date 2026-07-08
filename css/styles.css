@@ -424,9 +424,12 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 
 /* ── CHAT MOBILE ── */
 @media (max-width:768px) {
-  /* Altura real do viewport medida via JS (--app-vh) — 100vh/100dvh falham no iOS */
-  #layer-app { height: var(--app-vh, 100dvh); }
-  .main { height: var(--app-vh, 100dvh); }
+  /* App shell travado no viewport de layout: o iOS ajusta este viewport sozinho
+     quando as barras do Safari expandem/recolhem e (com interactive-widget=
+     resizes-content na meta viewport) quando o teclado abre. Nada de 100vh/dvh. */
+  body:has(#layer-app.active) { position:fixed; inset:0; width:100%; height:100%; overflow:hidden; }
+  #layer-app.active { position:fixed; inset:0; height:auto; }
+  .main { height:100%; }
   /* Chat em tela cheia: anula o padding do .content e a altura fixa de desktop */
   #page-chat { margin: -14px -12px; height: calc(100% + 28px) !important; }
   #page-chat .chat-layout { height: 100% !important; border-radius: 0; border: none; }
@@ -490,7 +493,7 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
   }
   /* Header do chat: ações viram menu dropdown acionado pelo kebab (⋮) */
   .chat-top { z-index: 70; }
-  .chat-input-area { z-index: 65; }
+  .chat-input-area { z-index: 65; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
   .chat-msgs { padding: 12px 10px; }
   #chat-kebab { display:flex !important; align-items:center; }
   .chat-menu-mobile-only { display: block !important; }
