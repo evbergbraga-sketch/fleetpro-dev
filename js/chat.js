@@ -1645,6 +1645,16 @@ function _chatInputAutoGrow(el){
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
+// Teclado abriu: reajusta o shell e mantém a conversa no final (estilo WhatsApp)
+document.addEventListener('focusin', (e)=>{
+  if(e.target?.id !== 'chat-msg-input') return;
+  setTimeout(()=>{
+    if(typeof window._appViewportFit === 'function') window._appViewportFit();
+    const box = document.getElementById('chat-msgs');
+    if(box) box.scrollTop = box.scrollHeight;
+  }, 300);
+});
+
 async function sendMsg(){
   if(!activeChatId){ notify('Selecione um contato','error'); return; }
   if(_mediaFile){

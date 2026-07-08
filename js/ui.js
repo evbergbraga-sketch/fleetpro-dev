@@ -1,21 +1,41 @@
 // ui.js — Camadas, modais, notificações, utilitários
 
-// ══ ALTURA REAL DO VIEWPORT (MOBILE) ══
-// iOS Safari: 100vh/100dvh não refletem a altura visível real quando as barras
-// do navegador expandem/recolhem ou o teclado abre. Medimos via visualViewport
-// e alimentamos a var --app-vh, usada pelo CSS mobile em #layer-app/.main.
-(function initAppVh(){
+// ══ AJUSTE DO APP AO VIEWPORT VISUAL (MOBILE) ══
+// iOS: o teclado e as barras do Safari alteram apenas o viewport VISUAL
+// (visualViewport), nunca o layout. A única forma correta é dimensionar o
+// shell (#layer-app) via JS a cada resize/scroll do visualViewport,
+// compensando também o offsetTop (pan que o Safari faz com o teclado aberto).
+(function initViewportFit(){
   const vv = window.visualViewport;
-  function setVh(){
+  function fit(){
+    const app = document.getElementById('layer-app');
+    if(!app) return;
+    const mobile = window.innerWidth <= 768;
+    if(!mobile || !app.classList.contains('active')){
+      app.style.removeProperty('height');
+      app.style.removeProperty('transform');
+      return;
+    }
     const h = vv ? vv.height : window.innerHeight;
-    document.documentElement.style.setProperty('--app-vh', h + 'px');
-    // Safari "empurra" a página ao abrir o teclado — traz de volta ao topo
-    if(window.scrollY > 0) window.scrollTo(0, 0);
+    const top = vv ? vv.offsetTop : 0;
+    app.style.height = Math.round(h) + 'px';
+    app.style.transform = top ? `translateY(${Math.round(top)}px)` : '';
   }
-  if(vv) vv.addEventListener('resize', setVh);
-  window.addEventListener('resize', setVh);
-  window.addEventListener('orientationchange', ()=>setTimeout(setVh, 100));
-  setVh();
+  if(vv){
+    vv.addEventListener('resize', fit);
+    vv.addEventListener('scroll', fit);
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', ()=>setTimeout(fit, 120));
+  // Reajusta quando o app é ativado (login → app)
+  const obs = new MutationObserver(fit);
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const app = document.getElementById('layer-app');
+    if(app) obs.observe(app, {attributes:true, attributeFilter:['class']});
+    fit();
+  });
+  fit();
+  window._appViewportFit = fit;
 })();
 
 // ══ LAYERS ══
