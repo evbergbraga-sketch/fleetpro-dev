@@ -210,15 +210,69 @@ async function desconectarWpp(){
 }
 
 // ── SSE ──
-let _sseRetryDelay = 5000;
+let _sseRetryDelay = 1500;
 let _sseRetryTimer = null;
+let _sseJaConectou = false;
+
+// Catch-up: recarrega previews da lista e, se pedido, a conversa aberta.
+// Usado após reconexão do SSE e ao voltar para a aba — cobre mensagens
+// que chegaram enquanto a conexão esteve caída. Nunca navega de página.
+let _chatSincronizando = false;
+async function _chatSincronizar(recarregarConversa){
+  if(_chatSincronizando) return;
+  _chatSincronizando = true;
+  try{
+    await _carregarPreviewsChat();
+    if(recarregarConversa && activeChatId && typeof renderChatMsgs==='function'){
+      await renderChatMsgs(activeChatId);
+    }
+  }catch(e){ console.warn('[chat] sync:', e.message); }
+  _chatSincronizando = false;
+}
+
+// Watchdog: rede de segurança para eventos SSE perdidos.
+// - Atualiza a lista de conversas.
+// - Verifica a conversa ABERTA com uma consulta leve (1 linha): só
+//   re-renderiza se a última mensagem do banco ainda não está na tela —
+//   assim não interrompe áudios nem a posição de scroll sem necessidade.
+setInterval(async ()=>{
+  if(document.visibilityState !== 'visible') return;
+  if(typeof sb === 'undefined' || !sb) return;
+  _chatSincronizar(false);
+  if(!activeChatId) return;
+  try{
+    const cid = String(activeChatId);
+    let q = sb.from('wpp_mensagens').select('id,created_at');
+    if(!cid.includes('-')){
+      q = q.ilike('numero','%'+cid.replace(/\D/g,'').slice(-11));
+    } else {
+      const cli = allClientes?.find(c=>c.id===cid);
+      const num11 = (cli?.telefone||'').replace(/\D/g,'').slice(-11);
+      q = num11 ? q.or(`cliente_id.eq.${cid},numero.ilike.%25${num11}`) : q.eq('cliente_id', cid);
+    }
+    const {data} = await q.order('created_at',{ascending:false}).limit(1);
+    const ult = data?.[0];
+    if(!ult) return;
+    const area = document.getElementById('chat-msgs');
+    if(area && !area.querySelector(`[data-created-at="${ult.created_at}"]`)){
+      renderChatMsgs(activeChatId);
+    }
+  }catch(_){}
+}, 20000);
+
 
 function conectarSSE(bridgeUrl, secret){
   if(sseSource){ sseSource.close(); sseSource = null; }
   if(_sseRetryTimer){ clearTimeout(_sseRetryTimer); _sseRetryTimer = null; }
   const sseUrl = bridgeUrl.replace(/\/$/,'')+'/events?secret='+encodeURIComponent(secret);
   sseSource = new EventSource(sseUrl);
-  sseSource.onopen = ()=>{ _sseRetryDelay = 5000; setWppStatus(true,'Conectado'); };
+  sseSource.onopen = ()=>{
+    _sseRetryDelay = 1500;
+    setWppStatus(true,'Conectado');
+    // Reconexão (não o primeiro boot): busca o que chegou durante a queda
+    if(_sseJaConectou) _chatSincronizar(true);
+    _sseJaConectou = true;
+  };
   sseSource.onmessage = e=>{
     try{
       const msg = JSON.parse(e.data);
@@ -236,7 +290,7 @@ function conectarSSE(bridgeUrl, secret){
     const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
     if(cfg.bridgeUrl){
       _sseRetryTimer = setTimeout(()=>conectarSSE(cfg.bridgeUrl, cfg.secret||''), _sseRetryDelay);
-      _sseRetryDelay = Math.min(_sseRetryDelay * 2, 60000); // máx 60s
+      _sseRetryDelay = Math.min(_sseRetryDelay * 2, 30000); // máx 30s
     }
   };
 }
@@ -2329,13 +2383,18 @@ async function converterEmCliente(){
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'hidden') return;
 
-  // Ao voltar para a aba: APENAS reconecta SSE se caiu
-  // NUNCA navegar para outra página — preserva exatamente o estado atual
+  // Ao voltar para a aba:
+  // 1) Reconecta o SSE SEMPRE — no mobile a conexão vira "zumbi" (readyState
+  //    OPEN mas morta) quando o sistema congela a página; reconectar é barato.
+  // 2) Catch-up completo (lista + conversa aberta) para cobrir mensagens
+  //    que chegaram enquanto a aba esteve suspensa.
+  // NUNCA navegar para outra página — preserva exatamente o estado atual.
   const cfg = JSON.parse(localStorage.getItem(EVO_CFG_KEY)||'{}');
   if(cfg.bridgeUrl){
-    const sseCaiu = !sseSource || sseSource.readyState === EventSource.CLOSED;
-    if(sseCaiu) conectarSSE(cfg.bridgeUrl, cfg.secret||'');
+    _sseRetryDelay = 1500;
+    conectarSSE(cfg.bridgeUrl, cfg.secret||'');
   }
+  _chatSincronizar(true);
 });
 
 // ── PLANOS MOTO NO MODAL CHAT ──
