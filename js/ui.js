@@ -21,6 +21,7 @@
     }
     b.textContent = info;
   }
+  let _hMax = 0; // maior altura vista (referência para detectar teclado)
   function fit(){
     const app = document.getElementById('layer-app');
     if(!app) return;
@@ -31,22 +32,34 @@
       return;
     }
     const h = vv ? vv.height : window.innerHeight;
-    app.style.height = Math.round(h) + 'px';
+    _hMax = Math.max(_hMax, h);
+    // Teclado reportado pelo navegador: viewport encolheu bastante
+    const kbAberto = (_hMax - h) > 150;
+    // !important: atropela qualquer height de CSS que dispute com o inline
+    app.style.setProperty('height', Math.round(h) + 'px', 'important');
     app.style.removeProperty('transform');
-    // Zera scrolls presos — exceto com campo focado (o pan nativo do iOS
-    // usa esse deslocamento para manter o campo visível sobre o teclado)
     const digitando = ['INPUT','TEXTAREA'].includes(document.activeElement?.tagName);
-    if(!digitando){
+    if(kbAberto || !digitando){
+      // Modo compressão (estilo WhatsApp): o app cabe exatamente acima do
+      // teclado — zera qualquer rolagem para eliminar a banda branca.
       if(app.scrollTop) app.scrollTop = 0;
+      if(window.scrollY) window.scrollTo(0,0);
       if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
+      // Mantém a conversa colada no fim enquanto digita (se já estava no fim)
+      const msgs = document.getElementById('chat-msgs');
+      if(kbAberto && msgs && (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight) < 200){
+        msgs.scrollTop = msgs.scrollHeight;
+      }
     }
+    // (sem kbAberto e digitando: navegador antigo sem resize — o pan nativo
+    //  está posicionando o campo; não interferimos nos scrolls)
     if(debugAtivo){
       const r = app.getBoundingClientRect();
       _debugBadge(
-        'BUILD: '+APP_BUILD+
-        '\ninnerH: '+window.innerHeight+
+        'BUILD: '+APP_BUILD+'  kb: '+(kbAberto?'S':'n')+
+        '\ninnerH: '+window.innerHeight+'  hMax: '+Math.round(_hMax)+
         '\nvv.h: '+(vv?Math.round(vv.height):'—')+'  vv.top: '+(vv?Math.round(vv.offsetTop):'—')+
-        '\napp.h: '+Math.round(r.height)+'  app.top: '+Math.round(r.top)+
+        '\napp.h: '+Math.round(r.height)+'  styleH: '+app.style.height+
         '\napp.bottom: '+Math.round(r.bottom)+'  gap: '+(vv?Math.round(vv.height-r.bottom):'—')+
         '\nscrollY: '+Math.round(window.scrollY)+'  appScroll: '+app.scrollTop
       );
@@ -57,7 +70,7 @@
     vv.addEventListener('scroll', fit);
   }
   window.addEventListener('resize', fit);
-  window.addEventListener('orientationchange', ()=>setTimeout(fit, 120));
+  window.addEventListener('orientationchange', ()=>{ _hMax = 0; setTimeout(fit, 120); });
   // WebKit às vezes NÃO dispara resize do visualViewport ao fechar o teclado:
   // reforça no foco/desfoco de qualquer campo e mantém um watchdog leve.
   document.addEventListener('focusin', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
