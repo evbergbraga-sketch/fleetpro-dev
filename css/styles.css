@@ -289,6 +289,9 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 
 /* ── Input de mensagem ── */
 .chat-input-area { padding:8px 12px; display:flex; gap:8px; align-items:flex-end; background:#202c33; border-top:none; position:relative; z-index:1; }
+/* iOS escolhe o tema do TECLADO pelo color-scheme do campo focado:
+   como o chat é escuro, declaramos dark para o teclado vir escuro também */
+.chat-input, #chat-search, #crm-retirada, #crm-followup { color-scheme: dark; }
 .chat-input-wrap { flex:1; background:#2a3942; border-radius:10px; display:flex; align-items:center; padding:4px 6px; gap:6px; }
 .chat-input { flex:1; background:transparent; border:none; padding:7px 8px; font-size:14px; color:#e9edef; font-family:var(--font-body); outline:none; resize:none; max-height:120px; line-height:1.5; }
 .chat-input::placeholder { color:#8696a0; }
