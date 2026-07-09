@@ -16,12 +16,13 @@
     if(!b){
       b = document.createElement('div');
       b.id = 'vh-debug';
-      b.style.cssText = 'position:fixed;bottom:76px;left:4px;z-index:99999;background:#000c;color:#0f0;font:10px/1.5 monospace;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:pre';
+      b.style.cssText = 'position:fixed;top:110px;right:4px;z-index:99999;background:#000c;color:#0f0;font:10px/1.5 monospace;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:pre;text-align:left';
       document.body.appendChild(b);
     }
     b.textContent = info;
   }
   let _hMax = 0; // maior altura vista (referência para detectar teclado)
+  const _hist = []; // histórico p/ debug: estados durante o teclado
   function fit(){
     const app = document.getElementById('layer-app');
     if(!app) return;
@@ -33,35 +34,37 @@
     }
     const h = vv ? vv.height : window.innerHeight;
     _hMax = Math.max(_hMax, h);
-    // Teclado reportado pelo navegador: viewport encolheu bastante
-    const kbAberto = (_hMax - h) > 150;
+    const kbAberto = (_hMax - h) > 150; // teclado reportado pelo navegador
     // !important: atropela qualquer height de CSS que dispute com o inline
     app.style.setProperty('height', Math.round(h) + 'px', 'important');
     app.style.removeProperty('transform');
     const digitando = ['INPUT','TEXTAREA'].includes(document.activeElement?.tagName);
-    if(kbAberto || !digitando){
-      // Modo compressão (estilo WhatsApp): o app cabe exatamente acima do
-      // teclado — zera qualquer rolagem para eliminar a banda branca.
+    if(!digitando){
+      // Sem teclado: qualquer scroll residual é lixo — zera tudo.
       if(app.scrollTop) app.scrollTop = 0;
       if(window.scrollY) window.scrollTo(0,0);
       if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
-      // Mantém a conversa colada no fim enquanto digita (se já estava no fim)
+    } else if(kbAberto){
+      // Teclado reportado: o app já está comprimido para caber acima dele.
+      // NÃO forçamos scrollTo aqui — brigar com a animação do iOS mata o
+      // reveal do campo; com app == viewport, o navegador zera o excesso
+      // de scroll sozinho. Só mantemos a conversa colada na última mensagem.
       const msgs = document.getElementById('chat-msgs');
-      if(kbAberto && msgs && (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight) < 200){
+      if(msgs && (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight) < 200){
         msgs.scrollTop = msgs.scrollHeight;
       }
     }
-    // (sem kbAberto e digitando: navegador antigo sem resize — o pan nativo
-    //  está posicionando o campo; não interferimos nos scrolls)
     if(debugAtivo){
       const r = app.getBoundingClientRect();
+      const linha = new Date().toTimeString().slice(3,8)+' h:'+Math.round(h)+' kb:'+(kbAberto?'S':'n')+' app:'+Math.round(r.height)+' sY:'+Math.round(window.scrollY);
+      if(_hist[_hist.length-1]?.slice(6) !== linha.slice(6)){ _hist.push(linha); if(_hist.length>4) _hist.shift(); }
       _debugBadge(
         'BUILD: '+APP_BUILD+'  kb: '+(kbAberto?'S':'n')+
         '\ninnerH: '+window.innerHeight+'  hMax: '+Math.round(_hMax)+
         '\nvv.h: '+(vv?Math.round(vv.height):'—')+'  vv.top: '+(vv?Math.round(vv.offsetTop):'—')+
         '\napp.h: '+Math.round(r.height)+'  styleH: '+app.style.height+
-        '\napp.bottom: '+Math.round(r.bottom)+'  gap: '+(vv?Math.round(vv.height-r.bottom):'—')+
-        '\nscrollY: '+Math.round(window.scrollY)+'  appScroll: '+app.scrollTop
+        '\ngap: '+(vv?Math.round(vv.height-r.bottom):'—')+'  scrollY: '+Math.round(window.scrollY)+
+        '\n─ hist ─\n'+_hist.join('\n')
       );
     }
   }
