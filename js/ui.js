@@ -8,6 +8,8 @@
 (function initViewportFit(){
   const vv = window.visualViewport;
   const debugAtivo = location.search.includes('debug=vh');
+  // Versão do build: extraída do ?v= da URL deste próprio script (zero manutenção)
+  const APP_BUILD = (document.currentScript?.src.match(/v=(\w+)/)||[])[1] || '?';
   function _debugBadge(info){
     if(!debugAtivo) return;
     let b = document.getElementById('vh-debug');
@@ -41,7 +43,8 @@
     if(debugAtivo){
       const r = app.getBoundingClientRect();
       _debugBadge(
-        'innerH: '+window.innerHeight+
+        'BUILD: '+APP_BUILD+
+        '\ninnerH: '+window.innerHeight+
         '\nvv.h: '+(vv?Math.round(vv.height):'—')+'  vv.top: '+(vv?Math.round(vv.offsetTop):'—')+
         '\napp.h: '+Math.round(r.height)+'  app.top: '+Math.round(r.top)+
         '\napp.bottom: '+Math.round(r.bottom)+'  gap: '+(vv?Math.round(vv.height-r.bottom):'—')+
