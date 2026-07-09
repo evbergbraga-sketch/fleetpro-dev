@@ -1864,6 +1864,7 @@ function _comprimirImagem(file, maxWidth=800){
 
 // ── GRAVAÇÃO DE ÁUDIO ──
 let mediaRecorder = null, audioChunks = [], _streamAtivo = null;
+let _recCancelado = false; // lixeira: descarta o áudio no onstop, nunca envia
 
 // ── BARRA DE GRAVAÇÃO (cronômetro + forma de onda, estilo WhatsApp) ──
 let _recTimerInterval = null, _recStartTime = null;
@@ -1949,6 +1950,7 @@ async function iniciarGravacao(e){
   try{
     _streamAtivo = await navigator.mediaDevices.getUserMedia({audio:true});
     audioChunks = [];
+    _recCancelado = false;
     mediaRecorder = new MediaRecorder(_streamAtivo);
     mediaRecorder.ondataavailable = ev=>{ if(ev.data.size>0) audioChunks.push(ev.data); };
     mediaRecorder.onstop = ()=>{
@@ -1956,6 +1958,10 @@ async function iniciarGravacao(e){
       _recPararCronometro();
       _recPararWaveform();
       _recMostrarBarra(false);
+      // Cancelado pelo usuário (lixeira): descarta tudo, NUNCA envia.
+      // O stop() dispara um último ondataavailable que reenche audioChunks —
+      // por isso a flag é obrigatória; zerar o array antes não basta.
+      if(_recCancelado){ _recCancelado = false; audioChunks = []; resetMicBtn(); return; }
       if(audioChunks.length===0){ resetMicBtn(); return; }
       const blob = new Blob(audioChunks,{type:'audio/ogg;codecs=opus'});
       if(blob.size < 500){ notify('Áudio muito curto — grave por mais tempo antes de enviar','error'); resetMicBtn(); return; }
@@ -1982,9 +1988,11 @@ function pararGravacao(){
 }
 
 function pararGravacaoSemEnviar(){
+  _recCancelado = true;
   if(mediaRecorder && mediaRecorder.state==='recording'){
-    audioChunks = [];
-    mediaRecorder.stop();
+    mediaRecorder.stop(); // o onstop vê a flag e descarta o áudio
+  } else {
+    _recCancelado = false;
   }
   _recPararCronometro();
   _recPararWaveform();
