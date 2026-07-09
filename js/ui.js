@@ -24,9 +24,6 @@
   function fit(){
     const app = document.getElementById('layer-app');
     if(!app) return;
-    // Modo kb-pan ativo (teclado aberto no Chrome iOS): o pan nativo está
-    // no controle — não mexe em altura, transform nem scroll até fechar.
-    if(document.body.classList.contains('kb-pan')) return;
     const mobile = window.innerWidth <= 768;
     if(!mobile || !app.classList.contains('active')){
       app.style.removeProperty('height');
@@ -34,12 +31,15 @@
       return;
     }
     const h = vv ? vv.height : window.innerHeight;
-    const top = vv ? vv.offsetTop : 0;
     app.style.height = Math.round(h) + 'px';
-    app.style.transform = top ? `translateY(${Math.round(top)}px)` : '';
-    // Scroll interno preso (iOS rola o shell ao abrir o teclado): zera sempre
-    if(app.scrollTop) app.scrollTop = 0;
-    if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
+    app.style.removeProperty('transform');
+    // Zera scrolls presos — exceto com campo focado (o pan nativo do iOS
+    // usa esse deslocamento para manter o campo visível sobre o teclado)
+    const digitando = ['INPUT','TEXTAREA'].includes(document.activeElement?.tagName);
+    if(!digitando){
+      if(app.scrollTop) app.scrollTop = 0;
+      if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
+    }
     if(debugAtivo){
       const r = app.getBoundingClientRect();
       _debugBadge(
@@ -64,54 +64,20 @@
   document.addEventListener('focusout', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
   setInterval(()=>{ if(window.innerWidth <= 768) fit(); }, 500);
 
-  // ── FALLBACK CHROME iOS (REATIVO) ──
-  // No Chrome do iOS o visualViewport pode NÃO encolher com o teclado.
-  // A animação do teclado leva ~400ms, então a decisão é reativa:
-  // - se o viewport encolher a qualquer momento → modo normal (fit) assume;
-  // - se após 700ms nada mudou → ativa kb-pan (pan nativo até o campo).
-  let _kbBaseH = 0, _kbTimer = null, _kbFocado = null;
-  function _kbEncolheu(){
-    const h = vv ? vv.height : window.innerHeight;
-    return (_kbBaseH - h) > 40;
-  }
-  if(vv) vv.addEventListener('resize', ()=>{
-    // Viewport encolheu com campo focado: o caminho correto funciona aqui —
-    // desativa o pan (se tiver entrado) e deixa o fit agir.
-    if(_kbFocado && _kbEncolheu()){
-      if(_kbTimer){ clearTimeout(_kbTimer); _kbTimer = null; }
-      if(document.body.classList.contains('kb-pan')){
-        document.body.classList.remove('kb-pan');
-        window.scrollTo(0,0);
-      }
-      fit();
-    }
-  });
-  document.addEventListener('focusin', (e)=>{
-    const el = e.target;
-    if(!el || !['INPUT','TEXTAREA'].includes(el.tagName)) return;
-    if(window.innerWidth > 768) return;
-    _kbFocado = el;
-    _kbBaseH = vv ? vv.height : window.innerHeight;
-    if(_kbTimer) clearTimeout(_kbTimer);
-    _kbTimer = setTimeout(()=>{
-      _kbTimer = null;
-      if(document.activeElement !== el) return; // já desfocou
-      if(_kbEncolheu()) return;                 // Safari/Android: fit no controle
-      document.body.classList.add('kb-pan');
-      try{ el.scrollIntoView({block:'center'}); }catch(_){ }
-    }, 700);
-  });
+  // ── PÓS-TECLADO ──
+  // Em fluxo normal (shell sem position:fixed), o próprio iOS desloca a
+  // página para revelar o campo focado. Ao fechar o teclado, garantimos que
+  // tudo volta ao lugar: scrolls zerados e altura reajustada.
   document.addEventListener('focusout', ()=>{
-    _kbFocado = null;
-    if(_kbTimer){ clearTimeout(_kbTimer); _kbTimer = null; }
-    if(!document.body.classList.contains('kb-pan')){ return; }
     setTimeout(()=>{
-      document.body.classList.remove('kb-pan');
       window.scrollTo(0,0);
       document.documentElement.scrollTop = 0;
+      const app = document.getElementById('layer-app');
+      if(app && app.scrollTop) app.scrollTop = 0;
       fit();
-    }, 120);
+    }, 150);
   });
+
   // Reajusta quando o app é ativado (login → app)
   const obs = new MutationObserver(fit);
   document.addEventListener('DOMContentLoaded', ()=>{
