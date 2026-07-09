@@ -64,6 +64,15 @@ function goPage(id, navEl){
   }
   if(id !== 'denied') _navAtual = id;
   _navGoingBack = false;
+
+  // Contas a Pagar: filtro de vencimento sempre abre em "Este mês"
+  if(id === 'contas-pagar'){
+    const selPeriodo = document.getElementById('cp-filtro-periodo');
+    if(selPeriodo && typeof cpToggleFiltroVencimento === 'function'){
+      selPeriodo.value = 'mes';
+      cpToggleFiltroVencimento(); // preenche as datas do mês e recarrega a lista
+    }
+  }
   _navAtualizarBotaoVoltar();
 
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
