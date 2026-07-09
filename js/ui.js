@@ -7,6 +7,18 @@
 // compensando também o offsetTop (pan que o Safari faz com o teclado aberto).
 (function initViewportFit(){
   const vv = window.visualViewport;
+  const debugAtivo = location.search.includes('debug=vh');
+  function _debugBadge(info){
+    if(!debugAtivo) return;
+    let b = document.getElementById('vh-debug');
+    if(!b){
+      b = document.createElement('div');
+      b.id = 'vh-debug';
+      b.style.cssText = 'position:fixed;top:4px;left:4px;z-index:99999;background:#000c;color:#0f0;font:10px/1.5 monospace;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:pre';
+      document.body.appendChild(b);
+    }
+    b.textContent = info;
+  }
   function fit(){
     const app = document.getElementById('layer-app');
     if(!app) return;
@@ -20,6 +32,19 @@
     const top = vv ? vv.offsetTop : 0;
     app.style.height = Math.round(h) + 'px';
     app.style.transform = top ? `translateY(${Math.round(top)}px)` : '';
+    // Scroll interno preso (iOS rola o shell ao abrir o teclado): zera sempre
+    if(app.scrollTop) app.scrollTop = 0;
+    if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
+    if(debugAtivo){
+      const r = app.getBoundingClientRect();
+      _debugBadge(
+        'innerH: '+window.innerHeight+
+        '\nvv.h: '+(vv?Math.round(vv.height):'—')+'  vv.top: '+(vv?Math.round(vv.offsetTop):'—')+
+        '\napp.h: '+Math.round(r.height)+'  app.top: '+Math.round(r.top)+
+        '\napp.bottom: '+Math.round(r.bottom)+'  gap: '+(vv?Math.round(vv.height-r.bottom):'—')+
+        '\nscrollY: '+Math.round(window.scrollY)+'  appScroll: '+app.scrollTop
+      );
+    }
   }
   if(vv){
     vv.addEventListener('resize', fit);
