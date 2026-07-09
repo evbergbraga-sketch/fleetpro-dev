@@ -61,27 +61,47 @@
   document.addEventListener('focusout', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
   setInterval(()=>{ if(window.innerWidth <= 768) fit(); }, 500);
 
-  // ── FALLBACK CHROME iOS ──
-  // No Chrome do iOS o visualViewport NÃO encolhe com o teclado (limitação da
-  // WebView — só o Safari expõe a geometria do teclado). Detecção: campo focado
-  // e viewport inalterado após 350ms. Ação: destrava o shell (classe kb-pan)
-  // para o WebKit fazer o pan nativo até o campo; ao desfocar, retrava e refaz o fit.
+  // ── FALLBACK CHROME iOS (REATIVO) ──
+  // No Chrome do iOS o visualViewport pode NÃO encolher com o teclado.
+  // A animação do teclado leva ~400ms, então a decisão é reativa:
+  // - se o viewport encolher a qualquer momento → modo normal (fit) assume;
+  // - se após 700ms nada mudou → ativa kb-pan (pan nativo até o campo).
+  let _kbBaseH = 0, _kbTimer = null, _kbFocado = null;
+  function _kbEncolheu(){
+    const h = vv ? vv.height : window.innerHeight;
+    return (_kbBaseH - h) > 40;
+  }
+  if(vv) vv.addEventListener('resize', ()=>{
+    // Viewport encolheu com campo focado: o caminho correto funciona aqui —
+    // desativa o pan (se tiver entrado) e deixa o fit agir.
+    if(_kbFocado && _kbEncolheu()){
+      if(_kbTimer){ clearTimeout(_kbTimer); _kbTimer = null; }
+      if(document.body.classList.contains('kb-pan')){
+        document.body.classList.remove('kb-pan');
+        window.scrollTo(0,0);
+      }
+      fit();
+    }
+  });
   document.addEventListener('focusin', (e)=>{
     const el = e.target;
     if(!el || !['INPUT','TEXTAREA'].includes(el.tagName)) return;
     if(window.innerWidth > 768) return;
-    const hAntes = vv ? vv.height : window.innerHeight;
-    setTimeout(()=>{
+    _kbFocado = el;
+    _kbBaseH = vv ? vv.height : window.innerHeight;
+    if(_kbTimer) clearTimeout(_kbTimer);
+    _kbTimer = setTimeout(()=>{
+      _kbTimer = null;
       if(document.activeElement !== el) return; // já desfocou
-      const hDepois = vv ? vv.height : window.innerHeight;
-      if(Math.abs(hAntes - hDepois) < 40){
-        document.body.classList.add('kb-pan');
-        try{ el.scrollIntoView({block:'center'}); }catch(_){ }
-      }
-    }, 350);
+      if(_kbEncolheu()) return;                 // Safari/Android: fit no controle
+      document.body.classList.add('kb-pan');
+      try{ el.scrollIntoView({block:'center'}); }catch(_){ }
+    }, 700);
   });
   document.addEventListener('focusout', ()=>{
-    if(!document.body.classList.contains('kb-pan')) return;
+    _kbFocado = null;
+    if(_kbTimer){ clearTimeout(_kbTimer); _kbTimer = null; }
+    if(!document.body.classList.contains('kb-pan')){ return; }
     setTimeout(()=>{
       document.body.classList.remove('kb-pan');
       window.scrollTo(0,0);
