@@ -431,6 +431,10 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
      ui.js) refina a altura/posição pelo visualViewport (teclado, barras). */
   body:has(#layer-app.active) { position:fixed; inset:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; }
   #layer-app.active { position:fixed; top:0; left:0; right:0; height:100dvh; }
+  /* Modo kb-pan (teclado no Chrome iOS): destrava tudo para o WebKit
+     rolar nativamente até o campo focado — retravado ao fechar o teclado */
+  body.kb-pan { position:static !important; overflow:auto !important; }
+  body.kb-pan #layer-app.active { position:absolute !important; }
   .main { height:100%; }
   /* Chat em tela cheia: anula o padding do .content e a altura fixa de desktop */
   #page-chat { margin: -14px -12px; height: calc(100% + 28px) !important; }

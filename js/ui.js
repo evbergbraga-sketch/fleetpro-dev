@@ -22,6 +22,9 @@
   function fit(){
     const app = document.getElementById('layer-app');
     if(!app) return;
+    // Modo kb-pan ativo (teclado aberto no Chrome iOS): o pan nativo está
+    // no controle — não mexe em altura, transform nem scroll até fechar.
+    if(document.body.classList.contains('kb-pan')) return;
     const mobile = window.innerWidth <= 768;
     if(!mobile || !app.classList.contains('active')){
       app.style.removeProperty('height');
@@ -57,6 +60,35 @@
   document.addEventListener('focusin', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
   document.addEventListener('focusout', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
   setInterval(()=>{ if(window.innerWidth <= 768) fit(); }, 500);
+
+  // ── FALLBACK CHROME iOS ──
+  // No Chrome do iOS o visualViewport NÃO encolhe com o teclado (limitação da
+  // WebView — só o Safari expõe a geometria do teclado). Detecção: campo focado
+  // e viewport inalterado após 350ms. Ação: destrava o shell (classe kb-pan)
+  // para o WebKit fazer o pan nativo até o campo; ao desfocar, retrava e refaz o fit.
+  document.addEventListener('focusin', (e)=>{
+    const el = e.target;
+    if(!el || !['INPUT','TEXTAREA'].includes(el.tagName)) return;
+    if(window.innerWidth > 768) return;
+    const hAntes = vv ? vv.height : window.innerHeight;
+    setTimeout(()=>{
+      if(document.activeElement !== el) return; // já desfocou
+      const hDepois = vv ? vv.height : window.innerHeight;
+      if(Math.abs(hAntes - hDepois) < 40){
+        document.body.classList.add('kb-pan');
+        try{ el.scrollIntoView({block:'center'}); }catch(_){ }
+      }
+    }, 350);
+  });
+  document.addEventListener('focusout', ()=>{
+    if(!document.body.classList.contains('kb-pan')) return;
+    setTimeout(()=>{
+      document.body.classList.remove('kb-pan');
+      window.scrollTo(0,0);
+      document.documentElement.scrollTop = 0;
+      fit();
+    }, 120);
+  });
   // Reajusta quando o app é ativado (login → app)
   const obs = new MutationObserver(fit);
   document.addEventListener('DOMContentLoaded', ()=>{
