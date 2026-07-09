@@ -14,7 +14,7 @@
     if(!b){
       b = document.createElement('div');
       b.id = 'vh-debug';
-      b.style.cssText = 'position:fixed;top:4px;left:4px;z-index:99999;background:#000c;color:#0f0;font:10px/1.5 monospace;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:pre';
+      b.style.cssText = 'position:fixed;bottom:76px;left:4px;z-index:99999;background:#000c;color:#0f0;font:10px/1.5 monospace;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:pre';
       document.body.appendChild(b);
     }
     b.textContent = info;
