@@ -22,6 +22,7 @@
     b.textContent = info;
   }
   let _hMax = 0; // maior altura vista (referência para detectar teclado)
+  let _kbAlinhado = false; // alinhamento assistido já aplicado nesta abertura de teclado
   const _hist = []; // histórico p/ debug: estados durante o teclado
   function fit(){
     const app = document.getElementById('layer-app');
@@ -35,20 +36,42 @@
     const h = vv ? vv.height : window.innerHeight;
     _hMax = Math.max(_hMax, h);
     const kbAberto = (_hMax - h) > 150; // teclado reportado pelo navegador
-    // !important: atropela qualquer height de CSS que dispute com o inline
-    app.style.setProperty('height', Math.round(h) + 'px', 'important');
+    const hpx = Math.round(h) + 'px';
+    // Plano A: comprime o app para caber acima do teclado
+    app.style.setProperty('height', hpx, 'important');
     app.style.removeProperty('transform');
+    let rH = app.getBoundingClientRect().height;
+    let modo = 'A';
+    if(Math.abs(rH - h) > 20){
+      // Plano B: algo segura a altura — força também html e body
+      document.documentElement.style.setProperty('height', hpx, 'important');
+      document.body.style.setProperty('height', hpx, 'important');
+      rH = app.getBoundingClientRect().height;
+      modo = 'B';
+    }
     const digitando = ['INPUT','TEXTAREA'].includes(document.activeElement?.tagName);
-    if(!digitando){
-      // Sem teclado: qualquer scroll residual é lixo — zera tudo.
-      if(app.scrollTop) app.scrollTop = 0;
-      if(window.scrollY) window.scrollTo(0,0);
-      if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
-    } else if(kbAberto){
-      // Teclado reportado: o app já está comprimido para caber acima dele.
-      // NÃO forçamos scrollTo aqui — brigar com a animação do iOS mata o
-      // reveal do campo; com app == viewport, o navegador zera o excesso
-      // de scroll sozinho. Só mantemos a conversa colada na última mensagem.
+    if(kbAberto && Math.abs(rH - h) > 20){
+      // Plano C: o app não comprimiu — alinha via scroll até o fim (o mesmo
+      // gesto manual que alinha o campo no teclado), uma vez por abertura,
+      // cooperando com a direção do próprio iOS.
+      modo = 'C';
+      if(!_kbAlinhado){
+        _kbAlinhado = true;
+        setTimeout(()=>{ window.scrollTo(0, 100000); }, 250);
+      }
+    }
+    if(!kbAberto){
+      _kbAlinhado = false;
+      // Sem teclado: restaura html/body e zera scrolls residuais
+      document.documentElement.style.removeProperty('height');
+      document.body.style.removeProperty('height');
+      if(!digitando){
+        if(app.scrollTop) app.scrollTop = 0;
+        if(window.scrollY) window.scrollTo(0,0);
+        if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
+      }
+    } else {
+      // Teclado aberto: mantém a conversa colada na última mensagem
       const msgs = document.getElementById('chat-msgs');
       if(msgs && (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight) < 200){
         msgs.scrollTop = msgs.scrollHeight;
@@ -56,14 +79,13 @@
     }
     if(debugAtivo){
       const r = app.getBoundingClientRect();
-      const linha = new Date().toTimeString().slice(3,8)+' h:'+Math.round(h)+' kb:'+(kbAberto?'S':'n')+' app:'+Math.round(r.height)+' sY:'+Math.round(window.scrollY);
+      const linha = new Date().toTimeString().slice(3,8)+' h:'+Math.round(h)+' kb:'+(kbAberto?'S':'n')+' app:'+Math.round(r.height)+' sY:'+Math.round(window.scrollY)+' m:'+modo;
       if(_hist[_hist.length-1]?.slice(6) !== linha.slice(6)){ _hist.push(linha); if(_hist.length>4) _hist.shift(); }
       _debugBadge(
-        'BUILD: '+APP_BUILD+'  kb: '+(kbAberto?'S':'n')+
+        'BUILD: '+APP_BUILD+'  kb: '+(kbAberto?'S':'n')+'  modo: '+modo+
         '\ninnerH: '+window.innerHeight+'  hMax: '+Math.round(_hMax)+
-        '\nvv.h: '+(vv?Math.round(vv.height):'—')+'  vv.top: '+(vv?Math.round(vv.offsetTop):'—')+
-        '\napp.h: '+Math.round(r.height)+'  styleH: '+app.style.height+
-        '\ngap: '+(vv?Math.round(vv.height-r.bottom):'—')+'  scrollY: '+Math.round(window.scrollY)+
+        '\nvv.h: '+(vv?Math.round(vv.height):'—')+'  styleH: '+app.style.height+
+        '\napp.h: '+Math.round(r.height)+'  gap: '+(vv?Math.round(vv.height-r.bottom):'—')+'  scrollY: '+Math.round(window.scrollY)+
         '\n─ hist ─\n'+_hist.join('\n')
       );
     }
