@@ -27,10 +27,47 @@ function _plDot(cor, size=10){
 }
 
 // ── INICIALIZAÇÃO ──
+// ── ARRASTAR O KANBAN COM O MOUSE (PAN HORIZONTAL) ──
+// Clica e arrasta em qualquer área vazia do quadro para deslizar as colunas.
+// Não interfere no drag-and-drop dos cards (que continuam com prioridade),
+// nem em botões/campos. Um arrasto não dispara clique acidental por baixo.
+function _plKanbanPan(){
+  const kb = document.getElementById('pl-kanban');
+  if(!kb || kb._panInit) return;
+  kb._panInit = true;
+  let ativo = false, moveu = false, startX = 0, startScroll = 0;
+
+  kb.addEventListener('mousedown', (e)=>{
+    if(e.button !== 0) return; // só botão esquerdo
+    // Cards (draggable) e controles têm prioridade — pan só em área "vazia"
+    if(e.target.closest('[draggable="true"],button,input,select,textarea,a')) return;
+    ativo = true; moveu = false;
+    startX = e.pageX; startScroll = kb.scrollLeft;
+    kb.style.cursor = 'grabbing';
+    e.preventDefault(); // evita seleção de texto durante o arrasto
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if(!ativo) return;
+    const dx = e.pageX - startX;
+    if(Math.abs(dx) > 4) moveu = true;
+    kb.scrollLeft = startScroll - dx;
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(!ativo) return;
+    ativo = false;
+    kb.style.cursor = '';
+  });
+  // Se houve arrasto, engole o clique que sobraria (não abre card sem querer)
+  kb.addEventListener('click', (e)=>{
+    if(moveu){ e.stopPropagation(); e.preventDefault(); moveu = false; }
+  }, true);
+}
+
 async function iniciarPipeline(){
   // Carrega status customizados do banco PRIMEIRO
   await _plCarregarStatus();
   _plMostrarConfigBtn();
+  _plKanbanPan(); // arrastar o kanban lateralmente com o mouse
 
   if(!_plPerfis.length){
     const {data} = await sb.from('perfis').select('id,nome,perfil').in('perfil',['admin','atendente']).order('nome');

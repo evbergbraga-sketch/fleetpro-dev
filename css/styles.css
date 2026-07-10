@@ -158,6 +158,17 @@ html { background: var(--bg); }
 }
 
 .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
+
+/* ── KANBAN DO PIPELINE ── */
+/* Barra de rolagem SEMPRE visível (a nativa do sistema some fora do hover) */
+#pl-kanban { cursor: grab; }
+#pl-kanban::-webkit-scrollbar { height: 11px; }
+#pl-kanban::-webkit-scrollbar-track { background: var(--bg2); border-radius: 20px; }
+#pl-kanban::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 20px; border: 2px solid var(--bg2); }
+#pl-kanban::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+@supports (scrollbar-width: auto) {
+  #pl-kanban { scrollbar-width: auto; scrollbar-color: var(--border2) var(--bg2); }
+}
 .stats-grid.cols3 { grid-template-columns:repeat(3,1fr); }
 
 .stat-card { background:var(--card); border:1px solid var(--border2); border-radius:12px; padding:18px; position:relative; overflow:hidden; transition:box-shadow .2s, transform .2s, border-color .2s; cursor:default; box-shadow:var(--shadow-sm); }
