@@ -1,14 +1,18 @@
 // ui.js — Camadas, modais, notificações, utilitários
 
-// ══ AJUSTE DO APP AO VIEWPORT VISUAL (MOBILE) ══
-// iOS: o teclado e as barras do Safari alteram apenas o viewport VISUAL
-// (visualViewport), nunca o layout. A única forma correta é dimensionar o
-// shell (#layer-app) via JS a cada resize/scroll do visualViewport,
-// compensando também o offsetTop (pan que o Safari faz com o teclado aberto).
+// ══ AJUSTE DO APP AO TECLADO (MOBILE) ══
+// Fica DORMENTE por padrão: o CSS (#layer-app.active{height:100dvh}) já
+// acompanha sozinho a barra do navegador expandindo/recolhendo durante
+// scroll normal — sem nenhuma interferência de JS. Isso é essencial: uma
+// versão anterior rodava esse ajuste o tempo todo, em qualquer página, e
+// confundia a barra do navegador encolhendo (scroll comum) com "o teclado
+// abriu", forçando a altura do app e resetando o scroll — parecia a tela
+// "voltando" sozinha ao arrastar uma lista qualquer.
+// Este ajuste SÓ liga quando um campo de texto é focado no mobile (teclado
+// de verdade) e desliga assim que o campo perde o foco.
 (function initViewportFit(){
   const vv = window.visualViewport;
   const debugAtivo = location.search.includes('debug=vh');
-  // Versão do build: extraída do ?v= da URL deste próprio script (zero manutenção)
   const APP_BUILD = (document.currentScript?.src.match(/v=(\w+)/)||[])[1] || '?';
   function _debugBadge(info){
     if(!debugAtivo) return;
@@ -21,57 +25,44 @@
     }
     b.textContent = info;
   }
-  let _hMax = 0; // maior altura vista (referência para detectar teclado)
-  let _kbAlinhado = false; // alinhamento assistido já aplicado nesta abertura de teclado
-  const _hist = []; // histórico p/ debug: estados durante o teclado
+  let ligado = false;      // true somente enquanto um campo de texto está focado
+  let _hMax = 0;
+  let _kbAlinhado = false;
+  let _watchdog = null;
+  const _hist = [];
+
+  function _limpar(){
+    const app = document.getElementById('layer-app');
+    if(app) app.style.removeProperty('height');
+    if(app) app.style.removeProperty('transform');
+    document.documentElement.style.removeProperty('height');
+    document.body.style.removeProperty('height');
+  }
+
   function fit(){
+    if(!ligado){ _limpar(); return; } // dormente: CSS 100dvh cuida sozinho
     const app = document.getElementById('layer-app');
     if(!app) return;
-    const mobile = window.innerWidth <= 768;
-    if(!mobile || !app.classList.contains('active')){
-      app.style.removeProperty('height');
-      app.style.removeProperty('transform');
-      return;
-    }
     const h = vv ? vv.height : window.innerHeight;
     _hMax = Math.max(_hMax, h);
     const kbAberto = (_hMax - h) > 150; // teclado reportado pelo navegador
     const hpx = Math.round(h) + 'px';
-    // Plano A: comprime o app para caber acima do teclado
     app.style.setProperty('height', hpx, 'important');
     app.style.removeProperty('transform');
     let rH = app.getBoundingClientRect().height;
     let modo = 'A';
     if(Math.abs(rH - h) > 20){
-      // Plano B: algo segura a altura — força também html e body
       document.documentElement.style.setProperty('height', hpx, 'important');
       document.body.style.setProperty('height', hpx, 'important');
       rH = app.getBoundingClientRect().height;
       modo = 'B';
     }
-    const digitando = ['INPUT','TEXTAREA'].includes(document.activeElement?.tagName);
-    if(kbAberto && Math.abs(rH - h) > 20){
-      // Plano C: o app não comprimiu — alinha via scroll até o fim (o mesmo
-      // gesto manual que alinha o campo no teclado), uma vez por abertura,
-      // cooperando com a direção do próprio iOS.
+    if(kbAberto && Math.abs(rH - h) > 20 && !_kbAlinhado){
       modo = 'C';
-      if(!_kbAlinhado){
-        _kbAlinhado = true;
-        setTimeout(()=>{ window.scrollTo(0, 100000); }, 250);
-      }
+      _kbAlinhado = true;
+      setTimeout(()=>{ window.scrollTo(0, 100000); }, 250);
     }
-    if(!kbAberto){
-      _kbAlinhado = false;
-      // Sem teclado: restaura html/body e zera scrolls residuais
-      document.documentElement.style.removeProperty('height');
-      document.body.style.removeProperty('height');
-      if(!digitando){
-        if(app.scrollTop) app.scrollTop = 0;
-        if(window.scrollY) window.scrollTo(0,0);
-        if(document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
-      }
-    } else {
-      // Teclado aberto: mantém a conversa colada na última mensagem
+    if(kbAberto){
       const msgs = document.getElementById('chat-msgs');
       if(msgs && (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight) < 200){
         msgs.scrollTop = msgs.scrollHeight;
@@ -82,7 +73,7 @@
       const linha = new Date().toTimeString().slice(3,8)+' h:'+Math.round(h)+' kb:'+(kbAberto?'S':'n')+' app:'+Math.round(r.height)+' sY:'+Math.round(window.scrollY)+' m:'+modo;
       if(_hist[_hist.length-1]?.slice(6) !== linha.slice(6)){ _hist.push(linha); if(_hist.length>4) _hist.shift(); }
       _debugBadge(
-        'BUILD: '+APP_BUILD+'  kb: '+(kbAberto?'S':'n')+'  modo: '+modo+
+        'BUILD: '+APP_BUILD+'  kb: '+(kbAberto?'S':'n')+'  modo: '+modo+'  ligado: S'+
         '\ninnerH: '+window.innerHeight+'  hMax: '+Math.round(_hMax)+
         '\nvv.h: '+(vv?Math.round(vv.height):'—')+'  styleH: '+app.style.height+
         '\napp.h: '+Math.round(r.height)+'  gap: '+(vv?Math.round(vv.height-r.bottom):'—')+'  scrollY: '+Math.round(window.scrollY)+
@@ -90,40 +81,44 @@
       );
     }
   }
-  if(vv){
-    vv.addEventListener('resize', fit);
-    vv.addEventListener('scroll', fit);
-  }
-  window.addEventListener('resize', fit);
-  window.addEventListener('orientationchange', ()=>{ _hMax = 0; setTimeout(fit, 120); });
-  // WebKit às vezes NÃO dispara resize do visualViewport ao fechar o teclado:
-  // reforça no foco/desfoco de qualquer campo e mantém um watchdog leve.
-  document.addEventListener('focusin', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
-  document.addEventListener('focusout', ()=>{ setTimeout(fit, 100); setTimeout(fit, 400); });
-  setInterval(()=>{ if(window.innerWidth <= 768) fit(); }, 500);
 
-  // ── PÓS-TECLADO ──
-  // Em fluxo normal (shell sem position:fixed), o próprio iOS desloca a
-  // página para revelar o campo focado. Ao fechar o teclado, garantimos que
-  // tudo volta ao lugar: scrolls zerados e altura reajustada.
-  document.addEventListener('focusout', ()=>{
+  function ligar(){
+    if(ligado || window.innerWidth > 768) return;
+    ligado = true;
+    _hMax = vv ? vv.height : window.innerHeight;
+    _kbAlinhado = false;
+    if(_watchdog) clearInterval(_watchdog);
+    _watchdog = setInterval(fit, 400); // só roda enquanto o campo está focado
+    fit();
+  }
+  function desligar(){
+    if(!ligado) return;
+    ligado = false;
+    if(_watchdog){ clearInterval(_watchdog); _watchdog = null; }
+    _limpar();
+    if(debugAtivo) _debugBadge('BUILD: '+APP_BUILD+'  ligado: n (dormente)\n─ hist ─\n'+_hist.join('\n'));
     setTimeout(()=>{
       window.scrollTo(0,0);
       document.documentElement.scrollTop = 0;
       const app = document.getElementById('layer-app');
       if(app && app.scrollTop) app.scrollTop = 0;
-      fit();
     }, 150);
-  });
+  }
 
-  // Reajusta quando o app é ativado (login → app)
-  const obs = new MutationObserver(fit);
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const app = document.getElementById('layer-app');
-    if(app) obs.observe(app, {attributes:true, attributeFilter:['class']});
-    fit();
+  document.addEventListener('focusin', (e)=>{
+    if(!['INPUT','TEXTAREA'].includes(e.target?.tagName)) return;
+    ligar();
   });
-  fit();
+  document.addEventListener('focusout', (e)=>{
+    if(!['INPUT','TEXTAREA'].includes(e.target?.tagName)) return;
+    desligar();
+  });
+  if(vv){
+    vv.addEventListener('resize', ()=>{ if(ligado) fit(); });
+    vv.addEventListener('scroll', ()=>{ if(ligado) fit(); });
+  }
+  window.addEventListener('orientationchange', ()=>{ if(ligado){ _hMax=0; setTimeout(fit,120); } });
+
   window._appViewportFit = fit;
 })();
 
