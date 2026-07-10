@@ -110,7 +110,7 @@ body { font-family:var(--font-body); background:var(--bg); color:var(--text); he
 .logo { padding:20px 16px 16px; border-bottom:1px solid var(--sidebar-border); }
 .logo-mark { font-family:var(--font-display); font-size:16px; font-weight:800; color:#E0E7FF; display:flex; align-items:center; gap:8px; }
 .logo-sub { font-size:9px; color:#6B6B8F; letter-spacing:1.5px; text-transform:uppercase; margin-top:3px; padding-left:36px; }
-nav { flex:1; padding:10px 10px 10px 8px; overflow-y:auto; }
+nav { flex:1; padding:10px 10px 10px 8px; overflow-y:auto; overscroll-behavior-y:contain; }
 .nav-section { font-size:9px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:#6B6B8F; padding:14px 10px 5px; }
 .nav-item { display:flex; align-items:center; gap:10px; padding:9px 10px 9px 8px; border-radius:0 8px 8px 0; cursor:pointer; font-size:13px; color:#A8A8C8; transition:all .15s; margin-bottom:1px; border-left:2.5px solid transparent; font-weight:500; }
 .nav-item:hover { background:var(--sidebar-hover); color:#E0E7FF; }
@@ -248,7 +248,7 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 .chat-search-wrap { padding:8px 12px; background:#111b21; flex-shrink:0; }
 .chat-search-wrap input { width:100%; background:#202c33; border:none; border-radius:8px; padding:8px 14px 8px 36px; font-size:13px; color:#e9edef; outline:none; }
 .chat-search-wrap input::placeholder { color:#8696a0; }
-#chat-contacts { flex:1; overflow-y:auto; }
+#chat-contacts { flex:1; overflow-y:auto; overscroll-behavior-y:contain; }
 .chat-item { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); transition:background .1s; position:relative; }
 .chat-item:hover { background:#202c33; }
 .chat-item.active { background:#2a3942; }
@@ -274,7 +274,7 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 .chat-top-actions { display:flex; gap:6px; align-items:center; }
 
 /* ── Área de mensagens ── */
-.chat-msgs { flex:1; overflow-y:auto; min-height:0; padding:16px 8%; display:flex; flex-direction:column; gap:2px; background:transparent; position:relative; z-index:1; }
+.chat-msgs { flex:1; overflow-y:auto; overscroll-behavior-y:contain; min-height:0; padding:16px 8%; display:flex; flex-direction:column; gap:2px; background:transparent; position:relative; z-index:1; }
 
 /* ── Balões de mensagem ── */
 .msg { max-width:65%; padding:7px 12px 22px; border-radius:8px; font-size:13.5px; line-height:1.55; position:relative; word-break:break-word; }
@@ -302,7 +302,7 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 .chat-tool-btn:hover { color:#e9edef; background:rgba(255,255,255,0.08); }
 
 /* ── Painel lateral direito ── */
-.chat-side { background:#111b21; border-left:1px solid rgba(255,255,255,0.06); padding:0; overflow-y:auto; display:flex; flex-direction:column; }
+.chat-side { background:#111b21; border-left:1px solid rgba(255,255,255,0.06); padding:0; overflow-y:auto; overscroll-behavior-y:contain; display:flex; flex-direction:column; }
 .chat-side-section { padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.06); }
 .cst { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#8696a0; margin-bottom:8px; }
 
@@ -328,7 +328,7 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
 
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:200; backdrop-filter:blur(4px); }
 .modal-overlay.show { display:flex; }
-.modal { background:var(--card); border:1px solid var(--border2); border-radius:16px; padding:28px; width:540px; max-height:85vh; overflow-y:auto; box-shadow:var(--shadow-lg); }
+.modal { background:var(--card); border:1px solid var(--border2); border-radius:16px; padding:28px; width:540px; max-height:85vh; overflow-y:auto; overscroll-behavior-y:contain; box-shadow:var(--shadow-lg); }
 .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .modal-title  { font-family:var(--font-display); font-size:18px; font-weight:700; color:var(--text); }
 .modal-close { background:rgba(79,70,229,0.1); border:none; color:var(--muted); width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:all .15s; }
@@ -382,6 +382,14 @@ label { font-size:12px; color:var(--muted); margin-bottom:4px; display:block; fo
   .login-right { padding:60px 28px 48px; min-height:100vh; justify-content:center; }
   .setup-box { width:100%; max-width:100%; min-height:100vh; border-radius:0; border:none; padding:32px 20px; }
   #layer-app { overflow:hidden; }
+  /* Contém o overscroll dentro dos containers que realmente rolam — sem
+     isso, ao chegar no topo/fim de uma lista o gesto "vaza" para o
+     documento e aciona o "puxar para atualizar" nativo do navegador,
+     fazendo a tela parecer "voltar"/recarregar sozinha. Vale para TODAS
+     as páginas do sistema no mobile, não só o chat. */
+  html, body { overscroll-behavior-y: none; }
+  .content, .page, .card, .modal-body, table { overscroll-behavior-y: contain; }
+  .sidebar { overscroll-behavior-y: contain; }
   .sidebar { position:fixed; left:-100%; z-index:100; transition:left .25s; height:100%; }
   .sidebar.open { left:0; box-shadow:4px 0 24px rgba(0,0,0,.6); }
   .main { width:100%; }
