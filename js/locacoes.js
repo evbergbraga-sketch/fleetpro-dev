@@ -411,6 +411,24 @@ async function abrirModalLocacao(locId){
       </button>` : ''}
     </div>
 
+    <!-- KM RODADO NO CONTRATO -->
+    ${(()=>{
+      const kmSai = checkSaida?.km ?? loc.km_inicial;
+      const kmVol = checkEntrada?.km ?? loc.km_final;
+      if(kmSai==null && kmVol==null) return '';
+      const fmt = n => Number(n).toLocaleString('pt-BR');
+      if(kmSai!=null && kmVol!=null){
+        const rodado = kmVol - kmSai;
+        return `<div style="display:flex;align-items:center;gap:10px;background:rgba(79,70,229,.07);border:1px solid rgba(79,70,229,.25);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div style="font-size:13px;color:var(--text)"><b style="color:#4F46E5">Rodou ${fmt(rodado)} km</b> neste contrato <span style="color:var(--muted)">— saída ${fmt(kmSai)} km → volta ${fmt(kmVol)} km</span></div>
+        </div>`;
+      }
+      return `<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+        <div style="font-size:13px;color:var(--muted)">🛣️ Saída com <b style="color:var(--text)">${fmt(kmSai)} km</b> — km rodado será calculado na devolução</div>
+      </div>`;
+    })()}
+
     <!-- PAINEL SAÍDA -->
     <div id="painel-saida">
       ${checkSaida ? _renderChecklistExistente(checkSaida) : _renderFormChecklist('saida', locId, loc)}
@@ -562,7 +580,7 @@ function _renderChecklistExistente(check){
   const fotos = check.fotos||[];
   const consultor = check.perfis?.nome||'—';
   const assinatura = check.assinatura_url
-    ? `<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">✍️ Assinatura do cliente</div><img src="${check.assinatura_url}" style="max-width:280px;width:100%;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:6px"></div>`
+    ? `<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">✍️ Assinatura do cliente</div><img src="${check.assinatura_url}" style="max-width:280px;width:100%;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:6px">${check.pdf_url?`<div style="margin-top:8px"><a href="${check.pdf_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:6px 12px;background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.25);border-radius:8px">📄 Ver PDF da vistoria assinada</a></div>`:''}</div>`
     : '';
   return `
   <div style="background:var(--bg2);border-radius:10px;padding:16px;margin-bottom:12px">
@@ -1515,6 +1533,24 @@ async function salvarChecklist(tipo, locId){
       pdf_url: pdfUrl
     });
     if(error) throw error;
+
+    // ── QUILOMETRAGEM: registra no contrato e atualiza o veículo ──
+    // Saída → locacoes.km_inicial | Entrada → locacoes.km_final.
+    // O veículo (km_atual) acompanha sempre a última leitura da vistoria.
+    if(km != null){
+      try{
+        await sb.from('locacoes').update(tipo==='saida' ? {km_inicial: km} : {km_final: km}).eq('id', locId);
+        const {data:lVei} = await sb.from('locacoes').select('veiculo_id').eq('id', locId).single();
+        if(lVei?.veiculo_id){
+          await sb.from('veiculos').update({km_atual: km}).eq('id', lVei.veiculo_id);
+          // Mantém o cache local coerente (frota renderiza sem novo fetch)
+          if(typeof allVeiculos !== 'undefined'){
+            const v = allVeiculos.find(x=>x.id===lVei.veiculo_id);
+            if(v) v.km_atual = km;
+          }
+        }
+      }catch(e){ console.warn('[chk/km]', e.message); }
+    }
 
     notify(`Vistoria de ${tipo==='saida'?'saída':'entrada'} salva!`,'success');
 
