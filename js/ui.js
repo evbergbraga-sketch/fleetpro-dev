@@ -185,6 +185,28 @@ async function assinaturaUpload(id, bucket, path){
   return data?.signedUrl || null;
 }
 
+// ══ DATA/HORA — FUSO BRASIL (-03:00, sem horário de verão desde 2019) ══
+// BUG DE ORIGEM (corrigido em 09/07/2026): o Supabase roda em UTC. Ao enviar
+// um valor de <input type="datetime-local"> (ex: "2026-07-20T14:00", SEM
+// fuso) direto para uma coluna timestamptz, o Postgres interpretava como
+// 14:00 UTC — 3h ANTES do horário real digitado (Brasil = UTC-3). Por isso
+// o horário salvo divergia do que aparecia na tela logo após criar.
+// REGRA: todo valor de datetime-local que for gravado em timestamptz DEVE
+// passar por _brISO() antes do insert/update — nunca enviar a string crua.
+function _brISO(datetimeLocalStr){
+  if(!datetimeLocalStr) return null;
+  // Já tem timezone (Z ou ±HH:MM) — não mexe
+  if(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(datetimeLocalStr)) return datetimeLocalStr;
+  const base = datetimeLocalStr.length === 16 ? datetimeLocalStr+':00' : datetimeLocalStr;
+  return base + '-03:00';
+}
+// Converte um objeto Date para o valor esperado por <input type="datetime-local">
+// (hora LOCAL do navegador — nunca usar toISOString aqui, que é UTC)
+function _toDatetimeLocalValue(date){
+  const p = n => String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
+}
+
 // ══ LAYERS ══
 function goLayer(id){
   document.querySelectorAll('.layer').forEach(l=>l.classList.remove('active'));

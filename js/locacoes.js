@@ -668,8 +668,8 @@ function _renderFormEstender(locId, loc){
         <input type="number" id="est-qtd" min="1" step="1" value="1" style="width:100%" oninput="_calcExtensao()">
       </div>
       <div class="form-group">
-        <label>Nova devolução</label>
-        <input type="text" id="est-nova-devolucao" readonly disabled style="width:100%;font-weight:700;color:var(--accent)">
+        <label>Nova devolução <span style="font-size:10px;color:var(--muted);font-weight:400">(pode editar dia e hora)</span></label>
+        <input type="datetime-local" id="est-nova-devolucao" style="width:100%;font-weight:700;color:var(--accent)">
       </div>
     </div>
 
@@ -788,7 +788,7 @@ function _calcExtensao(){
       const nova = new Date(fimAtual);
       nova.setDate(nova.getDate() + qtd*diasPorUnidade);
       window._locDetalheNovaData = nova;
-      novaDevEl.value = _fmtDtLocacao(nova.toISOString());
+      novaDevEl.value = _toDatetimeLocalValue(nova);
     }
   }
 }
@@ -950,10 +950,18 @@ async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
     const {data:loc} = await sb.from('locacoes').select('*,veiculos(placa),clientes(nome)').eq('id',locId).single();
     if(!loc) throw new Error('Locação não encontrada');
 
-    const fimAtual = new Date(loc.data_fim_hora||loc.data_fim+'T00:00:00');
-    const novaData = new Date(fimAtual);
-    novaData.setDate(novaData.getDate() + qtd*diasPorUnidade);
-    const novaDataISO = novaData.toISOString();
+    // Nova devolução: usa o campo (editável — respeita ajuste manual de dia/hora).
+    // Fallback: se por algum motivo estiver vazio, calcula por dias como antes.
+    const novaDevInput = document.getElementById('est-nova-devolucao')?.value;
+    let novaDataISO;
+    if(novaDevInput){
+      novaDataISO = _brISO(novaDevInput);
+    } else {
+      const fimAtual = new Date(loc.data_fim_hora||loc.data_fim+'T00:00:00');
+      const novaData = new Date(fimAtual);
+      novaData.setDate(novaData.getDate() + qtd*diasPorUnidade);
+      novaDataISO = novaData.toISOString();
+    }
 
     // Atualiza locação: nova data de devolução + acumula serviços extras
     const novosServicos = [...(loc.servicos_adicionais||[]), ..._servicosExtensao.map(s=>({...s, extensao:true}))];
@@ -1494,7 +1502,7 @@ async function _gerarPdfChecklist(loc, dados){
 async function salvarChecklist(tipo, locId){
   const km     = parseInt(document.getElementById(`chk-km-${tipo}`)?.value)||null;
   const comb   = document.getElementById(`chk-comb-${tipo}`)?.value||'';
-  const hora   = document.getElementById(`chk-hora-${tipo}`)?.value||new Date().toISOString();
+  const hora   = _brISO(document.getElementById(`chk-hora-${tipo}`)?.value) || new Date().toISOString();
   const obs    = document.getElementById(`chk-obs-${tipo}`)?.value||'';
   const fotos  = window[`_fotos_${tipo}`]||[];
 

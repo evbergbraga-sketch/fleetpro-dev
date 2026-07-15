@@ -142,8 +142,8 @@ async function salvarReserva(){
       const {data:upd, error:errRes} = await sb.from('reservas').update({
         cliente_id: cid,
         veiculo_id: vid,
-        data_inicio: ini,
-        data_fim: fim,
+        data_inicio: _brISO(ini),
+        data_fim: _brISO(fim),
         valor_pago: valor,
         valor_cotado: valorCotado||null,
         local_retirada: localRetirada||null,
@@ -155,8 +155,8 @@ async function salvarReserva(){
       const {data:ins, error:errRes} = await sb.from('reservas').insert({
         cliente_id: cid,
         veiculo_id: vid,
-        data_inicio: ini,
-        data_fim: fim,
+        data_inicio: _brISO(ini),
+        data_fim: _brISO(fim),
         valor_pago: valor,
         valor_cotado: valorCotado||null,
         local_retirada: localRetirada||null,
