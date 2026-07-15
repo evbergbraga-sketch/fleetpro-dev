@@ -1264,6 +1264,144 @@ function _previewFotos(input, tipo){
   });
 }
 
+// ══ E-MAIL DA VISTORIA (via bridge) ══
+async function _chkEnviarEmail(loc, tipo, pdfUrl){
+  const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+  const bridgeUrl = cfg.bridgeUrl || (cfg.apiUrl ? cfg.apiUrl.replace('evo.','bridge.') : null);
+  if(!bridgeUrl) throw new Error('bridge não configurado');
+  const cli = loc.clientes||{}, vei = loc.veiculos||{};
+  const label = tipo==='saida' ? 'Saída' : 'Devolução';
+  const r = await fetch(bridgeUrl+'/api/enviar-email', {
+    method:'POST',
+    headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+    body: JSON.stringify({
+      para: cli.email,
+      nome: cli.nome,
+      assunto: `Checklist de Vistoria (${label}) — Locadora Royal — Contrato #${loc.num_contrato||''}`,
+      html: `<div style="font-family:Arial,sans-serif;color:#222">
+        <p>Olá, <b>${(cli.nome||'').split(' ')[0]}</b>!</p>
+        <p>Segue em anexo o <b>checklist de vistoria (${label.toLowerCase()})</b> do veículo
+        <b>${vei.marca||''} ${vei.modelo||''} — placa ${vei.placa||''}</b>, assinado em ${new Date().toLocaleDateString('pt-BR')}.</p>
+        <p>Guarde este documento — ele registra o estado do veículo nesta data.</p>
+        <p>Qualquer dúvida, estamos à disposição.<br><b>Locadora Royal</b></p>
+      </div>`,
+      anexoUrl: pdfUrl,
+      anexoNome: `checklist_${tipo}_contrato_${loc.num_contrato||loc.id}.pdf`,
+    })
+  });
+  if(!r.ok){
+    const t = await r.text();
+    let msg = t; try{ msg = JSON.parse(t)?.error||t; }catch(_){}
+    throw new Error(msg);
+  }
+  notify('📧 Checklist enviado por e-mail para '+cli.email, 'success');
+  return r.json();
+}
+
+// ══ PDF DO CHECKLIST (com logo, dados da locação e assinatura datada) ══
+async function _gerarPdfChecklist(loc, dados){
+  if(!window.jspdf) throw new Error('jsPDF não carregado');
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const M = 15, W = 210 - M*2;
+  let y = 14;
+
+  // Logo Royal (mesmo padrão do contrato)
+  try{
+    const resp = await fetch('/icons/logo-Royal.png');
+    const blob = await resp.blob();
+    const base64 = await new Promise((resolve)=>{ const r=new FileReader(); r.onloadend=()=>resolve(r.result); r.readAsDataURL(blob); });
+    doc.addImage(base64, 'PNG', M, y, 35, 20);
+  }catch(_){}
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+  doc.text('ROYAL RENT A CAR LTDA', M+42, y+7);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+  doc.text('CNPJ: 18.686.521/0002-90', M+42, y+12);
+  y += 26;
+
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor('#111');
+  doc.text(`CHECKLIST DE VISTORIA — ${dados.tipo==='saida'?'SAÍDA':'ENTRADA'}`, 105, y, {align:'center'});
+  y += 8;
+  doc.setDrawColor('#006400'); doc.setLineWidth(0.6); doc.line(M, y, 210-M, y);
+  y += 7;
+
+  // Dados da locação e do veículo
+  const cli = loc.clientes||{}, vei = loc.veiculos||{};
+  doc.setFontSize(9);
+  const linhaInfo = (rotulo, valor, rotulo2, valor2)=>{
+    doc.setFont('helvetica','bold');   doc.setTextColor('#555'); doc.text(rotulo, M, y);
+    doc.setFont('helvetica','normal'); doc.setTextColor('#111'); doc.text(String(valor||'—'), M+32, y);
+    if(rotulo2){
+      doc.setFont('helvetica','bold');   doc.setTextColor('#555'); doc.text(rotulo2, 112, y);
+      doc.setFont('helvetica','normal'); doc.setTextColor('#111'); doc.text(String(valor2||'—'), 112+30, y);
+    }
+    y += 5.5;
+  };
+  linhaInfo('Contrato nº:', loc.num_contrato||'—', 'Data/hora:', dados.hora ? new Date(dados.hora).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : new Date().toLocaleString('pt-BR'));
+  linhaInfo('Cliente:', cli.nome, 'CPF:', cli.cpf);
+  linhaInfo('Telefone:', cli.telefone, 'E-mail:', cli.email);
+  linhaInfo('Veículo:', `${vei.marca||''} ${vei.modelo||''}`.trim(), 'Placa:', vei.placa);
+  linhaInfo('Cor:', vei.cor, 'Km:', dados.km!=null ? dados.km+' km' : '—');
+  linhaInfo('Combustível:', dados.comb||'—', 'Consultor:', currentPerfil?.nome||'—');
+  y += 3;
+
+  // Itens vistoriados
+  const itens = dados.itens||[];
+  if(itens.length){
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+    doc.text('ITENS VISTORIADOS', M, y); y += 5;
+    doc.setFontSize(8.2);
+    const col2 = M + W/2;
+    itens.forEach((it, i)=>{
+      const x = (i % 2 === 0) ? M : col2;
+      if(i % 2 === 0 && y > 250){ doc.addPage(); y = 20; }
+      const comAvaria = it.status==='avaria' || it.avaria===true;
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(comAvaria ? '#b91c1c' : '#166534');
+      doc.text(comAvaria ? 'X' : 'OK', x, y);
+      doc.setTextColor('#111');
+      let txt = `${it.nome||it.label||it.item||''}`;
+      if(comAvaria && it.obs) txt += ` — ${it.obs}`;
+      doc.text(doc.splitTextToSize(txt, W/2 - 14), x+7, y);
+      if(i % 2 === 1) y += 5;
+    });
+    if(itens.length % 2 === 1) y += 5;
+    y += 3;
+  }
+
+  // Observações
+  if(dados.obs){
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+    doc.text('OBSERVAÇÕES', M, y); y += 5;
+    doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor('#111');
+    const linhas = doc.splitTextToSize(dados.obs, W);
+    doc.text(linhas, M, y);
+    y += linhas.length*4 + 4;
+  }
+
+  // Assinatura — com local e data por extenso (exigência: "Rio de Janeiro, ...")
+  if(y > 225){ doc.addPage(); y = 30; }
+  y = Math.max(y+8, 210);
+  const dataExtenso = new Date().toLocaleDateString('pt-BR', {day:'numeric', month:'long', year:'numeric'});
+  doc.setFontSize(9.5); doc.setFont('helvetica','normal'); doc.setTextColor('#111');
+  doc.text(`Rio de Janeiro, ${dataExtenso}.`, 105, y, {align:'center'});
+  y += 6;
+  if(dados.assinaturaDataUrl){
+    doc.addImage(dados.assinaturaDataUrl, 'PNG', 105-35, y, 70, 21);
+    y += 23;
+  } else {
+    y += 20;
+  }
+  doc.setDrawColor('#333'); doc.setLineWidth(0.3);
+  doc.line(105-40, y, 105+40, y); y += 4.5;
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text(cli.nome||'Cliente', 105, y, {align:'center'}); y += 4;
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#555');
+  doc.text(cli.cpf ? `CPF: ${cli.cpf}` : '', 105, y, {align:'center'});
+
+  return doc.output('blob');
+}
+
 // ══ SALVAR CHECKLIST ══
 async function salvarChecklist(tipo, locId){
   const km     = parseInt(document.getElementById(`chk-km-${tipo}`)?.value)||null;
@@ -1325,12 +1463,41 @@ async function salvarChecklist(tipo, locId){
     }
 
     // Upload da assinatura do cliente (se assinou)
-    let assinaturaUrl = null;
+    let assinaturaUrl = null, assinaturaDataUrl = null;
     if(typeof assinaturaVazia === 'function' && !assinaturaVazia(`chk-assinatura-${tipo}`)){
+      assinaturaDataUrl = document.getElementById(`chk-assinatura-${tipo}`)?.toDataURL('image/png') || null;
       assinaturaUrl = await assinaturaUpload(
         `chk-assinatura-${tipo}`, 'checklists',
         `${locId}/${tipo}/assinatura_${Date.now()}.png`
       );
+    }
+
+    // Se assinou: gera o PDF da vistoria (logo Royal + dados + assinatura datada)
+    let pdfUrl = null;
+    if(assinaturaDataUrl){
+      try{
+        const {data:locFull} = await sb.from('locacoes')
+          .select('*, clientes(*), veiculos(*)').eq('id', locId).single();
+        const pdfBlob = await _gerarPdfChecklist(locFull, {tipo, km, comb, hora, itens, obs, assinaturaDataUrl});
+        const pdfPath = `${locId}/${tipo}/checklist_${Date.now()}.pdf`;
+        const {error:pdfErr} = await sb.storage.from('checklists').upload(pdfPath, pdfBlob, {contentType:'application/pdf'});
+        if(pdfErr) throw pdfErr;
+        const {data:pdfSign} = await sb.storage.from('checklists').createSignedUrl(pdfPath, 60*60*24*365*5);
+        pdfUrl = pdfSign?.signedUrl || null;
+
+        // Envia por e-mail ao cliente (via bridge) — falha não bloqueia o salvamento
+        if(pdfUrl && locFull?.clientes?.email){
+          _chkEnviarEmail(locFull, tipo, pdfUrl).catch(e=>{
+            console.warn('[chk/email]', e.message);
+            notify('Vistoria salva, mas o e-mail não foi enviado: '+e.message, 'error');
+          });
+        } else if(pdfUrl && !locFull?.clientes?.email){
+          notify('Vistoria salva com PDF. Cliente sem e-mail cadastrado — envio pulado.', 'info');
+        }
+      }catch(e){
+        console.warn('[chk/pdf]', e.message);
+        notify('Vistoria salva, mas o PDF falhou: '+e.message, 'error');
+      }
     }
 
     // Salva checklist no banco
@@ -1344,7 +1511,8 @@ async function salvarChecklist(tipo, locId){
       itens,
       observacoes: obs,
       fotos: fotoUrls,
-      assinatura_url: assinaturaUrl
+      assinatura_url: assinaturaUrl,
+      pdf_url: pdfUrl
     });
     if(error) throw error;
 
