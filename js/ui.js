@@ -122,6 +122,69 @@
   window._appViewportFit = fit;
 })();
 
+// ══ ASSINATURA DIGITAL (CANVAS) ══
+// Quadro de assinatura por toque (tablet/celular) ou mouse. Uso:
+//   assinaturaInit(canvasId)         → ativa o desenho (idempotente)
+//   assinaturaLimpar(canvasId)       → apaga o quadro
+//   assinaturaVazia(canvasId)        → true se ninguém assinou
+//   assinaturaUpload(canvasId, bucket, path) → PNG no Storage, retorna URL
+function assinaturaInit(id){
+  const cv = document.getElementById(id);
+  if(!cv || cv._assinaturaInit) return;
+  cv._assinaturaInit = true;
+  cv._temTraco = false;
+  const ctx = cv.getContext('2d');
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1a1a2e';
+  let desenhando = false;
+  // Converte coordenadas da tela para o espaço interno do canvas
+  const pos = (e)=>{
+    const r = cv.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {
+      x: (t.clientX - r.left) * (cv.width / r.width),
+      y: (t.clientY - r.top)  * (cv.height / r.height),
+    };
+  };
+  const começar = (e)=>{ desenhando = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); };
+  const mover   = (e)=>{ if(!desenhando) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); cv._temTraco = true; e.preventDefault(); };
+  const parar   = ()=>{ desenhando = false; };
+  cv.addEventListener('mousedown', começar);
+  cv.addEventListener('mousemove', mover);
+  window.addEventListener('mouseup', parar);
+  cv.addEventListener('touchstart', começar, {passive:false});
+  cv.addEventListener('touchmove',  mover,   {passive:false});
+  cv.addEventListener('touchend',   parar);
+}
+function assinaturaLimpar(id){
+  const cv = document.getElementById(id);
+  if(!cv) return;
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  cv._temTraco = false;
+}
+function assinaturaVazia(id){
+  const cv = document.getElementById(id);
+  return !cv || !cv._temTraco;
+}
+async function assinaturaUpload(id, bucket, path){
+  const cv = document.getElementById(id);
+  if(!cv || !cv._temTraco) return null;
+  // Fundo branco (canvas transparente vira PNG transparente — ruim p/ impressão)
+  const out = document.createElement('canvas');
+  out.width = cv.width; out.height = cv.height;
+  const octx = out.getContext('2d');
+  octx.fillStyle = '#ffffff';
+  octx.fillRect(0, 0, out.width, out.height);
+  octx.drawImage(cv, 0, 0);
+  const blob = await new Promise(res=>out.toBlob(res, 'image/png'));
+  const {error} = await sb.storage.from(bucket).upload(path, blob, {contentType:'image/png'});
+  if(error) throw error;
+  const {data} = await sb.storage.from(bucket).createSignedUrl(path, 60*60*24*365*5); // 5 anos
+  return data?.signedUrl || null;
+}
+
 // ══ LAYERS ══
 function goLayer(id){
   document.querySelectorAll('.layer').forEach(l=>l.classList.remove('active'));

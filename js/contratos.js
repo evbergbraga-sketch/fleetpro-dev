@@ -231,6 +231,14 @@ async function registrarComChecklist(){
       }catch(e){ console.warn('[chk] foto upload:', e.message); }
     }
 
+    // Upload da assinatura do cliente (se assinou no quadro)
+    let _assUrl = null;
+    try{
+      if(typeof assinaturaVazia === 'function' && !assinaturaVazia('ctchk-assinatura')){
+        _assUrl = await assinaturaUpload('ctchk-assinatura', 'checklists', `${locId}/saida/assinatura_${Date.now()}.png`);
+      }
+    }catch(e){ console.warn('[chk] assinatura upload:', e.message); }
+
     // PASSO 6: Montar payload e salvar checklist no banco
     _showLoading('Salvando checklist...');
     const chkPayload = {
@@ -242,6 +250,7 @@ async function registrarComChecklist(){
       observacoes: chk.observacoes||null,
       itens:       Array.isArray(chk.itens) ? chk.itens : [],
       fotos:       fotosUrls,
+      assinatura_url: _assUrl,
       ...(currentUser?.id ? {criado_por: currentUser.id} : {}),
     };
 

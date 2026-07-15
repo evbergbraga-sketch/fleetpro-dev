@@ -15,7 +15,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>FleetPro | Plataforma de Locadoras</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20260708w">
+<link rel="stylesheet" href="css/styles.css?v=20260708x">
   <link rel="stylesheet" href="css/mobile.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -887,6 +887,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <div class="form-group" style="margin-bottom:14px">
                 <label>Observações da vistoria</label>
                 <textarea id="ctchk-obs" rows="2" style="width:100%;resize:vertical" placeholder="Descreva avarias, itens faltantes..."></textarea>
+              </div>
+              <!-- Assinatura do cliente (dedo ou caneta, tablet/celular) -->
+              <div class="form-group" style="margin-bottom:14px">
+                <label style="display:flex;justify-content:space-between;align-items:center">
+                  <span>Assinatura do cliente <span style="font-size:11px;color:var(--muted);font-weight:400">(assine com o dedo ou caneta)</span></span>
+                  <button type="button" onclick="assinaturaLimpar('ctchk-assinatura')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;text-decoration:underline;padding:2px">Limpar</button>
+                </label>
+                <canvas id="ctchk-assinatura" width="600" height="180" style="width:100%;height:150px;background:#fff;border:1.5px dashed var(--border2);border-radius:10px;touch-action:none;cursor:crosshair"></canvas>
               </div>
               <button class="btn btn-primary" style="width:100%" onclick="registrarComChecklist()">
                 📄 Registrar contrato + Checklist e Gerar PDF
@@ -3106,28 +3114,28 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <div class="notify" id="notify"></div>
 
 <!-- Scripts — ordem importa! -->
-<script src="js/config.js?v=20260708w"></script>
-<script src="js/ajuda.js?v=20260708w"></script>
-<script src="js/pipeline.js?v=20260708w"></script>
-<script src="js/apilogs.js?v=20260708w"></script>
-<script src="js/ui.js?v=20260708w"></script>
-<script src="js/setup.js?v=20260708w"></script>
-<script src="js/nav.js?v=20260708w"></script>
-<script src="js/veiculos.js?v=20260708w"></script>
-<script src="js/clientes.js?v=20260708w"></script>
-<script src="js/historico.js?v=20260708w"></script>
-<script src="js/contratos.js?v=20260708w"></script>
-<script src="js/financeiro.js?v=20260708w"></script>
-<script src="js/contaspagar.js?v=20260708w"></script>
-<script src="js/cartoes.js?v=20260708w"></script>
-<script src="js/categorias.js?v=20260708w"></script>
-<script src="js/portal-admin.js?v=20260708w"></script>
-<script src="js/reservas.js?v=20260708w"></script>
-<script src="js/locacoes.js?v=20260708w"></script>
-<script src="js/chat.js?v=20260708w"></script>
-<script src="js/respostas-rapidas.js?v=20260708w"></script>
-<script src="js/investidores.js?v=20260708w"></script>
-<script src="js/boot.js?v=20260708w"></script>
+<script src="js/config.js?v=20260708x"></script>
+<script src="js/ajuda.js?v=20260708x"></script>
+<script src="js/pipeline.js?v=20260708x"></script>
+<script src="js/apilogs.js?v=20260708x"></script>
+<script src="js/ui.js?v=20260708x"></script>
+<script src="js/setup.js?v=20260708x"></script>
+<script src="js/nav.js?v=20260708x"></script>
+<script src="js/veiculos.js?v=20260708x"></script>
+<script src="js/clientes.js?v=20260708x"></script>
+<script src="js/historico.js?v=20260708x"></script>
+<script src="js/contratos.js?v=20260708x"></script>
+<script src="js/financeiro.js?v=20260708x"></script>
+<script src="js/contaspagar.js?v=20260708x"></script>
+<script src="js/cartoes.js?v=20260708x"></script>
+<script src="js/categorias.js?v=20260708x"></script>
+<script src="js/portal-admin.js?v=20260708x"></script>
+<script src="js/reservas.js?v=20260708x"></script>
+<script src="js/locacoes.js?v=20260708x"></script>
+<script src="js/chat.js?v=20260708x"></script>
+<script src="js/respostas-rapidas.js?v=20260708x"></script>
+<script src="js/investidores.js?v=20260708x"></script>
+<script src="js/boot.js?v=20260708x"></script>
 
 <script>
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(window.renderRQ, 800));

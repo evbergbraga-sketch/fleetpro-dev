@@ -480,6 +480,12 @@ async function abrirModalLocacao(locId){
   // Carrega itens do checklist filtrado por tipo de veículo
   await _carregarItensChecklist(loc.veiculos?.tipo || 'moto');
 
+  // Ativa os quadros de assinatura (saída/entrada) quando presentes
+  if(typeof assinaturaInit === 'function'){
+    assinaturaInit('chk-assinatura-saida');
+    assinaturaInit('chk-assinatura-entrada');
+  }
+
   // Carrega anexos da locação
   _locCarregarAnexos(locId);
 
@@ -555,6 +561,9 @@ function _renderChecklistExistente(check){
   const itens = check.itens||[];
   const fotos = check.fotos||[];
   const consultor = check.perfis?.nome||'—';
+  const assinatura = check.assinatura_url
+    ? `<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">✍️ Assinatura do cliente</div><img src="${check.assinatura_url}" style="max-width:280px;width:100%;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:6px"></div>`
+    : '';
   return `
   <div style="background:var(--bg2);border-radius:10px;padding:16px;margin-bottom:12px">
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
@@ -603,6 +612,7 @@ function _renderChecklistExistente(check){
         }).join('')}
       </div>
     </div>`:''}
+    ${assinatura}
   </div>
   ${check.tipo==='entrada' ? '<div id="custos-view-entrada" style="display:none;margin-top:12px"></div>' : ''}
   `;
@@ -1029,6 +1039,15 @@ function _renderFormChecklist(tipo, locId, loc){
       <textarea id="chk-obs-${tipo}" rows="2" style="width:100%;resize:vertical" placeholder="Descreva avarias, itens faltantes..."></textarea>
     </div>
 
+    <!-- ASSINATURA DO CLIENTE (dedo ou caneta — tablet/celular) -->
+    <div class="form-group" style="margin-bottom:16px">
+      <label style="display:flex;justify-content:space-between;align-items:center">
+        <span>Assinatura do cliente <span style="font-size:11px;color:var(--muted);font-weight:400">(assine com o dedo ou caneta)</span></span>
+        <button type="button" onclick="assinaturaLimpar('chk-assinatura-${tipo}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;text-decoration:underline;padding:2px">Limpar</button>
+      </label>
+      <canvas id="chk-assinatura-${tipo}" width="600" height="180" style="width:100%;height:150px;background:#fff;border:1.5px dashed var(--border2);border-radius:10px;touch-action:none;cursor:crosshair"></canvas>
+    </div>
+
     <div id="bloco-custos-devolucao" style="margin-bottom:16px;display:none">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">💰 Pagamentos da Devolução</div>
       <div style="background:var(--bg2);border-radius:10px;padding:12px">
@@ -1305,6 +1324,15 @@ async function salvarChecklist(tipo, locId){
       fotoUrls.push(signData?.signedUrl || '');
     }
 
+    // Upload da assinatura do cliente (se assinou)
+    let assinaturaUrl = null;
+    if(typeof assinaturaVazia === 'function' && !assinaturaVazia(`chk-assinatura-${tipo}`)){
+      assinaturaUrl = await assinaturaUpload(
+        `chk-assinatura-${tipo}`, 'checklists',
+        `${locId}/${tipo}/assinatura_${Date.now()}.png`
+      );
+    }
+
     // Salva checklist no banco
     const {error} = await sb.from('checklists').insert({
       locacao_id: locId,
@@ -1315,7 +1343,8 @@ async function salvarChecklist(tipo, locId){
       consultor_id: currentUser?.id,
       itens,
       observacoes: obs,
-      fotos: fotoUrls
+      fotos: fotoUrls,
+      assinatura_url: assinaturaUrl
     });
     if(error) throw error;
 

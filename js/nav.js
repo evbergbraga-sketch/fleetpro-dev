@@ -101,7 +101,7 @@ function goPage(id, navEl){
       btn.onclick = ()=>openModal(c.modal, id==='motos'?'moto':id==='carros'?'carro':null);
     }
   }
-  if(id==='contratos'){previewContrato();populateContratosSelects();}
+  if(id==='contratos'){previewContrato();populateContratosSelects();if(typeof assinaturaInit==='function')assinaturaInit('ctchk-assinatura');}
   if(id==='financeiro'){
     if(typeof iniciarFinanceiro==='function') iniciarFinanceiro();
     btn.onclick = ()=>{ if(typeof finAbrirNovoLancamento==='function') finAbrirNovoLancamento(); };
