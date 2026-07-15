@@ -580,7 +580,7 @@ function _renderChecklistExistente(check){
   const fotos = check.fotos||[];
   const consultor = check.perfis?.nome||'—';
   const assinatura = check.assinatura_url
-    ? `<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">✍️ Assinatura do cliente</div><img src="${check.assinatura_url}" style="max-width:280px;width:100%;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:6px">${check.pdf_url?`<div style="margin-top:8px"><a href="${check.pdf_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:6px 12px;background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.25);border-radius:8px">📄 Ver PDF da vistoria assinada</a></div>`:''}</div>`
+    ? `<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">✍️ Assinatura do cliente</div><img src="${check.assinatura_url}" style="max-width:280px;width:100%;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:6px">${check.pdf_url?`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><a href="${check.pdf_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:6px 12px;background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.25);border-radius:8px">📄 Ver PDF da vistoria assinada</a><button onclick="_chkEnviarWpp('${check.id}','${check.locacao_id}','${check.pdf_url}','${check.tipo}')" id="btn-chk-wpp-${check.id}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#16a34a;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:8px;padding:6px 12px;cursor:pointer">💬 Enviar no WhatsApp</button></div>`:''}</div>`
     : '';
   return `
   <div style="background:var(--bg2);border-radius:10px;padding:16px;margin-bottom:12px">
@@ -1282,6 +1282,52 @@ function _previewFotos(input, tipo){
   });
 }
 
+// ══ ENVIAR PDF DA VISTORIA PELO WHATSAPP (documento) ══
+async function _chkEnviarWpp(checkId, locId, pdfUrl, tipo){
+  const btn = document.getElementById(`btn-chk-wpp-${checkId}`);
+  const original = btn?.textContent;
+  try{
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Enviando...'; }
+    const {data:loc} = await sb.from('locacoes').select('num_contrato, clientes(nome,telefone)').eq('id', locId).single();
+    const telefone = loc?.clientes?.telefone;
+    if(!telefone) throw new Error('cliente sem telefone cadastrado');
+
+    const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+    if(!cfg.apiUrl && !cfg.bridgeUrl) throw new Error('Evolution API não configurada');
+    const bridgeUrl = cfg.bridgeUrl || cfg.apiUrl.replace('evo.','bridge.');
+
+    // Baixa o PDF já gerado e converte para base64 (o endpoint recebe base64)
+    const resp = await fetch(pdfUrl);
+    if(!resp.ok) throw new Error('falha ao baixar o PDF');
+    const blob = await resp.blob();
+    const base64 = await new Promise(res=>{ const r=new FileReader(); r.onloadend=()=>res(r.result); r.readAsDataURL(blob); });
+    const fileName = `checklist_contrato_${loc.num_contrato||locId}_${tipo}.pdf`;
+
+    const r = await fetch(bridgeUrl+'/api/enviar-midia', {
+      method:'POST',
+      headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+      body: JSON.stringify({
+        numero: fmtPhone(telefone),
+        tipo: 'document',
+        base64,
+        fileName,
+        clienteId: null,
+        nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
+      })
+    });
+    if(!r.ok){
+      const t = await r.text();
+      let msg = t; try{ msg = JSON.parse(t)?.error||t; }catch(_){}
+      throw new Error(msg);
+    }
+    notify('📄 Checklist enviado no WhatsApp para '+loc.clientes.nome,'success');
+    if(btn){ btn.textContent='✅ Enviado!'; btn.style.opacity='0.7'; }
+  }catch(e){
+    notify('Erro ao enviar: '+e.message,'error');
+    if(btn){ btn.disabled=false; btn.textContent=original; }
+  }
+}
+
 // ══ E-MAIL DA VISTORIA (via bridge) ══
 async function _chkEnviarEmail(loc, tipo, pdfUrl){
   const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
@@ -1304,7 +1350,7 @@ async function _chkEnviarEmail(loc, tipo, pdfUrl){
         <p>Qualquer dúvida, estamos à disposição.<br><b>Locadora Royal</b></p>
       </div>`,
       anexoUrl: pdfUrl,
-      anexoNome: `checklist_${tipo}_contrato_${loc.num_contrato||loc.id}.pdf`,
+      anexoNome: `checklist_contrato_${loc.num_contrato||loc.id}_${tipo}.pdf`,
     })
   });
   if(!r.ok){
@@ -1373,18 +1419,42 @@ async function _gerarPdfChecklist(loc, dados){
     itens.forEach((it, i)=>{
       const x = (i % 2 === 0) ? M : col2;
       if(i % 2 === 0 && y > 250){ doc.addPage(); y = 20; }
-      const comAvaria = it.status==='avaria' || it.avaria===true;
-      doc.setFont('helvetica','normal');
+      const comAvaria = it.status==='avaria';
+      doc.setFont('helvetica','bold');
       doc.setTextColor(comAvaria ? '#b91c1c' : '#166534');
-      doc.text(comAvaria ? 'X' : 'OK', x, y);
+      doc.text(comAvaria ? 'AVARIA' : 'OK', x, y);
+      doc.setFont('helvetica','normal');
       doc.setTextColor('#111');
-      let txt = `${it.nome||it.label||it.item||''}`;
+      let txt = it.descricao || '';
       if(comAvaria && it.obs) txt += ` — ${it.obs}`;
-      doc.text(doc.splitTextToSize(txt, W/2 - 14), x+7, y);
+      doc.text(doc.splitTextToSize(txt, W/2 - 20), x+15, y);
       if(i % 2 === 1) y += 5;
     });
     if(itens.length % 2 === 1) y += 5;
     y += 3;
+  }
+
+  // Fotos da vistoria (baixa cada URL e embute como imagem — grade 3 colunas)
+  const fotos = (dados.fotos||[]).filter(Boolean);
+  if(fotos.length){
+    if(y > 240){ doc.addPage(); y = 20; }
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
+    doc.text('FOTOS DA VISTORIA', M, y); y += 6;
+    const cols = 3, gap = 4;
+    const cw = (W - gap*(cols-1)) / cols, ch = cw * 0.75;
+    for(let i=0; i<fotos.length; i++){
+      const col = i % cols;
+      if(col === 0 && i>0) y += ch + gap;
+      if(y + ch > 280){ doc.addPage(); y = 20; }
+      try{
+        const resp = await fetch(fotos[i]);
+        const blob = await resp.blob();
+        const b64 = await new Promise(res=>{ const r=new FileReader(); r.onloadend=()=>res(r.result); r.readAsDataURL(blob); });
+        const formato = blob.type.includes('png') ? 'PNG' : 'JPEG';
+        doc.addImage(b64, formato, M + col*(cw+gap), y, cw, ch);
+      }catch(e){ console.warn('[chk/pdf foto]', e.message); }
+    }
+    y += ch + 8;
   }
 
   // Observações
@@ -1496,8 +1566,9 @@ async function salvarChecklist(tipo, locId){
       try{
         const {data:locFull} = await sb.from('locacoes')
           .select('*, clientes(*), veiculos(*)').eq('id', locId).single();
-        const pdfBlob = await _gerarPdfChecklist(locFull, {tipo, km, comb, hora, itens, obs, assinaturaDataUrl});
-        const pdfPath = `${locId}/${tipo}/checklist_${Date.now()}.pdf`;
+        const pdfBlob = await _gerarPdfChecklist(locFull, {tipo, km, comb, hora, itens, obs, assinaturaDataUrl, fotos: fotoUrls});
+        const numCt = locFull?.num_contrato || locId;
+        const pdfPath = `${locId}/${tipo}/checklist_contrato_${numCt}_${tipo}.pdf`;
         const {error:pdfErr} = await sb.storage.from('checklists').upload(pdfPath, pdfBlob, {contentType:'application/pdf'});
         if(pdfErr) throw pdfErr;
         const {data:pdfSign} = await sb.storage.from('checklists').createSignedUrl(pdfPath, 60*60*24*365*5);
