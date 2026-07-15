@@ -44,10 +44,17 @@ function _navAtualizarBotaoVoltar(){
 function goPage(id, navEl){
   const cfg=PAGE_CFG[id];
   if(!cfg) return;
-  if(!cfg.roles.includes(currentPerfil?.perfil)) id='denied';
-  // Checar permissão customizada (só para atendente com permissoes definidas)
-  if(id !== 'denied' && currentPerfil?.perfil === 'atendente' && currentPerfil?.permissoes?.paginas){
-    if(!currentPerfil.permissoes.paginas.includes(id)) id='denied';
+  // ── CONTROLE DE ACESSO ──
+  // admin: acesso total, sempre. atendente COM permissões definidas: a lista
+  // do usuário é autoritativa (pode conceder páginas além do papel — ex:
+  // Financeiro — e restringir as demais). Sem permissões definidas: vale o
+  // padrão do papel (roles do PAGE_CFG).
+  if(currentPerfil?.perfil !== 'admin' && id !== 'denied'){
+    if(currentPerfil?.perfil === 'atendente' && currentPerfil?.permissoes?.paginas){
+      if(!currentPerfil.permissoes.paginas.includes(id) && id !== 'ajuda') id='denied';
+    } else if(!cfg.roles.includes(currentPerfil?.perfil)){
+      id='denied';
+    }
   }
 
   if(id !== 'investidores' && window._invLeave) window._invLeave();
@@ -200,7 +207,21 @@ function renderUsuarios(){
     </div>`).join('');
 }
 
+// ══ PERMISSÕES — LISTA DE PÁGINAS GERADA DA FONTE ÚNICA ══
+// Os checkboxes vêm do ROLE_MENUS.admin (todas as páginas do sistema, com os
+// mesmos rótulos e ícones do menu). Página nova no menu = aparece aqui
+// automaticamente — impossível dessincronizar (causa do bug anterior).
+function _euGerarCheckboxesPaginas(){
+  const el = document.getElementById('eu-perm-paginas-lista');
+  if(!el) return;
+  const itens = (ROLE_MENUS.admin||[]).filter(m=>!m.section && m.id!=='ajuda');
+  el.innerHTML = itens.map(m=>
+    `<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" class="eu-perm-pag" value="${m.id}"> ${m.label}</label>`
+  ).join('');
+}
+
 async function editarUsuario(id){
+  _euGerarCheckboxesPaginas();
   const p = allPerfis.find(x=>x.id===id);
   if(!p) return;
   document.getElementById('eu-id').value        = id;

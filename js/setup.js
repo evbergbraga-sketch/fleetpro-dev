@@ -158,12 +158,22 @@ async function _salvarSenhaPrimeiroAcesso(){
 function iniciarApp(){
   const p=currentPerfil;
   const nav=document.getElementById('sidebar-nav');
-  const _todosMenus = ROLE_MENUS[p.perfil]||ROLE_MENUS.atendente;
-  // Filtrar pelo permissoes.paginas (só para atendente com restrições)
-  const _paginasPermitidas = (p.perfil==='atendente' && p.permissoes?.paginas) ? p.permissoes.paginas : null;
-  const menus = _paginasPermitidas
-    ? _todosMenus.filter(m => m.section || _paginasPermitidas.includes(m.id))
-    : _todosMenus;
+  // Atendente COM permissões definidas: menu construído do menu COMPLETO do
+  // sistema filtrado pela lista do usuário (pode incluir páginas além do
+  // papel, ex: Financeiro). Sem permissões: menu padrão do papel.
+  let menus;
+  if(p.perfil==='atendente' && p.permissoes?.paginas){
+    const permitidas = p.permissoes.paginas;
+    const base = (ROLE_MENUS.admin||[]).filter(m => m.section || permitidas.includes(m.id) || m.id==='ajuda');
+    // Remove seções que ficaram sem nenhum item embaixo
+    menus = base.filter((m,i)=>{
+      if(!m.section) return true;
+      const prox = base[i+1];
+      return prox && !prox.section;
+    });
+  } else {
+    menus = ROLE_MENUS[p.perfil]||ROLE_MENUS.atendente;
+  }
   nav.innerHTML=menus.map(m=>{
     if(m.section) return `<div class="nav-section">${m.section}</div>`;
     return `<div class="nav-item" id="nav-${m.id}" data-inv-page="${m.invPage||''}" onclick="${m.invPage?`goInvPage('${m.invPage}');goPage('${m.id}',this)`:`goPage('${m.id}',this)`}"><span class="icon">${m.icon}</span>${m.label}</div>`;
