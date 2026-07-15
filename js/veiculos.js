@@ -486,7 +486,7 @@ function renderVeiculos(){
       const invBadge = inv ? `<span style="font-size:10px;color:#7c3aed;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.15);border-radius:4px;padding:2px 6px">📈 ${inv.nome.split(' ')[0]}</span>` : '';
       return `<tr>
         <td><div style="display:flex;align-items:center;gap:10px">
-          <div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${SVG_VEICULO(v.tipo)}</div>
+          <div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}" style="${v.foto_url?'padding:0;overflow:hidden':''}">${v.foto_url?`<img src="${v.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${v.tipo}')">`:SVG_VEICULO(v.tipo)}</div>
           <div>
             <div style="font-weight:500">${v.marca} ${v.modelo}</div>
             <div style="font-size:11px;color:var(--muted)">${v.cor||''} · ${v.cambio||''} ${invBadge}</div>
@@ -648,7 +648,9 @@ async function salvarVeiculo(){
     const statusMv = document.getElementById('mv-status')?.value||'disponivel';
     const {data: vInserido, error}=await sb.from('veiculos').insert({
       tipo,marca,modelo,placa,ano,cor,cambio,km_atual:km,diaria,observacoes:obs,
-      investidor_id:investidor_id||null, status:statusMv, ...extrasMv
+      investidor_id:investidor_id||null, status:statusMv,
+      foto_url: await _vfBuscarFoto(marca, modelo, cor),
+      ...extrasMv
     }).select().single();
     if(error) throw error;
     // Upload de anexos após obter o ID
@@ -716,5 +718,115 @@ async function _uploadCrlv(input) {
   } catch(e) {
     document.getElementById('ev-crlv-nome').textContent = 'Erro ao enviar';
     notify('Erro: ' + e.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FOTOS DOS MODELOS — biblioteca genérica por marca + modelo + cor
+// Uma foto por combinação; propagada a todos os veículos iguais
+// (Frota e Portal do Cliente) e herdada por cadastros novos.
+// ══════════════════════════════════════════════════════════════
+const _vfNorm = s => (s||'').toString().trim().toLowerCase();
+
+// Busca a foto da biblioteca para uma combinação (usada no cadastro de veículo)
+async function _vfBuscarFoto(marca, modelo, cor){
+  try{
+    const {data} = await sb.from('veiculo_fotos').select('foto_url')
+      .eq('marca', _vfNorm(marca)).eq('modelo', _vfNorm(modelo)).eq('cor', _vfNorm(cor))
+      .maybeSingle();
+    return data?.foto_url || null;
+  }catch(_){ return null; }
+}
+
+async function abrirFotosModelos(){
+  document.getElementById('m-fotos-modelos').classList.add('show');
+  const el = document.getElementById('vf-lista');
+  el.innerHTML = '<div class="loading-spinner"></div>';
+
+  // Combinações reais da frota (sem digitação — sem erro de grafia)
+  const combos = new Map();
+  (allVeiculos||[]).forEach(v=>{
+    if(!v.marca || !v.modelo) return;
+    const key = [_vfNorm(v.marca), _vfNorm(v.modelo), _vfNorm(v.cor)].join('|');
+    if(!combos.has(key)) combos.set(key, {marca:v.marca, modelo:v.modelo, cor:v.cor||'—', tipo:v.tipo, qtd:0});
+    combos.get(key).qtd++;
+  });
+
+  const {data:fotos} = await sb.from('veiculo_fotos').select('marca,modelo,cor,foto_url');
+  const fotoDe = new Map((fotos||[]).map(f=>[[f.marca,f.modelo,f.cor].join('|'), f.foto_url]));
+
+  const linhas = [...combos.entries()].sort((a,b)=>a[1].marca.localeCompare(b[1].marca)||a[1].modelo.localeCompare(b[1].modelo));
+  if(!linhas.length){ el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px">Nenhum veículo cadastrado ainda.</div>'; return; }
+
+  el.innerHTML = linhas.map(([key, c])=>{
+    const foto = fotoDe.get(key);
+    const icone = foto
+      ? `<img src="${foto}" style="width:52px;height:52px;object-fit:cover;border-radius:10px;border:1px solid var(--border2)">`
+      : `<div style="width:52px;height:52px;border-radius:10px;background:var(--bg2);border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px">${c.tipo==='carro'?'🚗':'🏍️'}</div>`;
+    return `
+    <div style="display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:10px 12px">
+      ${icone}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;color:var(--text)">${c.marca} ${c.modelo}</div>
+        <div style="font-size:11px;color:var(--muted)">${c.cor} · ${c.qtd} veículo${c.qtd!==1?'s':''}</div>
+      </div>
+      <label class="btn btn-ghost" style="font-size:11px;padding:6px 12px;cursor:pointer;white-space:nowrap">
+        ${foto?'🔄 Trocar foto':'📷 Enviar foto'}
+        <input type="file" accept="image/*" style="display:none" onchange="_vfUpload(this,'${_vfNorm(c.marca)}','${_vfNorm(c.modelo)}','${_vfNorm(c.cor)}')">
+      </label>
+    </div>`;
+  }).join('');
+}
+
+// Comprime a imagem para no máx. 900px (JPEG) e retorna Blob
+function _vfComprimirBlob(file, max=900){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const escala = Math.min(1, max/Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width*escala);
+      cv.height = Math.round(img.height*escala);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(b=>b?resolve(b):reject(new Error('falha ao comprimir')), 'image/jpeg', 0.85);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = ()=>reject(new Error('imagem inválida'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function _vfUpload(input, marca, modelo, cor){
+  const file = input.files[0]; if(!file) return;
+  input.value = '';
+  notify('Enviando foto...','info');
+  try{
+    const blob = await _vfComprimirBlob(file, 900);
+    const path = `modelos/${marca}_${modelo}_${cor}_${Date.now()}.jpg`.replace(/[^a-z0-9_./-]/g,'-');
+    const {error:upErr} = await sb.storage.from('veiculos-docs').upload(path, blob, {contentType:'image/jpeg'});
+    if(upErr) throw upErr;
+    const {data:pub} = sb.storage.from('veiculos-docs').getPublicUrl(path);
+    const fotoUrl = pub?.publicUrl;
+    if(!fotoUrl) throw new Error('URL pública não gerada');
+
+    // Grava/atualiza na biblioteca
+    const {error:libErr} = await sb.from('veiculo_fotos')
+      .upsert({marca, modelo, cor, foto_url: fotoUrl}, {onConflict:'marca,modelo,cor'});
+    if(libErr) throw libErr;
+
+    // Propaga para TODOS os veículos da combinação (case-insensitive)
+    const {error:propErr} = await sb.from('veiculos').update({foto_url: fotoUrl})
+      .ilike('marca', marca).ilike('modelo', modelo).ilike('cor', cor);
+    if(propErr) throw propErr;
+
+    // Cache local + re-render
+    (allVeiculos||[]).forEach(v=>{
+      if(_vfNorm(v.marca)===marca && _vfNorm(v.modelo)===modelo && _vfNorm(v.cor)===cor) v.foto_url = fotoUrl;
+    });
+    if(typeof renderVeiculos==='function') renderVeiculos();
+    abrirFotosModelos(); // re-render do modal com a foto nova
+    notify('Foto aplicada a todos os veículos do modelo! ✓','success');
+  }catch(e){
+    notify('Erro ao enviar foto: '+e.message,'error');
   }
 }
