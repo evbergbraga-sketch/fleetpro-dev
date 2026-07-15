@@ -2052,6 +2052,29 @@ async function calSelectDay(d){
 
 
 // ══ AUTENTIQUE — ASSINATURA DIGITAL ══
+// Anexa automaticamente o PDF do contrato recém-gerado aos Anexos da locação
+// (mesmo bucket/tabela usados no upload manual em Locações → Anexos).
+async function _anexarContratoPdfNaLocacao(locId, numContrato, nomeCli, pdfDataUrl){
+  const resp = await fetch(pdfDataUrl); // datauristring → Blob (sem rede, é local)
+  const blob = await resp.blob();
+  const nomeArquivo = `Contrato_Royal_${numContrato}_${(nomeCli||'cliente').replace(/\s+/g,'_')}.pdf`;
+  const path = `locacoes/${locId}/${Date.now()}_${nomeArquivo}`;
+  const {error:upErr} = await sb.storage.from('locacoes-docs').upload(path, blob, {upsert:false, contentType:'application/pdf'});
+  if(upErr) throw upErr;
+  const {data:{publicUrl}} = sb.storage.from('locacoes-docs').getPublicUrl(path);
+  const {error:insErr} = await sb.from('locacao_anexos').insert({
+    locacao_id: locId,
+    nome: nomeArquivo,
+    url: publicUrl,
+    tipo: 'pdf',
+    tamanho: blob.size,
+    criado_por: currentUser?.id||null,
+  });
+  if(insErr) throw insErr;
+  // Se o modal de detalhes desta locação estiver aberto, atualiza a lista na hora
+  if(typeof _locCarregarAnexos === 'function') _locCarregarAnexos(locId);
+}
+
 async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=null, cidParam=null){
   const cfg  = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
   const bridge = (cfg.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
@@ -2067,6 +2090,13 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
       docPdf = await gerarPdfContrato(numContrato, d, null, true);
     }
     const pdfBase64 = docPdf.split(',')[1]; // remove "data:application/pdf;base64,"
+
+    // Anexa o PDF do contrato aos Anexos da locação — automático, silencioso.
+    // Falha aqui NUNCA bloqueia o fluxo do Autentique (é um bônus, não requisito).
+    if(locacaoId){
+      _anexarContratoPdfNaLocacao(locacaoId, numContrato, d.nomeCli, docPdf)
+        .catch(e => console.warn('[contrato/anexo]', e.message));
+    }
 
     // 2. Monta signatários
     const _cidFinal = cidParam || d.clienteId || document.getElementById('c-cli')?.value;
