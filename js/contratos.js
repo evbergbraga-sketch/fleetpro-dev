@@ -2116,12 +2116,25 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
       try{ return new Date(dt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
       catch(_){ return dt.slice(0,16).replace('T',' '); }
     };
-    const _semanas = (d.ini && d.fim)
-      ? Math.round((new Date(d.fim)-new Date(d.ini))/(7*24*3600*1000))
-      : '—';
+    // Tipo do contrato (confiável — vem da seleção do veículo, não de palavra-chave)
+    const _ehMoto = (typeof _tipoContrato !== 'undefined' && _tipoContrato)
+      ? _tipoContrato === 'moto'
+      : (d.planoNome?.toLowerCase().includes('moto') || d.modelo?.toLowerCase().includes('moto'));
+    const _icVei = _ehMoto ? '🏍️' : '🚗';
+    // Período: moto conta em semanas; carro conta em DIAS (diária)
+    let _periodoLabel = '—';
+    if(d.ini && d.fim){
+      const _ms = new Date(d.fim) - new Date(d.ini);
+      if(_ehMoto){
+        const _sem = Math.round(_ms/(7*24*3600*1000));
+        _periodoLabel = `${_sem} semana${_sem!==1?'s':''}`;
+      } else {
+        const _dias = Math.max(1, Math.ceil(_ms/(24*3600*1000)));
+        _periodoLabel = `${_dias} dia${_dias!==1?'s':''}`;
+      }
+    }
     const _totalFmt = (d.totalBruto||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
     const _semFmt   = (d.dia||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
-    const _icVei    = d.planoNome?.toLowerCase().includes('moto')||d.modelo?.toLowerCase().includes('moto')||d.modelo?.toLowerCase().includes('fazer')||d.modelo?.toLowerCase().includes('honda')||d.modelo?.toLowerCase().includes('yamaha')||d.modelo?.toLowerCase().includes('150')||d.modelo?.toLowerCase().includes('160') ? '🏍️' : '🚗';
 
     const msgWpp =
       `📄 *CONTRATO #${numContrato} — LOCADORA ROYAL*\n\n` +
@@ -2131,12 +2144,12 @@ async function enviarParaAssinatura(numContrato, d, locacaoId, pdfDataUrlParam=n
       `📅 Retirada: *${_fmtDH(d.ini)}*\n` +
       `📅 Devolução: *${_fmtDH(d.fim)}*\n` +
       `📍 Local: *${d.localRet||'Loja'}*\n` +
-      `⏱️ Período: *${_semanas} semanas*\n` +
-      `💰 Valor semanal: *R$ ${_semFmt}*\n` +
-      (_icVei==='🏍️' ? '' : `💳 Total: *R$ ${_totalFmt}*\n`) +
+      `⏱️ Período: *${_periodoLabel}*\n` +
+      `💰 ${_ehMoto ? 'Valor semanal' : 'Diária'}: *R$ ${_semFmt}*\n` +
+      (_ehMoto ? '' : `💳 Total: *R$ ${_totalFmt}*\n`) +
       `✅ Contrato registrado com sucesso!\n\n` +
       `✍️ *Assine agora pelo link:*\n${linkCliente||'(sem link)'}\n\n` +
-      `_Equipe Locadora Royal 🚗_`;
+      `_Equipe Locadora Royal ${_icVei}_`;
 
     // 6. Modal com links e botão WhatsApp
     if(linkCliente || linkLocadora){
