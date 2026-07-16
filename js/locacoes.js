@@ -1336,40 +1336,6 @@ async function _chkEnviarWpp(checkId, locId, pdfUrl, tipo){
   }
 }
 
-// ══ E-MAIL DA VISTORIA (via bridge) ══
-async function _chkEnviarEmail(loc, tipo, pdfUrl){
-  const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
-  const bridgeUrl = cfg.bridgeUrl || (cfg.apiUrl ? cfg.apiUrl.replace('evo.','bridge.') : null);
-  if(!bridgeUrl) throw new Error('bridge não configurado');
-  const cli = loc.clientes||{}, vei = loc.veiculos||{};
-  const label = tipo==='saida' ? 'Saída' : 'Devolução';
-  const r = await fetch(bridgeUrl+'/api/enviar-email', {
-    method:'POST',
-    headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
-    body: JSON.stringify({
-      para: cli.email,
-      nome: cli.nome,
-      assunto: `Checklist de Vistoria (${label}) — Locadora Royal — Contrato #${loc.num_contrato||''}`,
-      html: `<div style="font-family:Arial,sans-serif;color:#222">
-        <p>Olá, <b>${(cli.nome||'').split(' ')[0]}</b>!</p>
-        <p>Segue em anexo o <b>checklist de vistoria (${label.toLowerCase()})</b> do veículo
-        <b>${vei.marca||''} ${vei.modelo||''} — placa ${vei.placa||''}</b>, assinado em ${new Date().toLocaleDateString('pt-BR')}.</p>
-        <p>Guarde este documento — ele registra o estado do veículo nesta data.</p>
-        <p>Qualquer dúvida, estamos à disposição.<br><b>Locadora Royal</b></p>
-      </div>`,
-      anexoUrl: pdfUrl,
-      anexoNome: `checklist_contrato_${loc.num_contrato||loc.id}_${tipo}.pdf`,
-    })
-  });
-  if(!r.ok){
-    const t = await r.text();
-    let msg = t; try{ msg = JSON.parse(t)?.error||t; }catch(_){}
-    throw new Error(msg);
-  }
-  notify('📧 Checklist enviado por e-mail para '+cli.email, 'success');
-  return r.json();
-}
-
 // ══ PDF DO CHECKLIST (com logo, dados da locação e assinatura datada) ══
 async function _gerarPdfChecklist(loc, dados){
   if(!window.jspdf) throw new Error('jsPDF não carregado');
@@ -1581,16 +1547,8 @@ async function salvarChecklist(tipo, locId){
         if(pdfErr) throw pdfErr;
         const {data:pdfSign} = await sb.storage.from('checklists').createSignedUrl(pdfPath, 60*60*24*365*5);
         pdfUrl = pdfSign?.signedUrl || null;
-
-        // Envia por e-mail ao cliente (via bridge) — falha não bloqueia o salvamento
-        if(pdfUrl && locFull?.clientes?.email){
-          _chkEnviarEmail(locFull, tipo, pdfUrl).catch(e=>{
-            console.warn('[chk/email]', e.message);
-            notify('Vistoria salva, mas o e-mail não foi enviado: '+e.message, 'error');
-          });
-        } else if(pdfUrl && !locFull?.clientes?.email){
-          notify('Vistoria salva com PDF. Cliente sem e-mail cadastrado — envio pulado.', 'info');
-        }
+        // Envio automático por e-mail removido — o consultor envia manualmente
+        // pelo botão "💬 Enviar no WhatsApp" que aparece após salvar a vistoria.
       }catch(e){
         console.warn('[chk/pdf]', e.message);
         notify('Vistoria salva, mas o PDF falhou: '+e.message, 'error');
