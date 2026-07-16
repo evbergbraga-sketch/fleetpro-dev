@@ -1378,9 +1378,20 @@ function renderSorteios(sorteios, loc) {
           : '<span class="nao-elegivel-badge">⚠️ Parcelas em atraso</span>')
       : '';
 
-    const vencedor = s.status === 'realizado' && s.vencedor_locacao_id === loc?.id
-      ? '<div style="margin-top:12px;padding:12px;background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:10px;font-size:14px;font-weight:700;color:var(--gold)">🏆 Você foi o vencedor deste sorteio!</div>'
-      : (s.status === 'realizado' ? '<div style="margin-top:8px;font-size:13px;color:var(--muted)">Sorteio realizado.</div>' : '');
+    const nomeVencedor = s.locacoes?.clientes?.nome || null;
+    const vocEhVencedor = s.status === 'realizado' && s.vencedor_locacao_id === loc?.id;
+
+    let vencedor = '';
+    if (s.status === 'realizado') {
+      if (vocEhVencedor) {
+        vencedor = '<div style="margin-top:12px;padding:12px;background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);border-radius:10px;font-size:14px;font-weight:700;color:var(--gold)">🏆 Você foi o vencedor deste sorteio!</div>';
+      } else if (nomeVencedor) {
+        vencedor = `<div style="margin-top:12px;padding:12px;background:rgba(245,200,66,.08);border:1px solid rgba(245,200,66,.2);border-radius:10px;font-size:13px;color:var(--text)">🏆 Vencedor: <b>${_primeiroNome(nomeVencedor)}</b></div>
+          <div style="margin-top:6px;font-size:12.5px;color:var(--muted)">Não foi dessa vez — continue participando! 🍀</div>`;
+      } else {
+        vencedor = '<div style="margin-top:8px;font-size:13px;color:var(--muted)">Sorteio realizado.</div>';
+      }
+    }
 
     return `
       <div class="sorteio-card">
