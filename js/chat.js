@@ -1854,7 +1854,12 @@ function _comprimirImagem(file, maxWidth=800){
       const canvas = document.createElement('canvas');
       canvas.width  = Math.round(img.width  * scale);
       canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const ctx = canvas.getContext('2d');
+      // JPEG não suporta transparência — sem isso, PNG com fundo transparente
+      // vira preto (canvas 2D começa transparente-preto por padrão)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       res(canvas.toDataURL('image/jpeg', 0.75).split(',')[1]);
     };
     img.onerror = rej;

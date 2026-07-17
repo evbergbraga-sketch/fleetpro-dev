@@ -779,6 +779,9 @@ async function abrirFotosModelos(){
 }
 
 // Comprime a imagem para no máx. 900px (JPEG) e retorna Blob
+// IMPORTANTE: preenche fundo branco antes de desenhar — JPEG não suporta
+// transparência, e sem isso qualquer PNG com fundo transparente vira preto
+// (o canvas 2D começa transparente-preto por padrão).
 function _vfComprimirBlob(file, max=900){
   return new Promise((resolve, reject)=>{
     const img = new Image();
@@ -787,7 +790,10 @@ function _vfComprimirBlob(file, max=900){
       const cv = document.createElement('canvas');
       cv.width = Math.round(img.width*escala);
       cv.height = Math.round(img.height*escala);
-      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
       cv.toBlob(b=>b?resolve(b):reject(new Error('falha ao comprimir')), 'image/jpeg', 0.85);
       URL.revokeObjectURL(img.src);
     };
