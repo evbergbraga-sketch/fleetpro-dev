@@ -514,12 +514,29 @@ function renderDashboard(){
     const mativas = (isInv
       ? allManutencoes.filter(m=>meusMantIds.has(m.veiculo_id))
       : allManutencoes).filter(m=>m.status!=='concluida');
-    dm.innerHTML = mativas.length ? mativas.slice(0,5).map(m=>`
+
+    // Veículos com status='manutencao' direto no cadastro, mas SEM registro
+    // formal na tabela de manutenções (ex: status trocado manualmente na
+    // Frota) — sem isso, ficavam invisíveis neste card mesmo estando
+    // realmente em manutenção.
+    const idsComRegistro = new Set(mativas.map(m=>m.veiculo_id));
+    const veicSemRegistro = meusVeiculos.filter(v => v.status==='manutencao' && !idsComRegistro.has(v.id));
+
+    const linhasRegistro = mativas.slice(0,5).map(m=>`
       <tr>
         <td><div style="font-weight:500">${m.veiculos?.modelo||'—'}</div><div style="font-size:11px;color:var(--muted)">${m.veiculos?.placa||''}</div></td>
         <td>${m.tipo}</td>
         <td><span class="badge ${m.status==='pendente'?'badge-yellow':'badge-blue'}">${m.status==='pendente'?'Pendente':'Em andamento'}</span></td>
-      </tr>`).join('') : '<tr class="empty-row"><td colspan="3">Nenhuma</td></tr>';
+      </tr>`);
+    const linhasSemRegistro = veicSemRegistro.slice(0, Math.max(0,5-mativas.length)).map(v=>`
+      <tr onclick="goPage('${v.tipo==='carro'?'carros':'motos'}')" style="cursor:pointer" title="Sem registro formal de manutenção — status definido direto na Frota">
+        <td><div style="font-weight:500">${v.marca} ${v.modelo}</div><div style="font-size:11px;color:var(--muted)">${v.placa}</div></td>
+        <td style="color:var(--muted2)">—</td>
+        <td><span class="badge badge-red">Em manutenção</span></td>
+      </tr>`);
+    const linhas = [...linhasRegistro, ...linhasSemRegistro];
+
+    dm.innerHTML = linhas.length ? linhas.join('') : '<tr class="empty-row"><td colspan="3">Nenhuma</td></tr>';
   }
 
   _renderAgendaSemanal(meusLocs, allReservas, allManutencoes);
