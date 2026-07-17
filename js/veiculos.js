@@ -601,6 +601,24 @@ async function atualizarVeiculo(){
     obj.anexos_urls = todosAnexos.length ? JSON.stringify(todosAnexos) : null;
     const {error} = await sb.from('veiculos').update(obj).eq('id',id);
     if(error) throw error;
+
+    // Se o status virou "Manutenção", garante um registro formal na tabela
+    // de manutenções (evita veículo "em manutenção" invisível no dashboard,
+    // como acontecia quando o status era trocado só aqui na Frota).
+    if(obj.status === 'manutencao'){
+      const {data:jaTemAtiva} = await sb.from('manutencoes')
+        .select('id').eq('veiculo_id', id).neq('status','concluida').limit(1);
+      if(!jaTemAtiva?.length){
+        await sb.from('manutencoes').insert({
+          veiculo_id: id,
+          tipo: 'Manutenção',
+          descricao: 'Registro criado automaticamente ao definir o status do veículo como Manutenção.',
+          data_inicio: new Date().toISOString().slice(0,10),
+          status: 'pendente',
+        });
+      }
+    }
+
     notify('Veículo atualizado!','success');
     closeModal('editar-veiculo');
     _veicAnexosNovos['ev']=[]; window._veicAnexosRemovidos['ev']=[];
@@ -653,6 +671,19 @@ async function salvarVeiculo(){
       ...extrasMv
     }).select().single();
     if(error) throw error;
+
+    // Mesma regra do fluxo de edição: garante registro formal se já
+    // cadastrado direto como "Manutenção"
+    if(statusMv === 'manutencao'){
+      await sb.from('manutencoes').insert({
+        veiculo_id: vInserido.id,
+        tipo: 'Manutenção',
+        descricao: 'Registro criado automaticamente ao cadastrar o veículo já como Manutenção.',
+        data_inicio: new Date().toISOString().slice(0,10),
+        status: 'pendente',
+      });
+    }
+
     // Upload de anexos após obter o ID
     const novosUrls = await _uploadAnexos('mv', vInserido.id);
     if(novosUrls.length){
