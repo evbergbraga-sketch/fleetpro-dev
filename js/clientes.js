@@ -393,7 +393,7 @@ function _limparFormCliente(prefix){
 // ══ SALVAR CLIENTE ══
 async function salvarCliente(){
   const nome = document.getElementById('mc-nome').value.trim();
-  const cpf  = document.getElementById('mc-cpf').value.trim();
+  const cpf  = _fmtCPF(document.getElementById('mc-cpf').value.trim());
   const obs  = document.getElementById('mc-obs').value.trim();
   if(!nome||!cpf){ notify('Nome e CPF são obrigatórios','error'); return; }
   if(!checarCPF(cpf,'CPF do cliente')) return;
@@ -479,7 +479,7 @@ function editarCliente(id){
 async function atualizarCliente(){
   const id   = document.getElementById('ec-id').value;
   const nome = document.getElementById('ec-nome').value.trim();
-  const cpf  = document.getElementById('ec-cpf').value.trim();
+  const cpf  = _fmtCPF(document.getElementById('ec-cpf').value.trim());
   const obs  = document.getElementById('ec-obs').value.trim();
   if(!nome||!cpf){ notify('Nome e CPF obrigatórios','error'); return; }
   if(!checarCPF(cpf,'CPF do cliente')) return;

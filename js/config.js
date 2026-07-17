@@ -148,6 +148,16 @@ function checarCPF(valor, campo='CPF'){
   return true;
 }
 
+// Normaliza o CPF para o formato único XXX.XXX.XXX-XX, não importa como foi
+// digitado ou colado (com pontuação, sem pontuação, com espaços etc).
+// Usar sempre antes de gravar cpf no banco — evita registros com formatos
+// diferentes que quebram buscas exatas (ex: login do portal do cliente).
+function _fmtCPF(valor){
+  const raw = (valor||'').replace(/\D/g,'');
+  if(raw.length !== 11) return (valor||'').trim(); // deixa como está se não tiver 11 dígitos (checarCPF já barra o salvamento)
+  return raw.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+}
+
 function validarCNPJ(cnpj){
   cnpj = cnpj.replace(/\D/g,'');
   if(cnpj.length !== 14) return false;
