@@ -497,7 +497,7 @@ function renderDashboard(){
       const lblDiff = diff<=0 ? 'Hoje' : `em ${diff} dia${diff>1?'s':''}`;
       return `<tr style="cursor:pointer" onclick="goPage('reservas')" title="Ver reservas">
         <td><div style="display:flex;align-items:center;gap:8px">
-          <div class="vi ${veic?.tipo==='carro'?'vi-car':'vi-moto'}">${SVG_VEICULO(veic?.tipo)}</div>
+          <div class="vi ${veic?.tipo==='carro'?'vi-car':'vi-moto'}">${_veiculoThumb(veic, 32)}</div>
           <div><div style="font-weight:500">${veic?.marca||'—'} ${veic?.modelo||''}</div>
           <div style="font-size:11px;color:var(--muted)">${veic?.placa||''}</div></div>
         </div></td>
@@ -725,7 +725,7 @@ function _agendaAbrirDia(dStr, el){
       }
 
       html += `<div onclick="goPage('locacoes')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.12);border-radius:8px;margin-bottom:5px;cursor:pointer" onmouseover="this.style.background='rgba(79,70,229,0.15)'" onmouseout="this.style.background='rgba(79,70,229,0.08)'">
-        <div style="display:flex;align-items:center;color:var(--accent)">${SVG_VEICULO(l.veiculos?.tipo)}</div>
+        <div style="display:flex;align-items:center;color:var(--accent)">${_veiculoThumb(l.veiculos, 28)}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;color:var(--text)">${l.veiculos?.modelo||'—'} <span style="font-size:10px;color:var(--muted);font-weight:400">${l.veiculos?.placa||''}</span></div>
           <div style="font-size:11px;color:var(--muted)">${l.clientes?.nome||'—'}</div>
@@ -742,7 +742,7 @@ function _agendaAbrirDia(dStr, el){
       const cli  = allClientes.find(c=>c.id===r.cliente_id);
       const veic = allVeiculos.find(v=>v.id===r.veiculo_id);
       html += `<div onclick="goPage('reservas')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(217,119,6,0.08);border:1px solid rgba(217,119,6,0.2);border-radius:8px;margin-bottom:5px;cursor:pointer" onmouseover="this.style.background='rgba(217,119,6,0.15)'" onmouseout="this.style.background='rgba(217,119,6,0.08)'">
-        <div style="display:flex;align-items:center;color:var(--accent)">${SVG_VEICULO(veic?.tipo)}</div>
+        <div style="display:flex;align-items:center;color:var(--accent)">${_veiculoThumb(veic, 28)}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;color:var(--text)">${veic?.modelo||'—'} <span style="font-size:10px;color:var(--muted);font-weight:400">${veic?.placa||''}</span></div>
           <div style="font-size:11px;color:var(--muted)">${cli?.nome||'—'}</div>
@@ -810,7 +810,7 @@ function _renderFrotaStatus(veiculos, locacoes){
     const isAtrasado = diff !== null && diff < 0;
 
     return `<div onclick="goPage('${v.tipo==='carro'?'carros':'motos'}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:${cfg.bg};border:1px solid ${cfg.border};border-radius:8px;cursor:pointer;transition:all .15s;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter=''">
-      <div style="display:flex;align-items:center;color:var(--accent)">${SVG_VEICULO(v.tipo)}</div>
+      <div style="display:flex;align-items:center;color:var(--accent)">${_veiculoThumb(v, 32)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.marca} ${v.modelo}</div>
         <div style="font-size:10px;color:var(--muted)">${v.placa}${clienteNome?' · '+clienteNome:''}</div>

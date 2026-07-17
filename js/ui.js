@@ -207,6 +207,16 @@ function _toDatetimeLocalValue(date){
   return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
 }
 
+// Mostra a FOTO do veículo (se cadastrada) no lugar do ícone genérico —
+// usado em qualquer card/lista do sistema que hoje mostra só o SVG_VEICULO.
+// tamanho em px (quadrado, cantos arredondados, object-fit:cover).
+function _veiculoThumb(v, tamanho=28){
+  if(v?.foto_url){
+    return `<img src="${v.foto_url}" style="width:${tamanho}px;height:${tamanho}px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='${SVG_VEICULO(v.tipo).replace(/'/g,"\\'")}'">`;
+  }
+  return SVG_VEICULO(v?.tipo);
+}
+
 // ══ LAYERS ══
 function goLayer(id){
   document.querySelectorAll('.layer').forEach(l=>l.classList.remove('active'));
