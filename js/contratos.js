@@ -948,6 +948,21 @@ async function registrarContrato(retornarId=false){
     if(window._reservaOrigemId){
       await sb.from('reservas').update({status:'convertida'}).eq('id',window._reservaOrigemId);
       window._reservaOrigemId=null; window._reservaValorPago=0;
+    } else {
+      // Rede de segurança: mesmo sem passar pelo botão "Converter reserva",
+      // qualquer reserva ATIVA do mesmo cliente + mesmo veículo é convertida
+      // automaticamente — evita reserva "órfã" ficando presa em Ativa depois
+      // que o contrato real já foi gerado por outro caminho.
+      try{
+        const {data:reservasOrfas} = await sb.from('reservas')
+          .select('id')
+          .eq('cliente_id', cid)
+          .eq('veiculo_id', vid)
+          .eq('status', 'ativa');
+        if(reservasOrfas?.length){
+          await sb.from('reservas').update({status:'convertida'}).in('id', reservasOrfas.map(r=>r.id));
+        }
+      }catch(e){ console.warn('[reserva/fallback]', e.message); }
     }
 
     // Reset listas

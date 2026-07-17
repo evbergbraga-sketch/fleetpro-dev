@@ -68,6 +68,7 @@ async function loadLocacoesCompletas(){
       num_contrato, tipo_contrato, local_retirada, caucao,
       forma_pgto, servicos_adicionais,
       data_inicio_hora, data_fim_hora,
+      asaas_subscription_id,
       veiculos(id, marca, modelo, placa, tipo, km_atual),
       clientes(id, nome, cpf, telefone, email)
     `)
@@ -2029,6 +2030,29 @@ async function cancelarLocacao(id){
       .update({ status:'cancelada', observacoes: novaObs })
       .eq('id', id);
     if(error) throw error;
+
+    // Cancela a assinatura recorrente no Asaas — falha aqui não impede o
+    // cancelamento local (mas avisa, pra cancelar manualmente se precisar)
+    if(loc.asaas_subscription_id){
+      try{
+        const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+        const bridgeUrl = cfg.bridgeUrl || (cfg.apiUrl ? cfg.apiUrl.replace('evo.','bridge.') : null);
+        if(bridgeUrl){
+          const r = await fetch(bridgeUrl+'/api/asaas/cancelar-assinatura', {
+            method:'POST',
+            headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+            body: JSON.stringify({ subscriptionId: loc.asaas_subscription_id })
+          });
+          if(!r.ok){
+            const t = await r.text();
+            notify('Locação cancelada, mas a assinatura no Asaas não foi cancelada automaticamente — cancele manualmente lá. ('+t.slice(0,120)+')', 'error');
+          }
+        }
+      }catch(e){
+        console.warn('[cancelar/asaas]', e.message);
+        notify('Locação cancelada, mas houve erro ao cancelar a assinatura no Asaas — verifique manualmente.', 'error');
+      }
+    }
 
     // Libera veículo
     await sb.from('veiculos').update({status:'disponivel'}).eq('id', loc.veiculo_id);
