@@ -1,5 +1,5 @@
 // sw-portal.js — Service Worker Portal Royal
-const CACHE = 'royal-portal-v12';
+const CACHE = 'royal-portal-v13';
 const ASSETS = [
   '/portal.html',
   '/manifest-portal.json',
@@ -44,7 +44,12 @@ self.addEventListener('fetch', e => {
     e.respondWith(
       fetch(e.request)
         .then(resp => {
-          caches.open(CACHE).then(c => c.put(e.request, resp.clone()));
+          // Clona IMEDIATAMENTE (síncrono) — se esperar o caches.open()
+          // (assíncrono) para clonar, o corpo da resposta original pode já
+          // ter sido consumido nesse meio tempo, e o clone() falha com
+          // "Response body is already used".
+          const respClone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, respClone));
           return resp;
         })
         .catch(() => caches.match(e.request).then(cached => cached || caches.match('/portal.html')))
