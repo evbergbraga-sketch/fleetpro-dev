@@ -15,7 +15,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <title>FleetPro | Plataforma de Locadoras</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20260709k">
+<link rel="stylesheet" href="css/styles.css?v=20260709l">
   <link rel="stylesheet" href="css/mobile.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -842,66 +842,6 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             </div>
 
 
-            <!-- CHECKLIST INLINE — aparece ao clicar em "Contrato + Checklist" -->
-            <div id="ct-checklist-inline" style="display:none;margin-top:16px;border:2px solid var(--accent);border-radius:12px;padding:16px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-                <div style="font-weight:700;font-size:14px;color:var(--accent)" id="ctchk-titulo">📋 Checklist de Vistoria — Saída</div>
-                <button onclick="_toggleChecklistInline()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button>
-              </div>
-              <div class="mob-stack" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-                <div class="form-group" style="margin:0"><label>Km saída</label><input type="number" id="ctchk-km" placeholder="0" style="width:100%"></div>
-                <div class="form-group" style="margin:0"><label>Nível combustível</label>
-                  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px">
-                    <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin-bottom:4px" id="ctchk-gauge">
-                      <div onclick="_selecionarCombInline('Reserva')" data-val="Reserva" style="height:20px;border-radius:3px;cursor:pointer;background:#ef444422;border:2px solid transparent" title="Reserva"></div>
-                      <div onclick="_selecionarCombInline('1/8')" data-val="1/8" style="height:20px;border-radius:3px;cursor:pointer;background:#f59e0b22;border:2px solid transparent" title="1/8"></div>
-                      <div onclick="_selecionarCombInline('2/8')" data-val="2/8" style="height:20px;border-radius:3px;cursor:pointer;background:#f59e0b22;border:2px solid transparent" title="2/8"></div>
-                      <div onclick="_selecionarCombInline('3/8')" data-val="3/8" style="height:20px;border-radius:3px;cursor:pointer;background:#fbbf2422;border:2px solid transparent" title="3/8"></div>
-                      <div onclick="_selecionarCombInline('4/8')" data-val="4/8" style="height:20px;border-radius:3px;cursor:pointer;background:#fbbf2422;border:2px solid transparent" title="4/8"></div>
-                      <div onclick="_selecionarCombInline('5/8')" data-val="5/8" style="height:20px;border-radius:3px;cursor:pointer;background:#22c55e22;border:2px solid transparent" title="5/8"></div>
-                      <div onclick="_selecionarCombInline('6/8')" data-val="6/8" style="height:20px;border-radius:3px;cursor:pointer;background:#22c55e22;border:2px solid transparent" title="6/8"></div>
-                      <div onclick="_selecionarCombInline('7/8')" data-val="7/8" style="height:20px;border-radius:3px;cursor:pointer;background:#16a34a22;border:2px solid transparent" title="7/8"></div>
-                      <div onclick="_selecionarCombInline('Cheio')" data-val="Cheio" style="height:20px;border-radius:3px;cursor:pointer;background:#16a34a;border:2px solid #16a34a" title="Cheio"></div>
-                    </div>
-                    <div id="ctchk-comb-label" style="text-align:center;font-size:11px;font-weight:700;color:var(--accent)">Cheio</div>
-                    <input type="hidden" id="ctchk-comb" value="Cheio">
-                  </div>
-                </div>
-                <div class="form-group" style="margin:0"><label>Horário da vistoria</label><input type="datetime-local" id="ctchk-hora" style="width:100%"></div>
-              </div>
-              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:10px">Itens de vistoria</div>
-              <div id="ctchk-itens" style="margin-bottom:14px">
-                <div style="text-align:center;padding:16px;color:var(--muted2)">⏳ Carregando itens...</div>
-              </div>
-              <!-- Fotos do checklist -->
-              <div style="margin-bottom:14px">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:8px">📷 Fotos / Arquivos</div>
-                <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg2);border:2px dashed var(--border2);border-radius:10px;cursor:pointer">
-                  <span style="font-size:18px">📷</span>
-                  <div>
-                    <div style="font-size:12px;font-weight:500">Selecionar fotos ou arquivos</div>
-                    <div style="font-size:11px;color:var(--muted)">JPG, PNG, PDF (máx. 10MB cada)</div>
-                  </div>
-                  <input type="file" accept="image/*,.pdf" multiple style="display:none" onchange="_previewFotosInline(this)">
-                </label>
-                <div id="ctchk-fotos-preview" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px"></div>
-              </div>
-              <div class="form-group" style="margin-bottom:14px">
-                <label>Observações da vistoria</label>
-                <textarea id="ctchk-obs" rows="2" style="width:100%;resize:vertical" placeholder="Descreva avarias, itens faltantes..."></textarea>
-              </div>
-              <!-- Assinatura do cliente (dedo ou caneta, tablet/celular) -->
-              <div class="form-group" style="margin-bottom:14px">
-                <label style="display:flex;justify-content:space-between;align-items:center">
-                  <span>Assinatura do cliente <span style="font-size:11px;color:var(--muted);font-weight:400">(assine com o dedo ou caneta)</span></span>
-                  <button type="button" onclick="assinaturaLimpar('ctchk-assinatura')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;text-decoration:underline;padding:2px">Limpar</button>
-                </label>
-                <canvas id="ctchk-assinatura" width="600" height="180" style="width:100%;height:150px;background:#fff;border:1.5px dashed var(--border2);border-radius:10px;touch-action:none;cursor:crosshair"></canvas>
-              </div>
-              <button class="btn btn-primary" style="width:100%" onclick="registrarComChecklist()">
-                📄 Registrar contrato + Checklist e Gerar PDF
-              </button>
-            </div>
 
             <div id="ct-aviso-reserva" style="display:none;margin-top:10px;padding:8px 12px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:6px;font-size:11px;color:#92400e;"></div>
           </div>
@@ -3116,28 +3056,28 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <div class="notify" id="notify"></div>
 
 <!-- Scripts — ordem importa! -->
-<script src="js/config.js?v=20260709k"></script>
-<script src="js/ajuda.js?v=20260709k"></script>
-<script src="js/pipeline.js?v=20260709k"></script>
-<script src="js/apilogs.js?v=20260709k"></script>
-<script src="js/ui.js?v=20260709k"></script>
-<script src="js/setup.js?v=20260709k"></script>
-<script src="js/nav.js?v=20260709k"></script>
-<script src="js/veiculos.js?v=20260709k"></script>
-<script src="js/clientes.js?v=20260709k"></script>
-<script src="js/historico.js?v=20260709k"></script>
-<script src="js/contratos.js?v=20260709k"></script>
-<script src="js/financeiro.js?v=20260709k"></script>
-<script src="js/contaspagar.js?v=20260709k"></script>
-<script src="js/cartoes.js?v=20260709k"></script>
-<script src="js/categorias.js?v=20260709k"></script>
-<script src="js/portal-admin.js?v=20260709k"></script>
-<script src="js/reservas.js?v=20260709k"></script>
-<script src="js/locacoes.js?v=20260709k"></script>
-<script src="js/chat.js?v=20260709k"></script>
-<script src="js/respostas-rapidas.js?v=20260709k"></script>
-<script src="js/investidores.js?v=20260709k"></script>
-<script src="js/boot.js?v=20260709k"></script>
+<script src="js/config.js?v=20260709l"></script>
+<script src="js/ajuda.js?v=20260709l"></script>
+<script src="js/pipeline.js?v=20260709l"></script>
+<script src="js/apilogs.js?v=20260709l"></script>
+<script src="js/ui.js?v=20260709l"></script>
+<script src="js/setup.js?v=20260709l"></script>
+<script src="js/nav.js?v=20260709l"></script>
+<script src="js/veiculos.js?v=20260709l"></script>
+<script src="js/clientes.js?v=20260709l"></script>
+<script src="js/historico.js?v=20260709l"></script>
+<script src="js/contratos.js?v=20260709l"></script>
+<script src="js/financeiro.js?v=20260709l"></script>
+<script src="js/contaspagar.js?v=20260709l"></script>
+<script src="js/cartoes.js?v=20260709l"></script>
+<script src="js/categorias.js?v=20260709l"></script>
+<script src="js/portal-admin.js?v=20260709l"></script>
+<script src="js/reservas.js?v=20260709l"></script>
+<script src="js/locacoes.js?v=20260709l"></script>
+<script src="js/chat.js?v=20260709l"></script>
+<script src="js/respostas-rapidas.js?v=20260709l"></script>
+<script src="js/investidores.js?v=20260709l"></script>
+<script src="js/boot.js?v=20260709l"></script>
 
 <script>
   document.addEventListener('DOMContentLoaded', ()=>setTimeout(window.renderRQ, 800));

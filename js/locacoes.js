@@ -1500,6 +1500,7 @@ async function salvarChecklist(tipo, locId){
 
   const btn = document.querySelector(`#form-checklist-${tipo} .btn-primary`);
   if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
+  _showLoading('Salvando vistoria...'); // overlay central "Aguarde..." (mesmo do contrato)
 
   try{
     // Coleta itens do formulário
@@ -1515,6 +1516,7 @@ async function salvarChecklist(tipo, locId){
     });
 
     // Upload das fotos para Supabase Storage
+    if(fotos.length) _showLoading(`Enviando ${fotos.length} foto${fotos.length!==1?'s':''}...`);
     const fotoUrls = [];
     for(const file of fotos){
       const ext = file.name.split('.').pop();
@@ -1538,6 +1540,7 @@ async function salvarChecklist(tipo, locId){
     // Se assinou: gera o PDF da vistoria (logo Royal + dados + assinatura datada)
     let pdfUrl = null;
     if(assinaturaDataUrl){
+      _showLoading('Gerando PDF da vistoria...');
       try{
         const {data:locFull} = await sb.from('locacoes')
           .select('*, clientes(*), veiculos(*)').eq('id', locId).single();
@@ -1557,6 +1560,7 @@ async function salvarChecklist(tipo, locId){
     }
 
     // Salva checklist no banco
+    _showLoading('Registrando vistoria...');
     const {error} = await sb.from('checklists').insert({
       locacao_id: locId,
       tipo,
@@ -1683,6 +1687,8 @@ async function salvarChecklist(tipo, locId){
   }catch(e){
     notify('Erro: '+e.message,'error');
     if(btn){ btn.disabled=false; btn.textContent=`💾 Salvar vistoria de ${tipo==='saida'?'Saída':'Entrada'}`; }
+  }finally{
+    _hideLoading();
   }
 }
 

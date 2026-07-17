@@ -2,159 +2,6 @@
 
 // ══ LOGO BASE64 ══
 
-// ══ TOGGLE CHECKLIST INLINE ══
-// ── FOTOS DO CHECKLIST INLINE ──
-let _ctchkFotos = [];
-
-function _previewFotosInline(input){
-  const preview = document.getElementById('ctchk-fotos-preview');
-  if(!preview) return;
-  Array.from(input.files).forEach(f=>{
-    if(f.size > 10*1024*1024){ notify(f.name+': muito grande (máx 10MB)','error'); return; }
-    _ctchkFotos.push(f);
-    const isPdf = f.name.toLowerCase().endsWith('.pdf');
-    const div = document.createElement('div');
-    div.style.cssText = 'position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--border2)';
-    if(isPdf){
-      div.innerHTML = `<div style="background:var(--bg2);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--muted);gap:4px"><span style="font-size:20px">📄</span>${f.name.slice(0,12)}</div>`;
-    } else {
-      const img = document.createElement('img');
-      img.style.cssText = 'width:100%;aspect-ratio:1;object-fit:cover';
-      img.src = URL.createObjectURL(f);
-      div.appendChild(img);
-    }
-    preview.appendChild(div);
-  });
-  input.value = '';
-}
-
-function _selecionarCombInline(valor){
-  const inp = document.getElementById('ctchk-comb');
-  const lbl = document.getElementById('ctchk-comb-label');
-  const gauge = document.getElementById('ctchk-gauge');
-  if(inp) inp.value = valor;
-  if(lbl) lbl.textContent = valor;
-  if(!gauge) return;
-  const cores = ['#ef4444','#f59e0b','#f59e0b','#fbbf24','#fbbf24','#22c55e','#22c55e','#16a34a','#16a34a'];
-  const niveis = ['Reserva','1/8','2/8','3/8','4/8','5/8','6/8','7/8','Cheio'];
-  const idx = niveis.indexOf(valor);
-  gauge.querySelectorAll('div[data-val]').forEach((cell,i)=>{
-    const active = i <= idx;
-    cell.style.background = active ? cores[i] : cores[i]+'22';
-    cell.style.border = active ? '2px solid '+cores[i] : '2px solid transparent';
-  });
-}
-
-async function _toggleChecklistInline(){
-  const el = document.getElementById('ct-checklist-inline');
-  if(!el) return;
-  const isOpen = el.style.display !== 'none';
-  el.style.display = isOpen ? 'none' : '';
-  if(!isOpen){
-    _ctchkFotos = [];
-    const prev = document.getElementById('ctchk-fotos-preview');
-    if(prev) prev.innerHTML = '';
-    // Define hora padrão
-    const horaEl = document.getElementById('ctchk-hora');
-    if(horaEl && !horaEl.value){
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      horaEl.value = now.toISOString().slice(0,16);
-    }
-    // Atualiza título conforme tipo de contrato
-    const tituloEl = document.getElementById('ctchk-titulo');
-    if(tituloEl){
-      const emoji = _tipoContrato === 'carro' ? '🚗' : '🏍️';
-      const label = _tipoContrato === 'carro' ? 'Carro' : 'Moto';
-      tituloEl.textContent = `📋 Checklist de Vistoria — Saída (${emoji} ${label})`;
-    }
-    // Carrega itens filtrados por tipo de contrato
-    await _carregarItensChecklistInline();
-  }
-}
-
-async function _carregarItensChecklistInline(){
-  const wrap = document.getElementById('ctchk-itens');
-  if(!wrap) return;
-  if(!sb){ wrap.innerHTML='<div style="color:var(--muted2);font-size:13px">Banco não conectado.</div>'; return; }
-  // Filtra por tipo_veiculo; fallback para todos se coluna não existir
-  const tipo = _tipoContrato || 'moto';
-  let itens = [];
-  try {
-    const {data, error} = await sb.from('checklist_itens')
-      .select('*').eq('ativo', true)
-      .in('tipo_veiculo', [tipo, 'ambos'])
-      .order('ordem');
-    if(error) throw error;
-    itens = data || [];
-    if(!itens.length){
-      const {data: data2} = await sb.from('checklist_itens').select('*').eq('ativo', true).order('ordem');
-      itens = (data2||[]).filter(it => !it.tipo_veiculo || it.tipo_veiculo === tipo || it.tipo_veiculo === 'ambos');
-      if(!itens.length) itens = data2 || [];
-    }
-  } catch(_) {
-    const {data} = await sb.from('checklist_itens').select('*').eq('ativo',true).order('ordem');
-    itens = data || [];
-  }
-  if(!itens.length){
-    wrap.innerHTML='<div style="color:var(--muted2);font-size:13px;text-align:center;padding:10px">Nenhum item configurado em Configurações.</div>';
-    return;
-  }
-  const cats = {};
-  itens.forEach(it=>{ if(!cats[it.categoria]) cats[it.categoria]=[]; cats[it.categoria].push(it); });
-  wrap.innerHTML = Object.entries(cats).map(([cat,its])=>`
-    <div style="margin-bottom:12px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">${cat}</div>
-      ${its.map(it=>`
-        <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-          <div style="font-size:12px">${it.descricao}</div>
-          <select id="ctchk-item-${it.id}" style="font-size:11px;padding:3px 6px;border-radius:6px;background:var(--bg2);border:1px solid var(--border2);color:var(--text)">
-            <option value="ok">✓ Ok / Sem avaria</option>
-            <option value="avaria">✕ Com avaria</option>
-            <option value="nao_houve">— Não Houve</option>
-          </select>
-          <input type="text" id="ctchk-obs-${it.id}" placeholder="obs..." style="font-size:11px;width:90px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;color:var(--text)">
-        </div>`).join('')}
-    </div>`).join('');
-  wrap.dataset.itens = JSON.stringify(itens);
-}
-
-function _coletarChecklistInline(){
-  const wrap = document.getElementById('ctchk-itens');
-  let itens = [];
-  try{
-    const raw = wrap?.dataset?.itens;
-    if(raw && raw !== '[]') itens = JSON.parse(raw);
-  }catch(e){ console.warn('[chk] parse itens:', e.message); }
-
-  // Log diagnóstico
-  console.log('[chk coletar] wrap existe:', !!wrap, '| dataset.itens length:', itens.length);
-
-  const itensColetados = itens.map(it=>{
-    const selEl  = document.getElementById('ctchk-item-'+it.id);
-    const obsEl  = document.getElementById('ctchk-obs-'+it.id);
-    const status = selEl?.value || 'ok';
-    const obs    = obsEl?.value || '';
-    if(!selEl) console.warn('[chk coletar] item sem elemento DOM:', it.id, it.descricao);
-    return {
-      descricao: it.descricao,
-      categoria: it.categoria,
-      status,
-      obs,
-    };
-  });
-
-  const horaEl = document.getElementById('ctchk-hora');
-  const combEl = document.getElementById('ctchk-comb');
-
-  return {
-    km:          parseInt(document.getElementById('ctchk-km')?.value)||0,
-    combustivel: combEl?.value || 'Cheio',
-    horario:     horaEl?.value ? new Date(horaEl.value).toISOString() : new Date().toISOString(),
-    observacoes: document.getElementById('ctchk-obs')?.value||'',
-    itens:       itensColetados,
-  };
-}
 
 // ══ HELPERS DE LOADING ══
 function _showLoading(txt='Gerando contrato...'){
@@ -168,129 +15,6 @@ function _hideLoading(){
   if(el) el.style.display='none';
 }
 
-// ══ REGISTRAR CONTRATO + CHECKLIST + PDF ÚNICO ══
-async function registrarComChecklist(){
-  const chkEl = document.getElementById('ct-checklist-inline');
-  const temChecklist = chkEl && chkEl.style.display !== 'none';
-
-  // PASSO 1: Garantir que itens estão carregados no DOM antes de coletar
-  if(temChecklist){
-    const wrap = document.getElementById('ctchk-itens');
-    if(!wrap?.dataset?.itens || wrap.dataset.itens === '[]'){
-      await _carregarItensChecklistInline();
-    }
-  }
-
-  // PASSO 2: Coletar todos os dados do checklist AGORA (DOM ainda intacto)
-  const chk = temChecklist ? _coletarChecklistInline() : null;
-  const fotosParaUpload = [..._ctchkFotos]; // cópia antes de qualquer reset
-
-  if(temChecklist){
-    console.log('[chk] coletado — itens:', chk?.itens?.length, '| comb:', chk?.combustivel, '| km:', chk?.km);
-    if(!chk?.itens?.length) console.warn('[chk] ATENÇÃO: itens vazios!');
-  }
-
-  _showLoading('Registrando contrato...');
-  try{
-    // PASSO 3: Registrar o contrato — retorna {locId, numContrato, d}
-    const resultado = await registrarContrato(true);
-    if(!resultado){ console.error('[chk] registrarContrato não retornou resultado'); return; }
-
-    const { locId, numContrato, d } = resultado;
-    console.log('[chk] locId:', locId, 'numContrato:', numContrato);
-
-    // PASSO 4: Se não tem checklist, gera PDF simples e sai
-    if(!temChecklist || !chk){
-      _showLoading('Gerando PDF...');
-      const pdfUrl = await gerarPdfContrato(numContrato, d, null, true);
-      if(pdfUrl){
-        const a = document.createElement('a');
-        a.href = pdfUrl; a.download = 'Contrato_Royal_'+numContrato+'_'+(d.nomeCli||'').replace(/\s+/g,'_')+'.pdf';
-        a.click();
-        notify('PDF do Contrato #'+numContrato+' gerado!','success');
-      }
-      _showLoading('Enviando para assinatura...');
-      const _cid0 = document.getElementById('c-cli')?.value||null;
-      if(locId) await enviarParaAssinatura(numContrato, d, locId, pdfUrl, _cid0);
-      await carregarTudo();
-      return;
-    }
-
-    // PASSO 5: Upload de fotos para o Storage
-    _showLoading('Enviando fotos...');
-    const fotosUrls = [];
-    for(const f of fotosParaUpload){
-      try{
-        const ext = (f.name.split('.').pop()||'jpg').toLowerCase();
-        const path = 'contratos/'+locId+'/'+Date.now()+'_'+Math.random().toString(36).slice(2)+'.'+ext;
-        const {error:upErr} = await sb.storage.from('checklists').upload(path, f);
-        if(!upErr){
-          const {data:signData} = await sb.storage.from('checklists').createSignedUrl(path, 60*60*24*365);
-          if(signData?.signedUrl) fotosUrls.push(signData.signedUrl);
-        }
-      }catch(e){ console.warn('[chk] foto upload:', e.message); }
-    }
-
-    // Upload da assinatura do cliente (se assinou no quadro)
-    let _assUrl = null;
-    try{
-      if(typeof assinaturaVazia === 'function' && !assinaturaVazia('ctchk-assinatura')){
-        _assUrl = await assinaturaUpload('ctchk-assinatura', 'checklists', `${locId}/saida/assinatura_${Date.now()}.png`);
-      }
-    }catch(e){ console.warn('[chk] assinatura upload:', e.message); }
-
-    // PASSO 6: Montar payload e salvar checklist no banco
-    _showLoading('Salvando checklist...');
-    const chkPayload = {
-      locacao_id:  locId,
-      tipo:        'saida',
-      km:          parseInt(chk.km)||0,
-      combustivel: chk.combustivel||'Cheio',
-      horario:     chk.horario ? new Date(chk.horario).toISOString() : new Date().toISOString(),
-      observacoes: chk.observacoes||null,
-      itens:       Array.isArray(chk.itens) ? chk.itens : [],
-      fotos:       fotosUrls,
-      assinatura_url: _assUrl,
-      ...(currentUser?.id ? {criado_por: currentUser.id} : {}),
-    };
-
-    console.log('[chk] salvando no banco:', JSON.stringify(chkPayload).slice(0,200));
-
-    const {data:chkSalvo, error:chkErr} = await sb
-      .from('checklists')
-      .insert(chkPayload)
-      .select('id,locacao_id,tipo')
-      .single();
-
-    if(chkErr){
-      console.error('[chk] ERRO ao salvar:', chkErr);
-      notify('⚠️ Checklist não salvo: '+chkErr.message,'error');
-    } else {
-      console.log('[chk] SALVO com sucesso — id:', chkSalvo.id, 'locacao_id:', chkSalvo.locacao_id);
-      notify('✅ Contrato + Checklist registrados!','success');
-    }
-
-    // PASSO 7: Gerar PDF com checklist (UMA VEZ) → usado para download e Autentique
-    _showLoading('Gerando PDF com checklist...');
-    const pdfComChk = await gerarPdfContrato(numContrato, d, chk, true);
-    if(pdfComChk){
-      const a = document.createElement('a');
-      a.href = pdfComChk; a.download = 'Contrato_Royal_'+numContrato+'_'+(d.nomeCli||'').replace(/\s+/g,'_')+'.pdf';
-      a.click();
-      notify('PDF do Contrato #'+numContrato+' gerado!','success');
-    }
-
-    // PASSO 7b: Enviar para assinatura digital COM O MESMO PDF (inclui checklist)
-    _showLoading('Enviando para assinatura digital...');
-    const _cidChk = document.getElementById('c-cli')?.value||null;
-    if(locId) await enviarParaAssinatura(numContrato, d, locId, pdfComChk, _cidChk);
-
-    // PASSO 8: Recarregar dados DEPOIS de tudo concluído
-    await carregarTudo();
-  }finally{
-    _hideLoading();
-  }
-}
 
 
 // ══ NÚMERO DO CONTRATO ══
@@ -972,8 +696,8 @@ async function registrarContrato(retornarId=false){
     notify('Contrato #'+numContrato+' registrado!','success');
     if(btn){ btn.disabled=true; btn.textContent='⏳ Carregando...'; }
 
-    // Se retornarId (chamado por registrarComChecklist), retorna IMEDIATAMENTE
-    // para preservar o DOM do checklist (carregarTudo é chamado depois pelo caller)
+    // Se retornarId, retorna IMEDIATAMENTE (usado por fluxos internos que
+    // precisam do ID da locação antes de prosseguir com outros passos)
     if(retornarId){
       if(btn){ btn.disabled=false; btn.textContent='📄 Registrar e gerar contrato'; }
       return { locId: locSalva.id, numContrato, d };
@@ -1019,6 +743,12 @@ async function registrarContrato(retornarId=false){
     }
 
     // WhatsApp — enviado pelo modal do Autentique (não automático aqui)
+
+    // Vai automático para Locações e já abre o modal da locação recém-criada
+    if(_locIdParaAssinatura){
+      goPage('locacoes');
+      setTimeout(()=>{ if(typeof abrirModalLocacao==='function') abrirModalLocacao(_locIdParaAssinatura); }, 300);
+    }
   }catch(e){
     notify('Erro: '+e.message,'error');
     if(retornarId) return null;
