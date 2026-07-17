@@ -257,8 +257,9 @@ function fmtPhone(tel){
 }
 function notify(msg, type='success'){
   const el = document.getElementById('notify');
-  el.textContent = (type==='success' ? '✓ ' : type==='warning' ? '⚠️ ' : '✕ ') + msg;
-  el.className = 'notify ' + (type==='warning' ? 'warning' : type);
+  const icones = { success:'✓', error:'✕', warning:'⚠️', info:'ℹ️' };
+  el.textContent = (icones[type]||icones.success) + ' ' + msg;
+  el.className = 'notify ' + (icones[type] ? type : 'success');
   el.style.display = 'block';
   clearTimeout(el._t);
   el._t = setTimeout(()=> el.style.display='none', 4000);
