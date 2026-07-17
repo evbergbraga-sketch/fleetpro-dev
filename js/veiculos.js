@@ -778,10 +778,10 @@ async function abrirFotosModelos(){
   }).join('');
 }
 
-// Comprime a imagem para no máx. 900px (JPEG) e retorna Blob
-// IMPORTANTE: preenche fundo branco antes de desenhar — JPEG não suporta
-// transparência, e sem isso qualquer PNG com fundo transparente vira preto
-// (o canvas 2D começa transparente-preto por padrão).
+// Comprime a imagem para no máx. 900px e retorna Blob.
+// Usa PNG (preserva transparência) — se usasse JPEG, qualquer fundo
+// transparente virava preto (e um preenchimento branco, embora resolvesse
+// o preto, também eliminava a transparência que a foto original tinha).
 function _vfComprimirBlob(file, max=900){
   return new Promise((resolve, reject)=>{
     const img = new Image();
@@ -790,11 +790,8 @@ function _vfComprimirBlob(file, max=900){
       const cv = document.createElement('canvas');
       cv.width = Math.round(img.width*escala);
       cv.height = Math.round(img.height*escala);
-      const ctx = cv.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, cv.width, cv.height);
-      ctx.drawImage(img, 0, 0, cv.width, cv.height);
-      cv.toBlob(b=>b?resolve(b):reject(new Error('falha ao comprimir')), 'image/jpeg', 0.85);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(b=>b?resolve(b):reject(new Error('falha ao comprimir')), 'image/png');
       URL.revokeObjectURL(img.src);
     };
     img.onerror = ()=>reject(new Error('imagem inválida'));
@@ -808,8 +805,8 @@ async function _vfUpload(input, marca, modelo, cor){
   notify('Enviando foto...','info');
   try{
     const blob = await _vfComprimirBlob(file, 900);
-    const path = `modelos/${marca}_${modelo}_${cor}_${Date.now()}.jpg`.replace(/[^a-z0-9_./-]/g,'-');
-    const {error:upErr} = await sb.storage.from('veiculos-docs').upload(path, blob, {contentType:'image/jpeg'});
+    const path = `modelos/${marca}_${modelo}_${cor}_${Date.now()}.png`.replace(/[^a-z0-9_./-]/g,'-');
+    const {error:upErr} = await sb.storage.from('veiculos-docs').upload(path, blob, {contentType:'image/png'});
     if(upErr) throw upErr;
     const {data:pub} = sb.storage.from('veiculos-docs').getPublicUrl(path);
     const fotoUrl = pub?.publicUrl;
