@@ -466,6 +466,17 @@ async function abrirModalLocacao(locId){
       </div>
     </div>` : ''}
 
+    <!-- ASSINATURA DIGITAL (AUTENTIQUE) -->
+    ${loc.status==='ativa' ? `
+    <div style="margin-top:16px;padding:14px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">✍️ Assinatura digital</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Gera o PDF de novo com os dados já salvos e reenvia para o cliente assinar. Use se a primeira tentativa falhou (rede instável) ou se o cliente perdeu o link.</div>
+      <button onclick="_locReenviarAutentique('${locId}')" id="btn-reenviar-autentique-${locId}" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85.99 6.57 2.6"/><polyline points="21 3 21 9 15 9"/></svg>
+        Reenviar para assinatura
+      </button>
+    </div>` : ''}
+
     <!-- CONTRATO PDF PORTAL -->
     <div style="margin-top:16px;padding:14px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px">
       <div style="font-size:12px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📄 Contrato PDF — Portal do Cliente</div>
@@ -2235,6 +2246,92 @@ async function _locUploadContratoPdf(input, locId) {
     await carregarTudo();
     abrirDetalhesLocacao(locId);
   } catch(e) { notify('Erro: ' + e.message, 'error'); }
+}
+
+// ══ REENVIAR PARA ASSINATURA (Autentique) ══
+// Reconstrói o objeto "d" que gerarPdfContrato/enviarParaAssinatura esperam,
+// mas a partir dos dados JÁ SALVOS no banco (não do formulário) — usa os
+// valores finais gravados na hora da criação (total, diária, caução...),
+// nunca recalcula desconto/taxa de novo. Mais seguro que re-derivar.
+async function _locReenviarAutentique(locId){
+  const btn = document.getElementById(`btn-reenviar-autentique-${locId}`);
+  const original = btn?.innerHTML;
+  try{
+    if(btn){ btn.disabled=true; btn.innerHTML='⏳ Preparando...'; }
+
+    const {data:loc, error} = await sb.from('locacoes')
+      .select('*, clientes(*), veiculos(*), perfis:criado_por(nome)')
+      .eq('id', locId).single();
+    if(error) throw error;
+    if(!loc) throw new Error('locação não encontrada');
+    const cli = loc.clientes || {};
+    const vei = loc.veiculos || {};
+    const isMoto = loc.tipo_contrato === 'moto' || vei.tipo === 'moto';
+
+    // Período (mesma lógica de cálculo do previewContrato, só que a partir
+    // das datas já salvas em vez dos campos do formulário)
+    const ini = loc.data_inicio_hora || loc.data_inicio;
+    const fim = loc.data_fim_hora || loc.data_fim;
+    let periodoVal = 1, days = 1, diasLabel = '';
+    if(ini && fim){
+      const diffMs = new Date(fim) - new Date(ini);
+      if(isMoto){
+        periodoVal = Math.max(1, Math.round(diffMs / (7*24*3600*1000)));
+        diasLabel = `${periodoVal} semana${periodoVal!==1?'s':''}`;
+      } else {
+        days = Math.max(1, Math.ceil(diffMs / (24*3600*1000)));
+        periodoVal = days;
+        diasLabel = `${days} dia${days!==1?'s':''}`;
+      }
+    }
+
+    const planoNome = loc.plano_moto==='379.99' ? 'Plano 12 meses — R$ 379,99/sem'
+                     : loc.plano_moto==='399.90' ? 'Plano Conquista 36m — R$ 399,90/sem' : '';
+    const valorPago = (loc.total||0) - (loc.valor_restante||0);
+    const servicos  = loc.servicos_adicionais || [];
+    const totalServicos = servicos.reduce((acc,s)=>acc+(parseFloat(s.valor)||0), 0);
+
+    const d = {
+      totalBruto: loc.total||0, totalLiq: loc.valor_restante||0,
+      valorPago, valorPagoReserva: 0, valorPagoAto: loc.valor_pago_ato||0, valorRestante: loc.valor_restante||0,
+      dividirPgto: !!loc.valor_pgto_2, valorPgto1: loc.valor_pago_ato||0, formaPgto1: loc.forma_pgto||'PIX',
+      valorPgto2: loc.valor_pgto_2||0, formaPgto2: loc.forma_pgto_2||'',
+      pgtoCaucao: loc.forma_pgto_caucao||loc.forma_pgto||'PIX', descricao:'', planoNome,
+      nomeCli: cli.nome||'___', cpfCli: cli.cpf||'___', telCli: cli.telefone||'___',
+      pgtoLabel: loc.forma_pgto||'PIX', parcelas:1, cartao4dig:'', cartaoVal:'', cartaoBand:'', cartaoTitular:'', cartaoSalvar:false,
+      emailCli: cli.email||'', cnhCli: loc.condutor_cnh||cli.cnh||'', cnhValCli: loc.condutor_cnh_val||'', cnhCatCli: loc.condutor_cnh_cat||'',
+      endCli: cli.endereco||'', nascCli: cli.data_nascimento||'',
+      placa: vei.placa||'', modelo: `${vei.marca||''} ${vei.modelo||''}`.trim(),
+      atendente: loc.perfis?.nome || currentPerfil?.nome || '',
+      diasLabel, dia: loc.diaria||0, diaOriginal: loc.diaria_original||loc.diaria||0,
+      temDesconto: !!loc.desconto_valor, descontoValor: loc.desconto_valor||0, descontoTipo: loc.desconto_tipo||'reais',
+      km: loc.km_inicial||'—', obs: loc.observacoes||'',
+      condutor: cli.nome||'', condutorCpf: cli.cpf||'', todosCondutores: [{nome: cli.nome||'', cpf: cli.cpf||''}],
+      pgto: loc.forma_pgto||'PIX', caucao: loc.caucao||0, numCtrato: loc.num_contrato, periodoVal, ini, fim,
+      localRet: loc.local_retirada||'Loja', totalServicos, servicos, days,
+      taxaAdminPct:0, taxaAdminVal:0, taxaAdminIsenta:true,
+      clienteId: loc.cliente_id, veiculoId: loc.veiculo_id,
+    };
+
+    if(btn) btn.innerHTML = '⏳ Gerando PDF...';
+    // _tipoContrato é uma variável global usada dentro de enviarParaAssinatura
+    // para decidir moto vs carro — normalmente setada ao abrir Contratos.
+    // Como esse reenvio roda a partir de Locações, força o valor certo pra
+    // ESTA locação específica (evita herdar um valor antigo de outra sessão).
+    window._tipoContrato = isMoto ? 'moto' : 'carro';
+    const pdfDataUrl = await gerarPdfContrato(loc.num_contrato, d, null, true);
+    if(!pdfDataUrl) throw new Error('falha ao gerar o PDF');
+
+    if(btn) btn.innerHTML = '⏳ Enviando para assinatura...';
+    await enviarParaAssinatura(loc.num_contrato, d, locId, pdfDataUrl, loc.cliente_id);
+    // enviarParaAssinatura já mostra o aviso de sucesso e abre o modal com
+    // o link de assinatura + botão de WhatsApp — nada a fazer aqui.
+  }catch(e){
+    console.error('[reenviar-autentique]', e);
+    notify('Erro ao reenviar: '+e.message, 'error');
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML=original; }
+  }
 }
 
 async function _locRemoverContratoPdf(locId) {
