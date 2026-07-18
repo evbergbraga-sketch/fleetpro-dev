@@ -2244,7 +2244,7 @@ async function _locUploadContratoPdf(input, locId) {
 
     notify('Contrato PDF salvo! Disponível no portal do cliente.', 'success');
     await carregarTudo();
-    abrirDetalhesLocacao(locId);
+    abrirModalLocacao(locId);
   } catch(e) { notify('Erro: ' + e.message, 'error'); }
 }
 
@@ -2340,7 +2340,7 @@ async function _locRemoverContratoPdf(locId) {
   if (error) { notify('Erro: ' + error.message, 'error'); return; }
   notify('PDF removido.', 'success');
   await carregarTudo();
-  abrirDetalhesLocacao(locId);
+  abrirModalLocacao(locId);
 }
 
 // ══ EDITAR VALOR DE LANÇAMENTO (admin/gerente) ══
@@ -2361,6 +2361,6 @@ async function _editarValorLancamento(lancId, valorAtual){
     const locId = document.querySelector('#modal-locacao-detalhe [data-loc-id]')?.dataset?.locId
       || document.querySelector('.modal-overlay.show')?.querySelector('[data-loc-id]')?.dataset?.locId;
     await carregarTudo();
-    if(locId) abrirDetalhesLocacao(locId);
+    if(locId) abrirModalLocacao(locId);
   }catch(e){ notify('Erro: '+e.message,'error'); }
 }
