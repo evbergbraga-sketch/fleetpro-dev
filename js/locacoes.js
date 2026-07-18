@@ -2038,7 +2038,10 @@ async function cancelarLocacao(id){
     if(error) throw error;
 
     // Cancela a assinatura recorrente no Asaas — falha aqui não impede o
-    // cancelamento local (mas avisa, pra cancelar manualmente se precisar)
+    // cancelamento local (mas avisa, pra cancelar manualmente se precisar).
+    // Log sempre presente no console, mesmo quando não há nada a cancelar —
+    // facilita diagnosticar sem precisar olhar log do servidor.
+    console.log('[cancelar/asaas] locação', id, '— asaas_subscription_id:', loc.asaas_subscription_id||'(nenhum)');
     if(loc.asaas_subscription_id){
       try{
         const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
@@ -2052,11 +2055,16 @@ async function cancelarLocacao(id){
           if(!r.ok){
             const t = await r.text();
             notify('Locação cancelada, mas a assinatura no Asaas não foi cancelada automaticamente — cancele manualmente lá. ('+t.slice(0,120)+')', 'error');
+          } else {
+            console.log('[cancelar/asaas] assinatura cancelada com sucesso:', loc.asaas_subscription_id);
           }
+        } else {
+          console.warn('[cancelar/asaas] bridgeUrl não configurado (fp_evo_cfg) — não deu pra tentar cancelar');
+          notify('Locação cancelada, mas não há como cancelar a assinatura no Asaas automaticamente (bridge não configurado) — cancele manualmente: '+loc.asaas_subscription_id, 'error');
         }
       }catch(e){
         console.warn('[cancelar/asaas]', e.message);
-        notify('Locação cancelada, mas houve erro ao cancelar a assinatura no Asaas — verifique manualmente.', 'error');
+        notify('Locação cancelada, mas houve erro ao cancelar a assinatura no Asaas — verifique manualmente: '+loc.asaas_subscription_id, 'error');
       }
     }
 
