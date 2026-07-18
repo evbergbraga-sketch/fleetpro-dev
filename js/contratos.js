@@ -2021,8 +2021,10 @@ async function calSelectDay(d){
 // Anexa automaticamente o PDF do contrato recém-gerado aos Anexos da locação
 // (mesmo bucket/tabela usados no upload manual em Locações → Anexos).
 async function _anexarContratoPdfNaLocacao(locId, numContrato, nomeCli, pdfDataUrl){
-  const resp = await fetch(pdfDataUrl); // datauristring → Blob (sem rede, é local)
-  const blob = await resp.blob();
+  // NUNCA usar fetch() numa data: URL — a Content Security Policy do site
+  // bloqueia ("connect-src" não inclui o esquema "data:"). Conversão manual
+  // base64 → Blob, sem rede nenhuma.
+  const blob = _dataUrlParaBlob(pdfDataUrl);
   const nomeArquivo = `Contrato_Royal_${numContrato}_${(nomeCli||'cliente').replace(/\s+/g,'_')}.pdf`;
   const path = `locacoes/${locId}/${Date.now()}_${nomeArquivo}`;
   const {error:upErr} = await sb.storage.from('locacoes-docs').upload(path, blob, {upsert:false, contentType:'application/pdf'});

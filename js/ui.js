@@ -217,6 +217,19 @@ function _veiculoThumb(v, tamanho=28){
   return SVG_VEICULO(v?.tipo);
 }
 
+// Converte uma data: URL (ex: "data:application/pdf;base64,....") em Blob,
+// SEM usar fetch() — a Content Security Policy do site bloqueia fetch em
+// URLs com esquema "data:" (connect-src não inclui "data:"). Conversão
+// manual, 100% local, sem rede.
+function _dataUrlParaBlob(dataUrl){
+  const [cabecalho, base64] = dataUrl.split(',');
+  const mime = cabecalho.match(/:(.*?);/)[1];
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], {type: mime});
+}
+
 // ══ LAYERS ══
 function goLayer(id){
   document.querySelectorAll('.layer').forEach(l=>l.classList.remove('active'));
