@@ -230,6 +230,23 @@ function _dataUrlParaBlob(dataUrl){
   return new Blob([bytes], {type: mime});
 }
 
+// Repete uma operação de rede automaticamente se ela falhar — pensado pra
+// wifi instável (ex: subsolo da loja). Espera um pouco entre tentativas.
+// Uso: await _comRetry(() => sb.storage.from('x').upload(...), 'enviar foto')
+async function _comRetry(fn, label='operação', tentativas=3, esperaMs=1500){
+  let ultimoErro;
+  for(let i=1; i<=tentativas; i++){
+    try{
+      return await fn();
+    }catch(e){
+      ultimoErro = e;
+      console.warn(`[retry] ${label} falhou (tentativa ${i}/${tentativas}):`, e.message);
+      if(i < tentativas) await new Promise(r=>setTimeout(r, esperaMs));
+    }
+  }
+  throw ultimoErro;
+}
+
 // ══ LAYERS ══
 function goLayer(id){
   document.querySelectorAll('.layer').forEach(l=>l.classList.remove('active'));

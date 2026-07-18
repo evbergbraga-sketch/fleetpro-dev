@@ -626,7 +626,7 @@ async function registrarContrato(retornarId=false){
     const planoMoto      = document.querySelector('input[name="c-plano-moto"]:checked')?.value||null;
     const primeiraSemanaIncluida = document.getElementById('c-primeira-semana-incluida')?.checked !== false;
 
-    const {data:locSalva, error} = await sb.from('locacoes').insert({
+    const {data:locSalva, error} = await _comRetry(() => sb.from('locacoes').insert({
       veiculo_id:vid, cliente_id:cid,
       data_inicio: ini.slice(0,10),
       data_fim: fim.slice(0,10),
@@ -657,7 +657,7 @@ async function registrarContrato(retornarId=false){
       plano_moto: planoMoto,
       primeira_semana_incluida: primeiraSemanaIncluida,
       criado_por: currentUser?.id
-    }).select().single();
+    }).select().single(), 'registrar contrato');
     if(error) throw error;
 
     await sb.from('veiculos').update({status:'alugado'}).eq('id',vid);
@@ -723,6 +723,14 @@ async function registrarContrato(retornarId=false){
           _showLoading('Enviando para assinatura digital...');
           await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura, _pdfDataUrl, cid);
         }
+      }catch(e){
+        // SEM ISSO: numa rede instável (ex: wifi do subsolo), um erro aqui
+        // fechava a tela de "Aguarde" sem mostrar nada — parecia que
+        // simplesmente não aconteceu nada. O contrato já foi registrado
+        // (isso rodou depois do insert principal); o que falhou foi só o
+        // PDF/Autentique, e dá pra tentar de novo pelo botão da locação.
+        console.error('[registrarContrato/pdf-autentique]', e);
+        notify('Contrato registrado, mas houve um problema ao gerar o PDF ou enviar para assinatura (rede instável?). Abra a locação e tente reenviar.', 'error');
       }finally{
         _hideLoading();
       }

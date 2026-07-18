@@ -1317,8 +1317,10 @@ async function _chkGerarPdfDepois(checkId, locId, tipo){
     });
     const numCt = locFull?.num_contrato || locId;
     const pdfPath = `${locId}/${tipo}/checklist_contrato_${numCt}_${tipo}_${Date.now()}.pdf`;
-    const {error:pdfErr} = await sb.storage.from('checklists').upload(pdfPath, pdfBlob, {contentType:'application/pdf'});
-    if(pdfErr) throw pdfErr;
+    await _comRetry(async ()=>{
+      const {error:pdfErr} = await sb.storage.from('checklists').upload(pdfPath, pdfBlob, {contentType:'application/pdf'});
+      if(pdfErr) throw pdfErr;
+    }, 'enviar PDF da vistoria');
     const {data:pdfSign} = await sb.storage.from('checklists').createSignedUrl(pdfPath, 60*60*24*365*5);
     const pdfUrl = pdfSign?.signedUrl || null;
     if(!pdfUrl) throw new Error('falha ao gerar o link do PDF');
@@ -1434,9 +1436,9 @@ async function _gerarPdfChecklist(loc, dados){
     doc.text('ITENS VISTORIADOS', M, y); y += 5;
     doc.setFontSize(8.2);
     const col2 = M + W/2;
-    itens.forEach((it, i)=>{
-      const x = (i % 2 === 0) ? M : col2;
-      if(i % 2 === 0 && y > 250){ doc.addPage(); y = 20; }
+    const largItem = W/2 - 20;
+    const renderItem = (it, x) => {
+      if(!it) return 0;
       const comAvaria = it.status==='avaria';
       doc.setFont('helvetica','bold');
       doc.setTextColor(comAvaria ? '#b91c1c' : '#166534');
@@ -1445,11 +1447,16 @@ async function _gerarPdfChecklist(loc, dados){
       doc.setTextColor('#111');
       let txt = it.descricao || '';
       if(comAvaria && it.obs) txt += ` — ${it.obs}`;
-      doc.text(doc.splitTextToSize(txt, W/2 - 20), x+15, y);
-      if(i % 2 === 1) y += 5;
-    });
-    if(itens.length % 2 === 1) y += 5;
-    y += 3;
+      const linhas = doc.splitTextToSize(txt, largItem);
+      doc.text(linhas, x+15, y);
+      return linhas.length;
+    };
+    for(let i=0; i<itens.length; i+=2){
+      if(y > 250){ doc.addPage(); y = 20; }
+      const maxLinhas = Math.max(renderItem(itens[i], M), renderItem(itens[i+1], col2), 1);
+      y += maxLinhas * 3.6 + 1.8; // avança pela altura REAL do maior texto da linha, não um valor fixo
+    }
+    y += 2;
   }
 
   // Fotos da vistoria (baixa cada URL e embute como imagem — grade 3 colunas)
@@ -1467,21 +1474,25 @@ async function _gerarPdfChecklist(loc, dados){
       try{
         const resp = await fetch(fotos[i]);
         const blob = await resp.blob();
-        // Redimensiona pro tamanho real de exibição no PDF (a foto ocupa uns
-        // 60mm — não precisa da resolução original) — protege mesmo fotos
-        // antigas grandes já salvas no Storage, sem depender de terem sido
-        // comprimidas no upload.
+        // Redimensiona pro tamanho real de exibição no PDF, respeitando a
+        // PROPORÇÃO ORIGINAL da foto (contain-fit, com fundo branco) — antes
+        // a foto era esticada pra caber num quadro fixo, distorcendo/cortando
+        // fotos que não fossem exatamente 4:3.
         const b64 = await new Promise((res, rej)=>{
           const img = new Image();
           img.onload = ()=>{
+            // O quadro de destino no PDF é sempre cw:ch (proporção fixa) —
+            // o canvas de saída usa essa MESMA proporção, com a foto
+            // centralizada dentro (sobra vira fundo branco, nunca corta)
             const cvImg = document.createElement('canvas');
-            const escala = Math.min(1, 600/Math.max(img.width, img.height));
-            cvImg.width = Math.round(img.width*escala);
-            cvImg.height = Math.round(img.height*escala);
+            cvImg.width = 600;
+            cvImg.height = Math.round(600 * (ch/cw));
             const ctx = cvImg.getContext('2d');
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0,0,cvImg.width,cvImg.height);
-            ctx.drawImage(img, 0, 0, cvImg.width, cvImg.height);
+            ctx.fillRect(0, 0, cvImg.width, cvImg.height);
+            const escalaFoto = Math.min(cvImg.width/img.width, cvImg.height/img.height);
+            const wFoto = img.width*escalaFoto, hFoto = img.height*escalaFoto;
+            ctx.drawImage(img, (cvImg.width-wFoto)/2, (cvImg.height-hFoto)/2, wFoto, hFoto);
             res(cvImg.toDataURL('image/jpeg', 0.7));
             URL.revokeObjectURL(img.src);
           };
@@ -1609,8 +1620,10 @@ async function salvarChecklist(tipo, locId){
     for(const file of fotos){
       const blobComprimido = await _chkComprimirFoto(file, 1400);
       const path = `${locId}/${tipo}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-      const {data:up, error:upErr} = await sb.storage.from('checklists').upload(path, blobComprimido, {contentType:'image/jpeg'});
-      if(upErr) throw upErr;
+      await _comRetry(async ()=>{
+        const {error:upErr} = await sb.storage.from('checklists').upload(path, blobComprimido, {contentType:'image/jpeg'});
+        if(upErr) throw upErr;
+      }, 'enviar foto da vistoria');
       const {data:signData} = await sb.storage.from('checklists').createSignedUrl(path, 60*60*24*365);
       fotoUrls.push(signData?.signedUrl || '');
     }
@@ -1635,8 +1648,10 @@ async function salvarChecklist(tipo, locId){
         const pdfBlob = await _gerarPdfChecklist(locFull, {tipo, km, comb, hora, itens, obs, assinaturaDataUrl, fotos: fotoUrls});
         const numCt = locFull?.num_contrato || locId;
         const pdfPath = `${locId}/${tipo}/checklist_contrato_${numCt}_${tipo}.pdf`;
-        const {error:pdfErr} = await sb.storage.from('checklists').upload(pdfPath, pdfBlob, {contentType:'application/pdf'});
-        if(pdfErr) throw pdfErr;
+        await _comRetry(async ()=>{
+          const {error:pdfErr} = await sb.storage.from('checklists').upload(pdfPath, pdfBlob, {contentType:'application/pdf'});
+          if(pdfErr) throw pdfErr;
+        }, 'enviar PDF da vistoria');
         const {data:pdfSign} = await sb.storage.from('checklists').createSignedUrl(pdfPath, 60*60*24*365*5);
         pdfUrl = pdfSign?.signedUrl || null;
         // Envio automático por e-mail removido — o consultor envia manualmente
@@ -1649,20 +1664,22 @@ async function salvarChecklist(tipo, locId){
 
     // Salva checklist no banco
     _showLoading('Registrando vistoria...');
-    const {error} = await sb.from('checklists').insert({
-      locacao_id: locId,
-      tipo,
-      km,
-      combustivel: comb,
-      horario: hora,
-      consultor_id: currentUser?.id,
-      itens,
-      observacoes: obs,
-      fotos: fotoUrls,
-      assinatura_url: assinaturaUrl,
-      pdf_url: pdfUrl
-    });
-    if(error) throw error;
+    await _comRetry(async ()=>{
+      const {error} = await sb.from('checklists').insert({
+        locacao_id: locId,
+        tipo,
+        km,
+        combustivel: comb,
+        horario: hora,
+        consultor_id: currentUser?.id,
+        itens,
+        observacoes: obs,
+        fotos: fotoUrls,
+        assinatura_url: assinaturaUrl,
+        pdf_url: pdfUrl
+      });
+      if(error) throw error;
+    }, 'salvar vistoria');
 
     // ── QUILOMETRAGEM: registra no contrato e atualiza o veículo ──
     // Saída → locacoes.km_inicial | Entrada → locacoes.km_final.
