@@ -34,7 +34,7 @@ function _renderAnexosLista(prefix){
         <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name}</div>
         <div style="font-size:10px;color:var(--muted)">${(f.size/1024).toFixed(1)} KB — aguardando envio</div>
       </div>
-      <button onclick="_removeAnexoNovo('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+      <button onclick="_removeAnexoNovo('${prefix}',${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">${ICO.x}</button>
     </div>`).join('');
   lista.innerHTML = existHtml + novosHtml;
 }
@@ -55,8 +55,8 @@ function _renderAnexosExistentes(prefix, urls){
         <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
         <div style="font-size:10px;color:var(--muted)">Arquivo salvo</div>
       </div>
-      <button onclick="_abrirAnexo('${u}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px" title="Abrir arquivo">🔗</button>
-      <button onclick="_removeAnexoExistente('${prefix}','${u}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">✕</button>
+      <button onclick="_abrirAnexo('${u}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px" title="Abrir arquivo">${ICO.link}</button>
+      <button onclick="_removeAnexoExistente('${prefix}','${u}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px">${ICO.x}</button>
     </div>`;
   }).join('');
   lista.innerHTML = existHtml;
@@ -86,10 +86,10 @@ function _removeAnexoExistente(prefix, url){
 
 function _fileIcon(name){
   const ext = (name||'').split('.').pop().toLowerCase();
-  if(['pdf'].includes(ext)) return '📄';
-  if(['jpg','jpeg','png','webp','gif'].includes(ext)) return '🖼️';
-  if(['doc','docx'].includes(ext)) return '📝';
-  return '📎';
+  if(['pdf'].includes(ext)) return ICO.arquivo;
+  if(['jpg','jpeg','png','webp','gif'].includes(ext)) return ICO.imagem;
+  if(['doc','docx'].includes(ext)) return ICO.nota;
+  return ICO.clipe;
 }
 
 async function _abrirAnexo(url){
@@ -277,7 +277,7 @@ function _renderIpvas(prefix){
   }
   wrap.innerHTML = _veicIpvas.map((ip,i)=>{
     const badgeColor = ip.status==='vencido' ? '#dc2626' : ip.status==='alerta' ? '#d97706' : '#16a34a';
-    const badgeTxt  = ip.status==='vencido' ? '⚠️ Vencido' : ip.status==='alerta' ? '⚡ Atenção' : '';
+    const badgeTxt  = ip.status==='vencido' ? ICO.aviso+' Vencido' : ip.status==='alerta' ? ICO.raio+' Atenção' : '';
     return `
     <div style="display:grid;grid-template-columns:80px 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;background:var(--bg2);padding:10px;border-radius:8px;border:1px solid ${ip.status==='vencido'?'rgba(220,38,38,.3)':ip.status==='alerta'?'rgba(217,119,6,.3)':'var(--border2)'}">
       <div class="form-group" style="margin:0">
@@ -292,7 +292,7 @@ function _renderIpvas(prefix){
         <label style="font-size:10px">Vencimento ${badgeTxt?`<span style="color:${badgeColor};font-size:9px">${badgeTxt}</span>`:''}</label>
         <input type="date" value="${ip.vencimento}" style="width:100%" onchange="_veicIpvas[${i}].vencimento=this.value">
       </div>
-      <button onclick="_removeIpva(${i},'${prefix}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:4px;align-self:center">✕</button>
+      <button onclick="_removeIpva(${i},'${prefix}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:4px;align-self:center">${ICO.x}</button>
     </div>`;
   }).join('');
 }
@@ -334,7 +334,7 @@ function _renderManutencoes(prefix){
             <option ${m.tipo==='Outro'?'selected':''}>Outro</option>
           </select>
         </div>
-        <button onclick="_removeManutencao(${i},'${prefix}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:4px">✕</button>
+        <button onclick="_removeManutencao(${i},'${prefix}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:4px">${ICO.x}</button>
       </div>
       <div class="form-group" style="margin:0">
         <label style="font-size:10px">Observação</label>
@@ -465,7 +465,7 @@ async function _cpSincronizarSeguro(veiculoId, veicInfo, seguradora, valor, peri
 // veiculos.js — Gestão de veículos
 
 function statusBadge(s){
-  return s==='preparacao' ? '<span class="badge badge-blue">⚙️ Em preparação</span>'
+  return s==='preparacao' ? '<span class="badge badge-blue">'+ICO.engrenagem+' Em preparação</span>'
     : s==='disponivel' ? '<span class="badge badge-green">Disponível</span>'
        : s==='alugado'    ? '<span class="badge badge-red">Alugado</span>'
        : s==='reservado'  ? '<span class="badge badge-blue">Reservado</span>'
@@ -483,28 +483,28 @@ function renderVeiculos(){
     const canEdit=['admin','atendente'].includes(currentPerfil?.perfil);
     tb.innerHTML=data.length?data.map(v=>{
       const inv = allPerfis.find(p=>p.id===v.investidor_id);
-      const invBadge = inv ? `<span style="font-size:10px;color:#7c3aed;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.15);border-radius:4px;padding:2px 6px">📈 ${inv.nome.split(' ')[0]}</span>` : '';
       return `<tr>
         <td><div style="display:flex;align-items:center;gap:10px">
           <div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}" style="${v.foto_url?'padding:0;overflow:hidden':''}">${v.foto_url?`<img src="${v.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${v.tipo}')">`:SVG_VEICULO(v.tipo)}</div>
           <div>
             <div style="font-weight:500">${v.marca} ${v.modelo}</div>
-            <div style="font-size:11px;color:var(--muted)">${v.cor||''} · ${v.cambio||''} ${invBadge}</div>
+            <div style="font-size:11px;color:var(--muted)">${v.cor||''} · ${v.cambio||''}</div>
           </div>
         </div></td>
         <td>${v.placa}</td>
+        <td>${inv ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#7c3aed;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.18);border-radius:5px;padding:3px 7px">${ICO.investidor}${inv.nome.split(' ')[0]}</span>` : '<span style="color:var(--muted2);font-size:11px">—</span>'}</td>
         <td>${v.ano||'—'}</td>
         <td>${(v.km_atual||0).toLocaleString('pt-BR')}</td>
         <td style="color:var(--accent);font-weight:600">R$ ${(v.diaria||0).toFixed(2)}</td>
         <td>${statusBadge(v.status)}</td>
         <td>${canEdit?`
           <div style="display:flex;gap:6px">
-            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="verHistorico('${v.id}')">📋 Histórico</button>
-            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="editarVeiculo('${v.id}')">✏️ Editar</button>
-            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red);border-color:rgba(220,38,38,.2)" onclick="excluirVeiculo('${v.id}','${(v.marca+' '+v.modelo).replace(/'/g,"\\'")}','${v.placa}')">🗑️</button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:inline-flex;align-items:center;gap:5px" onclick="verHistorico('${v.id}')">${ICO.historico} Histórico</button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;display:inline-flex;align-items:center;gap:5px" onclick="editarVeiculo('${v.id}')">${ICO.editar} Editar</button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red);border-color:rgba(220,38,38,.2);display:inline-flex;align-items:center" onclick="excluirVeiculo('${v.id}','${(v.marca+' '+v.modelo).replace(/'/g,"\\'")}','${v.placa}')">${ICO.excluir}</button>
           </div>`:'—'}</td>
       </tr>`;
-    }).join(''):'<tr class="empty-row"><td colspan="7">Nenhum veículo encontrado</td></tr>';
+    }).join(''):'<tr class="empty-row"><td colspan="8">Nenhum veículo encontrado</td></tr>';
   });
 }
 
@@ -546,8 +546,8 @@ function editarVeiculo(id){
   // Mostrar CRLV atual
   const crlvNome = document.getElementById('ev-crlv-nome');
   const crlvPreview = document.getElementById('ev-crlv-preview');
-  if(crlvNome) crlvNome.textContent = v.crlv_url ? '✅ CRLV enviado' : 'Nenhum arquivo enviado';
-  if(crlvPreview) crlvPreview.innerHTML = v.crlv_url ? `<a href="${v.crlv_url}" target="_blank" style="font-size:12px;color:var(--accent)">📋 Ver CRLV atual</a>` : '';
+  if(crlvNome) crlvNome.textContent = v.crlv_url ? 'CRLV enviado' : 'Nenhum arquivo enviado';
+  if(crlvPreview) crlvPreview.innerHTML = v.crlv_url ? `<a href="${v.crlv_url}" target="_blank" style="font-size:12px;color:var(--accent)">${ICO.arquivo} Ver CRLV atual</a>` : '';
   preencherSelectInvestidores('ev-investidor').then(()=>{
     const sel = document.getElementById('ev-investidor');
     if(sel) sel.value = v.investidor_id||'';
@@ -626,7 +626,7 @@ async function atualizarVeiculo(){
   }catch(e){
     notify('Erro: '+e.message,'error');
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='✓ Salvar alterações';}
+    if(btn){btn.disabled=false;btn.textContent='Salvar alterações';}
   }
 }
 
@@ -720,7 +720,7 @@ async function salvarVeiculo(){
   }catch(e){
     notify('Erro ao salvar: '+e.message,'error');
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='✓ Salvar';}
+    if(btn){btn.disabled=false;btn.textContent='Salvar';}
   }
 }
 
@@ -742,9 +742,9 @@ async function _uploadCrlv(input) {
     const { error } = await sb.from('veiculos').update({ crlv_url: publicUrl }).eq('id', veiculoId);
     if (error) throw error;
 
-    document.getElementById('ev-crlv-nome').textContent = '✅ ' + file.name;
+    document.getElementById('ev-crlv-nome').textContent = file.name;
     document.getElementById('ev-crlv-preview').innerHTML = `
-      <a href="${publicUrl}" target="_blank" style="font-size:12px;color:var(--accent)">📋 Ver CRLV enviado</a>`;
+      <a href="${publicUrl}" target="_blank" style="font-size:12px;color:var(--accent)">${ICO.arquivo} Ver CRLV enviado</a>`;
     notify('CRLV salvo! Disponível no portal do cliente.', 'success');
   } catch(e) {
     document.getElementById('ev-crlv-nome').textContent = 'Erro ao enviar';
@@ -793,7 +793,7 @@ async function abrirFotosModelos(){
     const foto = fotoDe.get(key);
     const icone = foto
       ? `<img src="${foto}" style="width:52px;height:52px;object-fit:cover;border-radius:10px;border:1px solid var(--border2)">`
-      : `<div style="width:52px;height:52px;border-radius:10px;background:var(--bg2);border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px">${c.tipo==='carro'?'🚗':'🏍️'}</div>`;
+      : `<div style="width:52px;height:52px;border-radius:10px;background:var(--bg2);border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px">${c.tipo==='carro'?SVG_CARRO:SVG_MOTO}</div>`;
     return `
     <div style="display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:10px 12px">
       ${icone}
@@ -802,7 +802,7 @@ async function abrirFotosModelos(){
         <div style="font-size:11px;color:var(--muted)">${c.cor} · ${c.qtd} veículo${c.qtd!==1?'s':''}</div>
       </div>
       <label class="btn btn-ghost" style="font-size:11px;padding:6px 12px;cursor:pointer;white-space:nowrap">
-        ${foto?'🔄 Trocar foto':'📷 Enviar foto'}
+        ${foto?ICO.atualizar+' Trocar foto':ICO.camera+' Enviar foto'}
         <input type="file" accept="image/*" style="display:none" onchange="_vfUpload(this,'${_vfNorm(c.marca)}','${_vfNorm(c.modelo)}','${_vfNorm(c.cor)}')">
       </label>
     </div>`;
@@ -859,7 +859,7 @@ async function _vfUpload(input, marca, modelo, cor){
     });
     if(typeof renderVeiculos==='function') renderVeiculos();
     abrirFotosModelos(); // re-render do modal com a foto nova
-    notify('Foto aplicada a todos os veículos do modelo! ✓','success');
+    notify('Foto aplicada a todos os veículos do modelo!','success');
   }catch(e){
     notify('Erro ao enviar foto: '+e.message,'error');
   }

@@ -1325,6 +1325,16 @@ async function _chkGerarPdfDepois(checkId, locId, tipo){
     const pdfUrl = pdfSign?.signedUrl || null;
     if(!pdfUrl) throw new Error('falha ao gerar o link do PDF');
 
+    // Deleta o PDF antigo do Storage (se existir) — sem isso, cada "regerar"
+    // deixava um arquivo órfão acumulando espaço no banco. Feito DEPOIS do
+    // novo já estar salvo com sucesso, e não trava o fluxo se falhar.
+    if(check.pdf_url){
+      try{
+        const pathAntigo = decodeURIComponent(check.pdf_url.split('/object/sign/checklists/')[1]?.split('?')[0] || '');
+        if(pathAntigo) await sb.storage.from('checklists').remove([pathAntigo]);
+      }catch(e){ console.warn('[chk/gerar-pdf-depois] falha ao apagar PDF antigo:', e.message); }
+    }
+
     await sb.from('checklists').update({pdf_url: pdfUrl}).eq('id', checkId);
     notify('📄 PDF da vistoria gerado com sucesso!','success');
 
