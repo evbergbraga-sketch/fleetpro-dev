@@ -2230,7 +2230,7 @@ async function _locUploadContratoPdf(input, locId) {
   const file = input.files[0];
   if (!file) return;
   if (file.type !== 'application/pdf') { notify('Apenas PDF é aceito.', 'error'); return; }
-  if (file.size > 15 * 1024 * 1024) { notify('Arquivo muito grande (máx 15MB).', 'error'); return; }
+  if (file.size > 25 * 1024 * 1024) { notify('Arquivo muito grande (máx 25MB).', 'error'); return; }
 
   notify('Enviando PDF...', 'info');
   try {
