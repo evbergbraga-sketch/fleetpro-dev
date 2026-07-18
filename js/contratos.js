@@ -853,12 +853,13 @@ try{
   doc.addImage(base64, 'PNG', M, y, 35, 20);
 }catch(_){}
 
-  // Dados da empresa (topo direito do logo)
+  // Dados da empresa (topo direito do logo) — matriz e filial
   doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
-  doc.text('ROYAL RENT A CAR LTDA', M+42, y+7);
-  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
-  doc.text('CNPJ: 18.686.521/0002-90', M+42, y+12);
-  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+42, y+15);
+  doc.text('ROYAL RENT A CAR LTDA', M+42, y+6);
+  doc.setFontSize(6.8); doc.setFont('helvetica','normal'); doc.setTextColor('#333');
+  doc.text('Matriz: CNPJ 18.686.521/0001-00 — Rua Fernando José de Andrade, 88', M+42, y+10.5);
+  doc.text('Filial: CNPJ 18.686.521/0002-90 — Av. das Américas, 12.900 - SS 3', M+42, y+14);
+  doc.text('Tel: (21) 96894-9627  |  sac@locadoraroyal.com.br', M+42, y+17.5);
 
   // Número e status do contrato (topo direito)
   const planoTitulo = isMoto
@@ -870,7 +871,7 @@ try{
   const descricaoHeader = d.descricao ? `Situação: Em Vigência  |  Tipo: ${isMoto?'MOTO':'CARRO'}  |  ${d.descricao}` : `Situação: Em Vigência  |  Tipo: ${isMoto?'MOTO':'CARRO'}`;
   doc.text(descricaoHeader, PW-M, y+10, {align:'right'});
   doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, PW-M, y+14, {align:'right'});
-  y += 18;
+  y += 22;
 
   // Linha separadora
   line(M, y, PW-M, y, '#006400', 0.5);
@@ -1282,13 +1283,12 @@ try{
     {num:'CLÁUSULA 19 — ASSINATURA ELETRÔNICA, DOCUMENTOS DIGITAIS E ANEXOS', secao:true},
     {num:'19.1', txt:'As partes reconhecem a validade de assinatura eletrônica ou digital realizada por plataforma eletrônica, inclusive ZapSign, gov.br ou outra ferramenta adotada pela LOCADORA, nos termos da legislação aplicável.'},
     {num:'19.2', txt:'Integram este contrato, para todos os fins:'},
-    {bullet:true, txt:'Anexo I   - Termo de Entrega, Vistoria e Responsabilidade;'},
-    {bullet:true, txt:'Anexo II  - Tabela de Tarifas, Multas e Encargos;'},
-    {bullet:true, txt:'Anexo III - Plano de Manutenção e Revisões;'},
-    {bullet:true, txt:'Anexo IV  - Condições de Seguro/Proteção;'},
+    {bullet:true, txt:'Anexo I  - Termo de Entrega, Vistoria e Responsabilidade;'},
+    {bullet:true, txt:'Anexo II  - Tabela de Tarifas, Multas, Encargos e Penalidades Contratuais;'},
+    {bullet:true, txt:'Anexo III - Plano de Manutenção, Revisões e Obrigações de Conservação;'},
+    {bullet:true, txt:'Anexo IV  - Condições de Seguro, Proteção, Franquias e Exclusões;'},
     {bullet:true, txt:'Anexo V   - Termo de Responsabilidade por Infrações de Trânsito;'},
-    {bullet:true, txt:'Anexo VI  - Instrumento Definitivo de Compra e Venda e Transferência;'},
-    {bullet:true, txt:'Anexo VII - Declaração de Ciência de Riscos da Condução de Motocicleta.'},
+    {bullet:true, txt:'Anexo VI  - Declaração de Ciência de Riscos da Condução de Motocicleta.'},
     {num:'CLÁUSULA 20 — DISPOSIÇÕES GERAIS', secao:true},
     {num:'20.1', txt:'A tolerância de qualquer das partes quanto ao descumprimento de obrigação não constituirá novação, renúncia ou alteração contratual.'},
     {num:'20.2', txt:'Se qualquer cláusula for considerada inválida, as demais permanecerão válidas, devendo a cláusula inválida ser substituída por outra que preserve, tanto quanto possível, a finalidade econômica e jurídica originalmente pactuada.'},
@@ -1297,10 +1297,196 @@ try{
     {num:'20.5', txt:'As partes declaram ter lido, compreendido e aceito todas as cláusulas, inclusive as relativas a inadimplência, bloqueio, recolhimento, manutenção, seguro, multas, perda do direito de compra e transferência final.'},
     {num:'CLÁUSULA 21 — FORO', secao:true},
     {num:'21.1', txt:'Fica eleito o foro da comarca da sede da LOCADORA para dirimir controvérsias decorrentes deste contrato, ressalvadas regras legais obrigatórias de competência e eventual aplicação de foro diverso por norma de ordem pública.'},
+    {num:'ANEXO II — TABELA DE TARIFAS, MULTAS, ENCARGOS E PENALIDADES CONTRATUAIS', secao:true},
+    {num:'', txt:'Este anexo integra o Contrato de Locação de Motocicleta com Opção de Compra Futura, Facultativa e Condicionada, firmado entre ROYAL RENT A CAR LTDA / ROYAL LOCADORA e o LOCATÁRIO identificado no quadro-resumo do contrato.'},
+    {num:'', txt:'As tarifas, multas e encargos abaixo poderão ser cobrados do LOCATÁRIO quando decorrentes de inadimplemento, uso indevido, descumprimento contratual, danos, multas de trânsito, despesas operacionais ou qualquer obrigação vinculada ao período em que a motocicleta estiver sob sua posse.'},
+    {num:'1. Rescisão antecipada, desistência ou devolução antes do prazo', secao:true},
+    {tabela:[
+      ['Situação','Valor / Critério de cobrança'],
+      ['Devolução da motocicleta antes do prazo de 36 meses / 156 semanas','Menor valor entre R$ 2.000,00 e 20% do saldo das semanas restantes'],
+      ['Desistência voluntária do LOCATÁRIO','Menor valor entre R$ 2.000,00 e 20% do saldo das semanas restantes'],
+      ['Rescisão por culpa do LOCATÁRIO','Menor valor entre R$ 2.000,00 e 20% do saldo das semanas restantes'],
+      ['Abandono do contrato','Menor valor entre R$ 2.000,00 e 20% do saldo das semanas restantes, além dos débitos pendentes'],
+      ['Perda do direito de compra por inadimplência ou quebra contratual','Sem restituição dos valores pagos a título de locação, taxa de adesão ou semanas utilizadas'],
+    ]},
+    {num:'', txt:'A multa de rescisão antecipada não substitui a cobrança de valores vencidos, multas de trânsito, danos, franquias, despesas de recolhimento, lucros cessantes, custos operacionais, encargos de cobrança ou demais prejuízos comprovados.'},
+    {num:'2. Atraso de pagamento', secao:true},
+    {tabela:[
+      ['Situação','Valor / Critério de cobrança'],
+      ['Multa por atraso de pagamento','2% sobre o valor vencido'],
+      ['Juros de mora','1% ao mês, pro rata die'],
+      ['Correção monetária','IPCA/IBGE, salvo índice legal diverso aplicável'],
+      ['Atraso superior a 7 dias corridos','Poderá gerar bloqueio, rescisão, recolhimento da motocicleta e perda do direito de compra'],
+      ['Reativação após bloqueio por inadimplência','R$ 100,00 por evento, se houver custo operacional'],
+    ]},
+    {num:'3. Multas de trânsito e penalidades administrativas', secao:true},
+    {tabela:[
+      ['Situação','Valor / Critério de cobrança'],
+      ['Multa de trânsito cometida durante a posse do LOCATÁRIO','Valor integral da multa'],
+      ['Multa recebida após encerramento do contrato, mas referente ao período de posse','Valor integral da multa'],
+      ['Penalidade por não indicação de condutor','Valor cobrado pelo órgão de trânsito, se aplicável'],
+      ['Custo operacional para tratamento de multa, indicação de condutor ou defesa administrativa','R$ 50,00 por infração'],
+      ['Remoção, estadia em pátio, guincho ou taxas públicas','Valor integral cobrado pelo órgão ou prestador'],
+    ]},
+    {num:'4. Danos, avarias e manutenção irregular', secao:true},
+    {tabela:[
+      ['Situação','Valor / Critério de cobrança'],
+      ['Danos na motocicleta por queda, colisão, mau uso ou negligência','Valor do orçamento, nota fiscal ou reparo'],
+      ['Peças quebradas, ausentes ou substituídas sem autorização','Valor da peça original ou equivalente + mão de obra'],
+      ['Pneu rasgado, furado por mau uso ou danificado','Valor do reparo ou substituição'],
+      ['Atraso ou ausência em revisão obrigatória','Custos decorrentes + eventual perda de cobertura/garantia'],
+      ['Uso de peça paralela ou não autorizada','Substituição por peça adequada + mão de obra'],
+      ['Sujeira excessiva na devolução','R$ 50,00'],
+      ['Perda de chave, documento, CRLV, manual ou acessórios','Valor de reposição + custos administrativos'],
+    ]},
+    {num:'5. Recolhimento, guincho e despesas operacionais', secao:true},
+    {tabela:[
+      ['Situação','Valor / Critério de cobrança'],
+      ['Guincho por pane decorrente de mau uso, negligência ou sinistro causado pelo LOCATÁRIO','Valor cobrado pelo prestador'],
+      ['Recolhimento da motocicleta por inadimplência ou quebra contratual','Custos efetivos de deslocamento, guincho, diária, equipe e operação'],
+      ['Deslocamento da equipe da LOCADORA para tentativa de recolhimento','Valor do transporte'],
+      ['Diária de pátio, garagem, estadia ou guarda','Valor cobrado pelo local de guarda'],
+      ['Despesas de cobrança extrajudicial','Custos efetivos comprovados'],
+    ]},
+    {num:'6. Lucros cessantes', secao:true},
+    {tabela:[
+      ['Situação','Valor / Critério de cobrança'],
+      ['Motocicleta parada por dano, sinistro, apreensão ou manutenção causada pelo LOCATÁRIO','Valor da locação semanal proporcional aos dias de indisponibilidade'],
+      ['Retenção indevida da motocicleta após rescisão ou solicitação de devolução','Valor da locação semanal proporcional aos dias de retenção'],
+      ['Atraso na devolução após encerramento do contrato','Valor proporcional da locação + encargos aplicáveis'],
+    ]},
+    {num:'', txt:'Critério: valor diário = valor semanal dividido por 7.'},
+    {num:'7. Franquias, seguro e proteção', secao:true},
+    {tabela:[
+      ['Situação','Valor / Critério de cobrança'],
+      ['Sinistro coberto por seguro/proteção','Franquia ou participação obrigatória prevista no Anexo IV'],
+      ['Sinistro não coberto por culpa, exclusão ou descumprimento contratual','Responsabilidade integral do LOCATÁRIO'],
+      ['Despesas não cobertas pela proteção','Valor integral devido'],
+      ['Perda de cobertura por ausência de boletim de ocorrência ou comunicação tardia','Responsabilidade integral do LOCATÁRIO'],
+    ]},
+    {num:'8. Declaração de ciência', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara ter lido e compreendido esta tabela, reconhecendo que os valores e critérios aqui previstos poderão ser cobrados em caso de descumprimento contratual, sem prejuízo de outros valores comprovadamente devidos.'},
+    {num:'', txt:'Assinatura do LOCATÁRIO: ___________________________'},
+    {num:'', txt:'Assinatura da LOCADORA: ___________________________'},
+
+    {num:'ANEXO III — PLANO DE MANUTENÇÃO, REVISÕES E OBRIGAÇÕES DE CONSERVAÇÃO', secao:true},
+    {num:'', txt:'Este anexo integra o Contrato de Locação de Motocicleta com Opção de Compra Futura e estabelece as regras de manutenção preventiva, revisões, comunicação de defeitos, conservação e uso adequado da motocicleta.'},
+    {num:'1. Responsabilidade geral', secao:true},
+    {num:'', txt:'O LOCATÁRIO deverá conservar a motocicleta em bom estado de uso, segurança, limpeza e funcionamento, observando o manual do fabricante, orientações da LOCADORA, plano de manutenção preventiva, convocações para vistoria, troca de óleo, revisão ou recall e regras de uso seguro e regular.'},
+    {num:'2. Comunicação obrigatória a cada 1.000 km', secao:true},
+    {num:'', txt:'O LOCATÁRIO deverá comunicar a LOCADORA sempre que a motocicleta atingir múltiplos de 1.000 km, para que seja verificado o cronograma de manutenção, revisão, troca de óleo ou inspeção preventiva.'},
+    {tabela:[
+      ['Quilometragem','Providência'],
+      ['1.000 km','Comunicação obrigatória à LOCADORA e verificação de primeira revisão/troca de óleo'],
+      ['2.000 km','Comunicação obrigatória e inspeção preventiva, se aplicável'],
+      ['3.000 km','Comunicação obrigatória e verificação de manutenção'],
+      ['4.000 km','Comunicação obrigatória e verificação de manutenção'],
+      ['A cada 1.000 km seguintes','Comunicação obrigatória e análise do cronograma de manutenção'],
+    ]},
+    {num:'3. Revisões obrigatórias', secao:true},
+    {tabela:[
+      ['Item','Responsável pelo comparecimento','Observação'],
+      ['Revisões programadas','LOCATÁRIO','Deve comparecer quando convocado'],
+      ['Troca de óleo','Conforme plano definido pela LOCADORA','Deve respeitar prazo/km'],
+      ['Recall','LOCATÁRIO deverá apresentar a moto quando solicitado','Obrigatório'],
+      ['Vistoria preventiva','LOCATÁRIO','Quando solicitado pela LOCADORA'],
+      ['Manutenção corretiva por mau uso','LOCATÁRIO','Responsabilidade integral do LOCATÁRIO'],
+    ]},
+    {num:'4. Cuidados diários obrigatórios', secao:true},
+    {num:'', txt:'O LOCATÁRIO deverá verificar diariamente: nível de óleo, calibragem dos pneus, funcionamento dos freios, iluminação, setas, buzina, corrente/relação, painel, vazamentos, ruídos ou falhas incomuns e estado geral da motocicleta.'},
+    {num:'5. Proibição de manutenção sem autorização', secao:true},
+    {num:'', txt:'A motocicleta somente poderá ser revisada, consertada ou modificada em oficina, concessionária ou parceiro indicado ou autorizado pela LOCADORA.'},
+    {num:'', txt:'É proibido ao LOCATÁRIO trocar peças sem autorização, instalar acessórios sem autorização, alterar escapamento, elétrica, painel, guidão ou estrutura, usar peças paralelas, recondicionadas ou adaptadas sem aprovação, ou continuar usando a motocicleta após sinal de falha, vazamento, barulho grave ou luz de advertência.'},
+    {num:'6. Consequências do descumprimento', secao:true},
+    {num:'', txt:'O atraso em revisão, a ausência de comunicação de quilometragem, o não comparecimento à manutenção ou o uso contínuo da motocicleta com defeito poderão gerar cobrança dos danos causados, perda de cobertura de seguro/proteção, bloqueio preventivo, recolhimento da motocicleta, rescisão contratual, perda do direito de compra, cobrança de lucros cessantes e custos operacionais.'},
+    {num:'7. Declaração de ciência', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara estar ciente de que a não observância do plano de manutenção poderá causar danos mecânicos, perda de garantia, perda de cobertura securitária e responsabilização integral pelos prejuízos.'},
+    {num:'', txt:'Assinatura do LOCATÁRIO: ___________________________'},
+    {num:'', txt:'Assinatura da LOCADORA: ___________________________'},
+
+    {num:'ANEXO IV — CONDIÇÕES DE SEGURO, PROTEÇÃO, FRANQUIAS E EXCLUSÕES', secao:true},
+    {num:'', txt:'Este anexo integra o Contrato de Locação de Motocicleta com Opção de Compra Futura e define as condições gerais de seguro, proteção veicular, franquias, participação obrigatória, exclusões e responsabilidades do LOCATÁRIO.'},
+    {num:'1. Existência de seguro ou proteção', secao:true},
+    {num:'', txt:'A motocicleta poderá estar protegida por seguro, proteção veicular, associação, cobertura contratada pela LOCADORA ou outro instrumento de proteção patrimonial.'},
+    {num:'', txt:'A existência de seguro ou proteção não elimina a responsabilidade do LOCATÁRIO por franquias, participações obrigatórias, exclusões, danos não cobertos, documentos não apresentados ou descumprimento contratual.'},
+    {num:'2. Coberturas possíveis', secao:true},
+    {tabela:[
+      ['Evento','Pode ter cobertura?','Observação'],
+      ['Roubo','Sim, conforme apólice/proteção','Exige comunicação imediata e B.O.'],
+      ['Furto','Sim, conforme apólice/proteção','Exige comunicação imediata e B.O.'],
+      ['Colisão','Conforme cobertura contratada','Pode exigir franquia'],
+      ['Danos a terceiros','Conforme cobertura contratada','Limites conforme apólice'],
+      ['Incêndio','Conforme cobertura contratada','Sujeito a análise'],
+      ['Guincho/assistência','Conforme cobertura contratada','Limites de km/evento'],
+    ]},
+    {num:'3. Franquia ou participação obrigatória', secao:true},
+    {tabela:[
+      ['Tipo de evento','Responsabilidade do LOCATÁRIO'],
+      ['Sinistro coberto com franquia','Valor integral da franquia'],
+      ['Sinistro coberto com participação obrigatória','Valor integral da participação'],
+      ['Danos não cobertos','Valor integral do prejuízo'],
+      ['Despesas não reembolsadas pela proteção','Valor integral da despesa'],
+      ['Terceiros prejudicados sem cobertura suficiente','Diferença entre cobertura e prejuízo apurado'],
+    ]},
+    {tabela:[
+      ['Modalidade','Franquia / Participação'],
+      ['Proteção básica','5% da FIPE'],
+      ['Proteção completa','5% da FIPE'],
+      ['Terceiros','Conforme limite da cobertura contratada'],
+    ]},
+    {num:'4. Obrigações em caso de sinistro', secao:true},
+    {num:'', txt:'Em caso de acidente, queda, colisão, furto, roubo, incêndio, apreensão, dano a terceiro ou qualquer evento que afete a motocicleta, o LOCATÁRIO deverá comunicar imediatamente a LOCADORA, registrar boletim de ocorrência no menor prazo possível, preferencialmente em até 24 horas, enviar fotos, vídeos, localização, dados de terceiros e testemunhas, não assumir culpa sem autorização da LOCADORA, não fazer acordo com terceiro sem autorização da LOCADORA, não abandonar a motocicleta, não autorizar reparos por conta própria e entregar todos os documentos solicitados pela LOCADORA, seguradora ou proteção.'},
+    {num:'5. Hipóteses de perda de cobertura', secao:true},
+    {num:'', txt:'A cobertura poderá ser negada, limitada ou excluída, ficando o LOCATÁRIO responsável integralmente pelos prejuízos, nos seguintes casos: condução por pessoa não autorizada, ausência de CNH válida, condução sob efeito de álcool, drogas ou substâncias psicoativas, uso em racha, competição, manobra perigosa ou empinada, saída da área permitida sem autorização, ausência ou atraso no boletim de ocorrência, omissão de informações, fraude ou informação falsa, abandono da motocicleta, manutenção irregular, uso da motocicleta com defeito aparente, remoção ou adulteração de rastreador, alteração de características originais ou descumprimento das regras da apólice, proteção ou contrato.'},
+    {num:'6. Danos a terceiros', secao:true},
+    {num:'', txt:'Caso haja dano a terceiros, o LOCATÁRIO deverá comunicar imediatamente a LOCADORA e fornecer todos os dados do terceiro envolvido.'},
+    {num:'', txt:'A LOCADORA não será obrigada a reconhecer responsabilidade, realizar acordo ou efetuar pagamento sem análise prévia do evento, documentos e eventual cobertura existente.'},
+    {num:'7. Sinistro sem cobertura', secao:true},
+    {num:'', txt:'Quando o evento não for coberto pelo seguro/proteção, ou quando houver perda de cobertura por culpa, omissão ou descumprimento do LOCATÁRIO, este responderá integralmente por valor da motocicleta, se houver perda total, custo de reparo, danos a terceiros, guincho, estadia, despesas administrativas, lucros cessantes, honorários e custos de cobrança, quando aplicável.'},
+    {num:'8. Declaração de ciência', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara estar ciente de que seguro ou proteção não significa isenção de responsabilidade, reconhecendo que poderá ser cobrado por franquias, participações obrigatórias, exclusões, danos, despesas e prejuízos decorrentes do uso da motocicleta.'},
+    {num:'', txt:'Assinatura do LOCATÁRIO: ___________________________'},
+    {num:'', txt:'Assinatura da LOCADORA: ___________________________'},
+
     {num:'ANEXO V — TERMO DE RESPONSABILIDADE POR INFRAÇÕES DE TRÂNSITO', secao:true},
-    {num:'', txt:'O LOCATÁRIO declara ser o principal condutor da motocicleta durante a vigência do contrato e assume responsabilidade integral por infrações de trânsito cometidas no período de sua posse.'},
-    {num:'', txt:'O LOCATÁRIO compromete-se a apresentar CNH, assinar formulários e colaborar com a indicação de condutor sempre que solicitado pela LOCADORA, no prazo informado, sob pena de arcar com penalidades por não indicação, custos operacionais e demais consequências.'},
-    {num:'', txt:'Multas recebidas posteriormente, mas referentes ao período de posse do LOCATÁRIO, continuarão sob sua responsabilidade.'},
+    {num:'1. Identificação', secao:true},
+    {num:'', txt:`LOCADORA: ROYAL RENT A CAR LTDA / ROYAL LOCADORA   LOCATÁRIO: ${d.nomeCli||'—'}   CPF: ${d.cpfCli||'—'}   CNH: ${d.cnhCli||'—'}   Motocicleta: ${d.modelo||'—'}   Placa: ${d.placa||'—'}   Contrato nº: ${numContrato}`},
+    {num:'2. Responsabilidade pelas infrações', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara ser o principal condutor da motocicleta durante a vigência do contrato, assumindo responsabilidade integral por todas as infrações de trânsito, penalidades, pontuações, multas, remoções, estadias em pátio, taxas e processos administrativos decorrentes do uso da motocicleta no período em que estiver sob sua posse.'},
+    {num:'3. Indicação de condutor', secao:true},
+    {num:'', txt:'O LOCATÁRIO autoriza a LOCADORA a indicá-lo como condutor infrator perante os órgãos de trânsito sempre que a infração ocorrer durante o período de posse da motocicleta.'},
+    {num:'', txt:'O LOCATÁRIO compromete-se a apresentar CNH válida, assinar formulários de indicação de condutor, fornecer documentos solicitados, comparecer quando necessário e responder às solicitações da LOCADORA em até 48 horas ou em prazo menor, caso exigido pelo órgão competente.'},
+    {num:'4. Não colaboração na indicação', secao:true},
+    {num:'', txt:'Caso o LOCATÁRIO não apresente documentos, não assine formulários, não responda dentro do prazo ou dificulte a indicação do condutor, responderá pelo valor da multa original, penalidade por não indicação de condutor, se aplicada, custos administrativos e demais prejuízos causados à LOCADORA.'},
+    {num:'5. Multas recebidas após a devolução', secao:true},
+    {num:'', txt:'Multas recebidas após a devolução da motocicleta, encerramento do contrato ou transferência, mas referentes ao período em que a motocicleta estava sob posse do LOCATÁRIO, continuarão sendo de responsabilidade exclusiva do LOCATÁRIO.'},
+    {num:'6. Autorização de cobrança', secao:true},
+    {num:'', txt:'O LOCATÁRIO autoriza a LOCADORA a descontar da caução, cobrar por boleto, PIX, cartão, plataforma de cobrança ou outro meio admitido: multas de trânsito, penalidades administrativas, custos de indicação de condutor, taxas públicas, despesas com despachante, protocolo ou regularização e valores previstos no Anexo II.'},
+    {num:'7. Declaração de ciência', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara estar ciente de que a responsabilidade por infrações de trânsito não se encerra automaticamente com a devolução da motocicleta, permanecendo responsável por todas as infrações cometidas durante o período de posse.'},
+    {num:'', txt:'Assinatura do LOCATÁRIO: ___________________________'},
+    {num:'', txt:'Assinatura da LOCADORA: ___________________________'},
+
+    {num:'ANEXO VI — DECLARAÇÃO DE CIÊNCIA DE RISCOS DA CONDUÇÃO DE MOTOCICLETA', secao:true},
+    {num:'1. Identificação', secao:true},
+    {num:'', txt:`LOCATÁRIO: ${d.nomeCli||'—'}   CPF: ${d.cpfCli||'—'}   CNH: ${d.cnhCli||'—'}   Motocicleta: ${d.modelo||'—'}   Placa: ${d.placa||'—'}   Contrato nº: ${numContrato}`},
+    {num:'2. Declaração de ciência', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara estar ciente de que a condução de motocicleta envolve riscos inerentes à atividade, incluindo risco de queda, colisão, acidente com terceiros, lesões pessoais, danos materiais, furto ou roubo, exposição a condições climáticas, risco decorrente de vias públicas, buracos, óleo na pista, chuva, alagamento ou baixa visibilidade, bem como risco decorrente de condução profissional, entregas, deslocamentos constantes ou uso intensivo.'},
+    {num:'3. Responsabilidade pela condução segura', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara que deverá conduzir a motocicleta com prudência, atenção e respeito às leis de trânsito, comprometendo-se a usar capacete adequado e afivelado, respeitar limites de velocidade, não conduzir sob efeito de álcool, drogas ou substâncias que prejudiquem a direção, não realizar manobras perigosas, não empinar, não participar de rachas ou competições, não usar celular durante a condução, respeitar a capacidade de carga da motocicleta, manter distância segura e respeitar sinalização e legislação de trânsito.'},
+    {num:'4. Equipamentos e acessórios', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara estar ciente de que deverá utilizar equipamentos de segurança adequados, sendo recomendável o uso de capacete certificado, jaqueta ou roupa resistente, calçado fechado, luvas, capa de chuva adequada, baú ou suporte autorizado, quando aplicável.'},
+    {num:'', txt:'A instalação de baú, suporte, carregador de celular, antena corta-pipa ou qualquer acessório dependerá de autorização prévia da LOCADORA, quando puder alterar a estrutura, elétrica, segurança ou características da motocicleta.'},
+    {num:'5. Ausência de vínculo trabalhista', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara estar ciente de que a locação da motocicleta não gera vínculo empregatício, parceria, sociedade, representação, subordinação ou prestação de serviço entre o LOCATÁRIO e a LOCADORA.'},
+    {num:'', txt:'O LOCATÁRIO utiliza a motocicleta por sua própria conta e risco, assumindo os riscos de sua atividade profissional ou pessoal.'},
+    {num:'6. Sinistros e acidentes', secao:true},
+    {num:'', txt:'Em caso de acidente, queda, colisão, furto, roubo ou qualquer sinistro, o LOCATÁRIO deverá seguir as regras do contrato principal e do Anexo IV, especialmente comunicar imediatamente a LOCADORA, registrar boletim de ocorrência, enviar fotos e informações, não abandonar a motocicleta, não realizar acordo com terceiros sem autorização e preservar documentos e provas.'},
+    {num:'7. Declaração final', secao:true},
+    {num:'', txt:'O LOCATÁRIO declara que recebeu explicações suficientes, leu este termo, compreendeu os riscos da condução de motocicleta e assume responsabilidade por sua conduta, uso, guarda, conservação e cumprimento das regras de segurança.'},
+    {num:'', txt:`Local e data: Rio de Janeiro, ${new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'})}.`},
+    {num:'', txt:'Assinatura do LOCATÁRIO: ___________________________'},
+    {num:'', txt:'Assinatura da LOCADORA: ___________________________'},
   ] : [
     {num:'1. ACEITE ÀS CONDIÇÕES GERAIS E ESPECIAIS', secao:true},
     {num:'1.1', txt:'Ao assinar este Contrato, VOCÊ declara ciência, aceite e adesão às Condições Gerais do Contrato de Aluguel de Carros da ROYAL RENT A CAR LTDA – CNPJ 18.686.521/0001-00. As Condições Gerais estão disponíveis em https://locadoraroyal.com.br/contrato/ e integram este Contrato para todos os fins, na versão vigente na data da assinatura.'},
@@ -1362,6 +1548,41 @@ try{
       doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor('#006400');
       doc.text(c.num, M, y);
       y += 4.5;
+    } else if(c.tabela){
+      // Tabela genérica (2 ou 3 colunas) — usada nos Anexos II, III e IV
+      // (tarifas, cronograma de km, revisões, coberturas de seguro)
+      const linhas = c.tabela;
+      const nCols = linhas[0].length;
+      const colWs = nCols === 3 ? [CW*0.30, CW*0.40, CW*0.30] : [CW*0.42, CW*0.58];
+      const padCell = 1.8, fsCell = 6.3;
+      doc.setFontSize(fsCell);
+      // Calcula a altura de cada linha ANTES de desenhar (maior célula da linha)
+      const alturas = linhas.map(row => {
+        let maxLinhas = 1;
+        row.forEach((cel,i)=>{
+          const w = doc.splitTextToSize(String(cel||''), colWs[i]-padCell*2).length;
+          if(w > maxLinhas) maxLinhas = w;
+        });
+        return maxLinhas * 3 + padCell*2;
+      });
+      linhas.forEach((row, ri) => {
+        const h = alturas[ri];
+        safeY(h);
+        let x = M;
+        row.forEach((cel, ci) => {
+          const isHeader = ri === 0;
+          doc.setFillColor(isHeader ? '#006400' : (ri%2===0 ? '#f7f7f7' : '#ffffff'));
+          doc.setDrawColor('#cccccc'); doc.setLineWidth(0.15);
+          doc.rect(x, y, colWs[ci], h, isHeader||ri%2===0 ? 'FD' : 'D');
+          doc.setFont('helvetica', isHeader?'bold':'normal');
+          doc.setTextColor(isHeader ? '#ffffff' : '#222');
+          const wrapped = doc.splitTextToSize(String(cel||''), colWs[ci]-padCell*2);
+          doc.text(wrapped, x+padCell, y+padCell+2.2);
+          x += colWs[ci];
+        });
+        y += h;
+      });
+      y += 2;
     } else if(c.bullet){
       const lines = doc.splitTextToSize('• ' + c.txt, textW);
       safeY(lines.length * 3.6 + 1);
