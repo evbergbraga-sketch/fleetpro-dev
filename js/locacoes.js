@@ -2037,12 +2037,16 @@ async function cancelarLocacao(id){
       .eq('id', id);
     if(error) throw error;
 
-    // Cancela a assinatura recorrente no Asaas — falha aqui não impede o
-    // cancelamento local (mas avisa, pra cancelar manualmente se precisar).
-    // Log sempre presente no console, mesmo quando não há nada a cancelar —
-    // facilita diagnosticar sem precisar olhar log do servidor.
-    console.log('[cancelar/asaas] locação', id, '— asaas_subscription_id:', loc.asaas_subscription_id||'(nenhum)');
-    if(loc.asaas_subscription_id){
+    // Busca o asaas_subscription_id DIRETO DO BANCO agora, em vez de confiar
+    // no valor em memória (allLocacoesCompletas) — a assinatura é criada de
+    // forma assíncrona logo após o contrato, então a lista carregada antes
+    // pode estar desatualizada e nunca "ver" a assinatura recém-criada.
+    const {data:locFresca} = await sb.from('locacoes')
+      .select('asaas_subscription_id').eq('id', id).single();
+    const subscriptionId = locFresca?.asaas_subscription_id || loc.asaas_subscription_id;
+
+    console.log('[cancelar/asaas] locação', id, '— asaas_subscription_id:', subscriptionId||'(nenhum)');
+    if(subscriptionId){
       try{
         const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
         const bridgeUrl = cfg.bridgeUrl || (cfg.apiUrl ? cfg.apiUrl.replace('evo.','bridge.') : null);
@@ -2050,21 +2054,21 @@ async function cancelarLocacao(id){
           const r = await fetch(bridgeUrl+'/api/asaas/cancelar-assinatura', {
             method:'POST',
             headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
-            body: JSON.stringify({ subscriptionId: loc.asaas_subscription_id })
+            body: JSON.stringify({ subscriptionId })
           });
           if(!r.ok){
             const t = await r.text();
             notify('Locação cancelada, mas a assinatura no Asaas não foi cancelada automaticamente — cancele manualmente lá. ('+t.slice(0,120)+')', 'error');
           } else {
-            console.log('[cancelar/asaas] assinatura cancelada com sucesso:', loc.asaas_subscription_id);
+            console.log('[cancelar/asaas] assinatura cancelada com sucesso:', subscriptionId);
           }
         } else {
           console.warn('[cancelar/asaas] bridgeUrl não configurado (fp_evo_cfg) — não deu pra tentar cancelar');
-          notify('Locação cancelada, mas não há como cancelar a assinatura no Asaas automaticamente (bridge não configurado) — cancele manualmente: '+loc.asaas_subscription_id, 'error');
+          notify('Locação cancelada, mas não há como cancelar a assinatura no Asaas automaticamente (bridge não configurado) — cancele manualmente: '+subscriptionId, 'error');
         }
       }catch(e){
         console.warn('[cancelar/asaas]', e.message);
-        notify('Locação cancelada, mas houve erro ao cancelar a assinatura no Asaas — verifique manualmente: '+loc.asaas_subscription_id, 'error');
+        notify('Locação cancelada, mas houve erro ao cancelar a assinatura no Asaas — verifique manualmente: '+subscriptionId, 'error');
       }
     }
 
