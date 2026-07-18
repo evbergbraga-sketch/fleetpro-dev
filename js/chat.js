@@ -1290,6 +1290,21 @@ function abrirChat(cid){
   _crmCarregarPainel(cid);
 }
 
+// Marca o primeiro contato do lead (desliga o alerta de atraso pra sempre)
+async function _crmMarcarPrimeiroContato(cid){
+  const agora = new Date().toISOString();
+  try{
+    const {error} = await sb.from('clientes').update({primeiro_contato_em: agora}).eq('id', cid);
+    if(error) throw error;
+    const c = allClientes?.find(x=>x.id===cid);
+    if(c) c.primeiro_contato_em = agora;
+    notify('Primeiro contato registrado!','success');
+    if(activeChatId===cid) await _crmCarregarPainel(cid);
+  }catch(e){
+    notify('Erro ao registrar: '+e.message,'error');
+  }
+}
+
 async function _crmSalvarResponsavel(){
   if(!activeChatId) return;
   const c = allClientes?.find(x=>x.id===activeChatId);
@@ -1420,6 +1435,23 @@ async function _crmCarregarPainel(cid){
 
   // Renderiza botões de status dinamicamente (do banco)
   await _crmRenderStatusBtns(c.status_crm);
+
+  // Primeiro contato — só relevante para leads em Interesse/Potencial
+  const pcWrap = document.getElementById('crm-primeiro-contato-wrap');
+  if(pcWrap){
+    const statusLower = (c.status_crm||'').toLowerCase();
+    const elegivel = statusLower==='interesse' || statusLower==='potencial';
+    if(!elegivel){
+      pcWrap.style.display = 'none';
+    } else if(c.primeiro_contato_em){
+      pcWrap.style.display = '';
+      const dt = new Date(c.primeiro_contato_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      pcWrap.innerHTML = `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#00a884;background:rgba(0,168,132,.1);border:1px solid rgba(0,168,132,.25);border-radius:8px;padding:8px 10px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> 1º contato: ${dt}</div>`;
+    } else {
+      pcWrap.style.display = '';
+      pcWrap.innerHTML = `<button onclick="_crmMarcarPrimeiroContato('${c.id}')" style="width:100%;padding:9px 12px;background:rgba(0,168,132,.12);border:1px solid rgba(0,168,132,.3);color:#00a884;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.5 2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6.08 6.08l1.87-1.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Marcar primeiro contato</button>`;
+    }
+  }
 
   // Follow-up
   const fu = document.getElementById('crm-followup');

@@ -429,19 +429,31 @@ function _plRenderMetricas(){
     return (Date.now() - new Date(c.created_at).getTime()) / 3600000 >= 6;
   }).length;
 
+  // Ícones SVG compactos (substituem os emojis — visual mais profissional)
+  const ICO_PL = {
+    total:   `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+    interesse: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`,
+    locacao: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>`,
+    conversao: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
+    atrasado: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    followup: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>`,
+  };
+
   el.innerHTML = [
-    { val:total,          lbl:'Total de leads',      cor:'var(--accent)',  ico:'🎯', sub:'no pipeline' },
-    { val:interesse,      lbl:'Em interesse',         cor:'#F5B942',        ico:'🟡', sub:'aguardando' },
-    { val:ativos,         lbl:'Em Locação',            cor:'#16a34a',        ico:'🟢', sub:'com contrato' },
-    { val:conversao+'%',  lbl:'Taxa de conversão',    cor:'#60A5FA',        ico:'📈', sub:'interesse→ativo' },
-    { val:atrasados,      lbl:'Leads atrasados',      cor:atrasados>0?'#DC2626':'var(--muted2)', ico:'⏰', sub:'sem 1º contato (6h+)' },
-    { val:fuHoje+fuAtraso,lbl:'Follow-ups pendentes', cor:fuHoje+fuAtraso>0?'#F87171':'var(--muted2)', ico:'🔔', sub:`${fuHoje} hoje · ${fuAtraso} atrasado${fuAtraso!==1?'s':''}` },
+    { val:total,          lbl:'Total de leads',      cor:'var(--accent)',  ico:ICO_PL.total,      sub:'no pipeline' },
+    { val:interesse,      lbl:'Em interesse',         cor:'#F5B942',        ico:ICO_PL.interesse,  sub:'aguardando' },
+    { val:ativos,         lbl:'Em Locação',            cor:'#16a34a',        ico:ICO_PL.locacao,    sub:'com contrato' },
+    { val:conversao+'%',  lbl:'Taxa de conversão',    cor:'#60A5FA',        ico:ICO_PL.conversao,  sub:'interesse→ativo' },
+    { val:atrasados,      lbl:'Leads atrasados',      cor:atrasados>0?'#DC2626':'var(--muted2)', ico:ICO_PL.atrasado, sub:'sem 1º contato (6h+)' },
+    { val:fuHoje+fuAtraso,lbl:'Follow-ups pendentes', cor:fuHoje+fuAtraso>0?'#F87171':'var(--muted2)', ico:ICO_PL.followup, sub:`${fuHoje} hoje · ${fuAtraso} atrasado${fuAtraso!==1?'s':''}` },
   ].map(m=>`
-    <div class="card" style="padding:16px;position:relative;overflow:hidden">
-      <div style="font-size:24px;margin-bottom:8px">${m.ico}</div>
-      <div style="font-size:26px;font-weight:800;color:${m.cor};line-height:1">${m.val}</div>
-      <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:4px">${m.lbl}</div>
-      <div style="font-size:10px;color:var(--muted2);margin-top:2px">${m.sub}</div>
+    <div class="card" style="padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;color:${m.cor}">
+        ${m.ico}
+        <span style="font-size:20px;font-weight:800;color:${m.cor};line-height:1">${m.val}</span>
+      </div>
+      <div style="font-size:11.5px;font-weight:600;color:var(--text)">${m.lbl}</div>
+      <div style="font-size:9.5px;color:var(--muted2);margin-top:1px">${m.sub}</div>
     </div>`).join('');
 }
 
@@ -520,6 +532,12 @@ async function _plAbrirModal(id){
         </div>
       </div>
     </div>
+
+    ${(c.status_crm==='interesse' || c.status_crm==='potencial') ? (
+      c.primeiro_contato_em
+        ? `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#16a34a;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:10px 14px;margin-bottom:16px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Primeiro contato feito em ${new Date(c.primeiro_contato_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`
+        : `<button onclick="_plMarcarPrimeiroContato('${c.id}');closeModal('pl-modal')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-size:13px;font-weight:700;color:#fff;background:#16a34a;border:none;border-radius:10px;padding:12px;margin-bottom:16px;cursor:pointer">${SVG.phone} Marcar primeiro contato</button>`
+    ) : ''}
 
     <!-- INFO GRID -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
