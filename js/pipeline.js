@@ -79,11 +79,23 @@ async function iniciarPipeline(){
     }
   }
   await _plCarregarDados();
+
+  // Recalcula os badges de atraso periodicamente (6h→7h→8h...) sem precisar
+  // recarregar a página nem consultar o banco de novo — só reaplica a conta
+  // de "quanto tempo já passou" em cima dos dados já carregados.
+  if(!window._plIntervaloAtraso){
+    window._plIntervaloAtraso = setInterval(()=>{
+      if(document.getElementById('pl-kanban') && _plDados?.length){
+        _plRenderKanban(_plDados);
+        if(typeof _plRenderMetricas==='function') _plRenderMetricas();
+      }
+    }, 5*60*1000); // a cada 5 minutos
+  }
 }
 
 async function _plCarregarDados(){
   const {data,error} = await sb.from('clientes')
-    .select('id,nome,telefone,cpf,email,origem,observacoes,status_crm,tipo,responsavel_id,followup_em,retirada_em,motivo_perda,interesse_veiculo,created_at,perfis(nome)')
+    .select('id,nome,telefone,cpf,email,origem,observacoes,status_crm,tipo,responsavel_id,followup_em,retirada_em,motivo_perda,interesse_veiculo,created_at,primeiro_contato_em,perfis(nome)')
     .neq('status_crm','sem_status')
     .not('status_crm','is',null)
     .order('nome');
@@ -177,6 +189,23 @@ function _plRenderKanban(dados){
         }
       }
 
+      // Badge de ATRASO NO PRIMEIRO CONTATO — só para leads em Interesse/Potencial
+      // sem primeiro contato marcado, a partir de 6h desde que o lead chegou.
+      // O contador sobe (6h, 7h, 8h...) — não é um "sim/não" fixo.
+      let atrasoHtml = '';
+      let botaoContatoHtml = '';
+      const elegivelAtraso = (c.status_crm==='interesse' || c.status_crm==='potencial') && !c.primeiro_contato_em;
+      if(elegivelAtraso && c.created_at){
+        const horasDesde = (Date.now() - new Date(c.created_at).getTime()) / 3600000;
+        if(horasDesde >= 6){
+          const horasInt = Math.floor(horasDesde);
+          atrasoHtml = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:3px 9px;border-radius:999px;background:#DC2626;color:#fff;font-weight:800;box-shadow:0 1px 3px rgba(220,38,38,.4)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Atrasado ${horasInt}h</span>`;
+        }
+      }
+      if(elegivelAtraso){
+        botaoContatoHtml = `<button onclick="event.stopPropagation();_plMarcarPrimeiroContato('${c.id}')" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.3);cursor:pointer;white-space:nowrap"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.69 12 19.79 19.79 0 011.61 3.5 2 2 0 013.6 1.3h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.91 9a16 16 0 006.08 6.08l1.87-1.87a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg> Primeiro contato</button>`;
+      }
+
       return `<div
         draggable="true"
         data-id="${c.id}"
@@ -205,12 +234,15 @@ function _plRenderKanban(dados){
 
         ${resumo ? `<div style="font-size:11px;color:var(--text);opacity:.72;line-height:1.5;margin-bottom:8px;padding:6px 8px;background:rgba(0,0,0,.05);border-radius:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${resumo}</div>` : ''}
 
-        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:${(retHtml||fuHtml||resp||c.origem)?'6px':'0'}">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:${(retHtml||fuHtml||resp||c.origem||atrasoHtml)?'6px':'0'}">
+          ${atrasoHtml}
           ${retHtml}
           ${fuHtml}
           ${resp ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${resp.nome.split(' ')[0]}</span>` : ''}
           ${c.origem ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--bg2);color:var(--muted2);border:1px solid var(--border2)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg> ${c.origem}</span>` : ''}
         </div>
+
+        ${botaoContatoHtml ? `<div style="margin-bottom:6px">${botaoContatoHtml}</div>` : ''}
 
         ${dtFmt ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text);opacity:.55;margin-top:4px;padding-top:6px;border-top:1px solid ${s.border}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${dtFmt}</div>` : ''}
       </div>`;
@@ -231,6 +263,22 @@ function _plRenderKanban(dados){
       ${cards}
     </div>`;
   }).join('');
+}
+
+// ── PRIMEIRO CONTATO (desliga o contador de atraso deste lead pra sempre) ──
+async function _plMarcarPrimeiroContato(id){
+  const agora = new Date().toISOString();
+  try{
+    const {error} = await sb.from('clientes').update({primeiro_contato_em: agora}).eq('id', id);
+    if(error) throw error;
+    const c = _plDados.find(x=>x.id===id);
+    if(c) c.primeiro_contato_em = agora;
+    notify('Primeiro contato registrado!','success');
+    _plRenderKanban(_plDados);
+    if(typeof _plRenderMetricas==='function') _plRenderMetricas();
+  }catch(e){
+    notify('Erro ao registrar: '+e.message,'error');
+  }
 }
 
 // ── DRAG & DROP ──
@@ -376,12 +424,17 @@ function _plRenderMetricas(){
   const fuHoje    = _plDados.filter(c=>(c.followup_em||'').slice(0,10)===hoje).length;
   const fuAtraso  = _plDados.filter(c=>{ const d=(c.followup_em||'').slice(0,10); return d&&d<hoje; }).length;
   const conversao = total ? Math.round(ativos/total*100) : 0;
+  const atrasados = _plDados.filter(c=>{
+    if((c.status_crm!=='interesse' && c.status_crm!=='potencial') || c.primeiro_contato_em || !c.created_at) return false;
+    return (Date.now() - new Date(c.created_at).getTime()) / 3600000 >= 6;
+  }).length;
 
   el.innerHTML = [
     { val:total,          lbl:'Total de leads',      cor:'var(--accent)',  ico:'🎯', sub:'no pipeline' },
     { val:interesse,      lbl:'Em interesse',         cor:'#F5B942',        ico:'🟡', sub:'aguardando' },
     { val:ativos,         lbl:'Em Locação',            cor:'#16a34a',        ico:'🟢', sub:'com contrato' },
     { val:conversao+'%',  lbl:'Taxa de conversão',    cor:'#60A5FA',        ico:'📈', sub:'interesse→ativo' },
+    { val:atrasados,      lbl:'Leads atrasados',      cor:atrasados>0?'#DC2626':'var(--muted2)', ico:'⏰', sub:'sem 1º contato (6h+)' },
     { val:fuHoje+fuAtraso,lbl:'Follow-ups pendentes', cor:fuHoje+fuAtraso>0?'#F87171':'var(--muted2)', ico:'🔔', sub:`${fuHoje} hoje · ${fuAtraso} atrasado${fuAtraso!==1?'s':''}` },
   ].map(m=>`
     <div class="card" style="padding:16px;position:relative;overflow:hidden">
