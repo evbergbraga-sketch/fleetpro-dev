@@ -1467,9 +1467,28 @@ async function _gerarPdfChecklist(loc, dados){
       try{
         const resp = await fetch(fotos[i]);
         const blob = await resp.blob();
-        const b64 = await new Promise(res=>{ const r=new FileReader(); r.onloadend=()=>res(r.result); r.readAsDataURL(blob); });
-        const formato = blob.type.includes('png') ? 'PNG' : 'JPEG';
-        doc.addImage(b64, formato, M + col*(cw+gap), y, cw, ch);
+        // Redimensiona pro tamanho real de exibição no PDF (a foto ocupa uns
+        // 60mm — não precisa da resolução original) — protege mesmo fotos
+        // antigas grandes já salvas no Storage, sem depender de terem sido
+        // comprimidas no upload.
+        const b64 = await new Promise((res, rej)=>{
+          const img = new Image();
+          img.onload = ()=>{
+            const cvImg = document.createElement('canvas');
+            const escala = Math.min(1, 600/Math.max(img.width, img.height));
+            cvImg.width = Math.round(img.width*escala);
+            cvImg.height = Math.round(img.height*escala);
+            const ctx = cvImg.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0,0,cvImg.width,cvImg.height);
+            ctx.drawImage(img, 0, 0, cvImg.width, cvImg.height);
+            res(cvImg.toDataURL('image/jpeg', 0.7));
+            URL.revokeObjectURL(img.src);
+          };
+          img.onerror = rej;
+          img.src = URL.createObjectURL(blob);
+        });
+        doc.addImage(b64, 'JPEG', M + col*(cw+gap), y, cw, ch);
       }catch(e){ console.warn('[chk/pdf foto]', e.message); }
     }
     y += ch + 8;
@@ -1506,6 +1525,30 @@ async function _gerarPdfChecklist(loc, dados){
   doc.text(cli.cpf ? `CPF: ${cli.cpf}` : '', 105, y, {align:'center'});
 
   return doc.output('blob');
+}
+
+// Comprime foto de vistoria (câmera do celular) para JPEG — diferente das
+// fotos de modelo de veículo (que usam PNG pra manter transparência), aqui
+// são fotos reais tiradas na hora, sem transparência, então JPEG comprime
+// muito melhor. Evita PDFs gigantes ao embutir 8-10 fotos da vistoria.
+function _chkComprimirFoto(file, max=1400){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const escala = Math.min(1, max/Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width*escala);
+      cv.height = Math.round(img.height*escala);
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(b=>b?resolve(b):reject(new Error('falha ao comprimir')), 'image/jpeg', 0.8);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = ()=>reject(new Error('imagem inválida'));
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 // ══ SALVAR CHECKLIST ══
@@ -1558,13 +1601,15 @@ async function salvarChecklist(tipo, locId){
       };
     });
 
-    // Upload das fotos para Supabase Storage
+    // Upload das fotos para Supabase Storage — comprimidas (evita fotos de
+    // celular de vários MB cada, que faziam o PDF final estourar o limite
+    // de tamanho do Storage ao embutir as 8-10 fotos da vistoria)
     if(fotos.length) _showLoading(`Enviando ${fotos.length} foto${fotos.length!==1?'s':''}...`);
     const fotoUrls = [];
     for(const file of fotos){
-      const ext = file.name.split('.').pop();
-      const path = `${locId}/${tipo}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const {data:up, error:upErr} = await sb.storage.from('checklists').upload(path, file);
+      const blobComprimido = await _chkComprimirFoto(file, 1400);
+      const path = `${locId}/${tipo}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const {data:up, error:upErr} = await sb.storage.from('checklists').upload(path, blobComprimido, {contentType:'image/jpeg'});
       if(upErr) throw upErr;
       const {data:signData} = await sb.storage.from('checklists').createSignedUrl(path, 60*60*24*365);
       fotoUrls.push(signData?.signedUrl || '');
