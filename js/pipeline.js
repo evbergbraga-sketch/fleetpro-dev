@@ -194,7 +194,7 @@ function _plRenderKanban(dados){
       // O contador sobe (6h, 7h, 8h...) — não é um "sim/não" fixo.
       let atrasoHtml = '';
       let botaoContatoHtml = '';
-      const elegivelAtraso = (c.status_crm==='interesse' || c.status_crm==='potencial') && !c.primeiro_contato_em;
+      const elegivelAtraso = ['interesse','potencial'].includes((c.status_crm||'').toLowerCase()) && !c.primeiro_contato_em;
       if(elegivelAtraso && c.created_at){
         const horasDesde = (Date.now() - new Date(c.created_at).getTime()) / 3600000;
         if(horasDesde >= 6){
@@ -265,17 +265,34 @@ function _plRenderKanban(dados){
   }).join('');
 }
 
-// ── PRIMEIRO CONTATO (desliga o contador de atraso deste lead pra sempre) ──
-async function _plMarcarPrimeiroContato(id){
-  const agora = new Date().toISOString();
+// ── CONTATO COM O LEAD ──
+// 1ª vez: marca primeiro_contato_em (desliga o contador de atraso pra
+// sempre) + registra nota. Da 2ª vez em diante: só registra nota, sem
+// mexer em primeiro_contato_em — vira um registro de acompanhamento,
+// sempre com o nome de quem atendeu.
+async function _plMarcarPrimeiroContato(id, apenasNota=false){
+  const nomeResp = currentPerfil?.nome || 'Atendente';
   try{
-    const {error} = await sb.from('clientes').update({primeiro_contato_em: agora}).eq('id', id);
-    if(error) throw error;
-    const c = _plDados.find(x=>x.id===id);
-    if(c) c.primeiro_contato_em = agora;
-    notify('Primeiro contato registrado!','success');
+    if(!apenasNota){
+      const agora = new Date().toISOString();
+      const {error} = await sb.from('clientes').update({primeiro_contato_em: agora}).eq('id', id);
+      if(error) throw error;
+      const c = _plDados.find(x=>x.id===id);
+      if(c) c.primeiro_contato_em = agora;
+      if(typeof allClientes !== 'undefined'){
+        const cc = allClientes.find(x=>x.id===id);
+        if(cc) cc.primeiro_contato_em = agora;
+      }
+    }
+    await sb.from('notas_internas').insert({
+      cliente_id: id,
+      texto: apenasNota ? `Contato registrado por ${nomeResp}` : `Primeiro contato registrado por ${nomeResp}`,
+      criado_por: currentUser?.id||null,
+    });
+    notify(apenasNota ? 'Contato registrado!' : 'Primeiro contato registrado!', 'success');
     _plRenderKanban(_plDados);
     if(typeof _plRenderMetricas==='function') _plRenderMetricas();
+    if(_plModalData?.id===id) _plAbrirModal(id); // atualiza o modal se estiver aberto nesse lead
   }catch(e){
     notify('Erro ao registrar: '+e.message,'error');
   }
@@ -425,7 +442,7 @@ function _plRenderMetricas(){
   const fuAtraso  = _plDados.filter(c=>{ const d=(c.followup_em||'').slice(0,10); return d&&d<hoje; }).length;
   const conversao = total ? Math.round(ativos/total*100) : 0;
   const atrasados = _plDados.filter(c=>{
-    if((c.status_crm!=='interesse' && c.status_crm!=='potencial') || c.primeiro_contato_em || !c.created_at) return false;
+    if(!['interesse','potencial'].includes((c.status_crm||'').toLowerCase()) || c.primeiro_contato_em || !c.created_at) return false;
     return (Date.now() - new Date(c.created_at).getTime()) / 3600000 >= 6;
   }).length;
 
@@ -533,10 +550,13 @@ async function _plAbrirModal(id){
       </div>
     </div>
 
-    ${(c.status_crm==='interesse' || c.status_crm==='potencial') ? (
+    ${['interesse','potencial'].includes((c.status_crm||'').toLowerCase()) ? (
       c.primeiro_contato_em
-        ? `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#16a34a;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:10px 14px;margin-bottom:16px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Primeiro contato feito em ${new Date(c.primeiro_contato_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>`
-        : `<button onclick="_plMarcarPrimeiroContato('${c.id}');closeModal('pl-modal')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-size:13px;font-weight:700;color:#fff;background:#16a34a;border:none;border-radius:10px;padding:12px;margin-bottom:16px;cursor:pointer">${SVG.phone} Marcar primeiro contato</button>`
+        ? `<div style="margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#16a34a;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:10px 14px;margin-bottom:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> Primeiro contato: ${new Date(c.primeiro_contato_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+            <button onclick="_plMarcarPrimeiroContato('${c.id}', true)" style="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light,rgba(99,102,241,.08));border:1px solid rgba(99,102,241,.25);border-radius:9px;padding:9px;cursor:pointer">${SVG.phone} Registrar novo contato</button>
+          </div>`
+        : `<button onclick="_plMarcarPrimeiroContato('${c.id}')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-size:13px;font-weight:700;color:#fff;background:#16a34a;border:none;border-radius:10px;padding:12px;margin-bottom:16px;cursor:pointer">${SVG.phone} Marcar primeiro contato</button>`
     ) : ''}
 
     <!-- INFO GRID -->

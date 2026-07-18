@@ -280,10 +280,13 @@ function closeModal(t){
   const el = document.getElementById('m-'+t);
   if(el) el.classList.remove('show');
 }
-// Fecha modal clicando fora
-document.querySelectorAll('.modal-overlay').forEach(el=>
-  el.addEventListener('click', e=>{ if(e.target===el) el.classList.remove('show'); })
-);
+// Fecha modal clicando fora — listener ÚNICO e delegado no documento
+// inteiro, em vez de grudar em cada .modal-overlay individualmente (esse
+// jeito antigo só pegava os modais que já existiam no DOM na hora que essa
+// linha rodava; qualquer modal montado depois nunca fechava com clique fora).
+document.addEventListener('click', e=>{
+  if(e.target.classList?.contains('modal-overlay')) e.target.classList.remove('show');
+});
 // ══ UTILS ══
 function fmtData(d){ return d ? d.split('-').reverse().join('/') : '—'; }
 function fmtDt(dt){

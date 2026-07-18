@@ -1290,16 +1290,32 @@ function abrirChat(cid){
   _crmCarregarPainel(cid);
 }
 
-// Marca o primeiro contato do lead (desliga o alerta de atraso pra sempre)
-async function _crmMarcarPrimeiroContato(cid){
-  const agora = new Date().toISOString();
+// Contato com o lead — 1ª vez marca primeiro_contato_em (desliga o alerta
+// de atraso pra sempre); da 2ª vez em diante só registra nota, sempre com
+// o nome de quem atendeu.
+async function _crmMarcarPrimeiroContato(cid, apenasNota=false){
+  const nomeResp = currentPerfil?.nome || 'Atendente';
   try{
-    const {error} = await sb.from('clientes').update({primeiro_contato_em: agora}).eq('id', cid);
-    if(error) throw error;
-    const c = allClientes?.find(x=>x.id===cid);
-    if(c) c.primeiro_contato_em = agora;
-    notify('Primeiro contato registrado!','success');
+    if(!apenasNota){
+      const agora = new Date().toISOString();
+      const {error} = await sb.from('clientes').update({primeiro_contato_em: agora}).eq('id', cid);
+      if(error) throw error;
+      const c = allClientes?.find(x=>x.id===cid);
+      if(c) c.primeiro_contato_em = agora;
+      if(typeof _plDados !== 'undefined'){
+        const pc = _plDados.find(x=>x.id===cid);
+        if(pc) pc.primeiro_contato_em = agora;
+      }
+    }
+    await sb.from('notas_internas').insert({
+      cliente_id: cid,
+      texto: apenasNota ? `Contato registrado por ${nomeResp}` : `Primeiro contato registrado por ${nomeResp}`,
+      criado_por: currentUser?.id||null,
+    });
+    notify(apenasNota ? 'Contato registrado!' : 'Primeiro contato registrado!', 'success');
     if(activeChatId===cid) await _crmCarregarPainel(cid);
+    if(typeof _plRenderMetricas==='function') _plRenderMetricas();
+    if(typeof renderPipeline==='function') renderPipeline();
   }catch(e){
     notify('Erro ao registrar: '+e.message,'error');
   }
@@ -1446,7 +1462,7 @@ async function _crmCarregarPainel(cid){
     } else if(c.primeiro_contato_em){
       pcWrap.style.display = '';
       const dt = new Date(c.primeiro_contato_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-      pcWrap.innerHTML = `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#00a884;background:rgba(0,168,132,.1);border:1px solid rgba(0,168,132,.25);border-radius:8px;padding:8px 10px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> 1º contato: ${dt}</div>`;
+      pcWrap.innerHTML = `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#00a884;background:rgba(0,168,132,.1);border:1px solid rgba(0,168,132,.25);border-radius:8px;padding:8px 10px;margin-bottom:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> 1º contato: ${dt}</div><button onclick="_crmMarcarPrimeiroContato('${c.id}', true)" style="width:100%;padding:7px 10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#aebac1;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600">Registrar novo contato</button>`;
     } else {
       pcWrap.style.display = '';
       pcWrap.innerHTML = `<button onclick="_crmMarcarPrimeiroContato('${c.id}')" style="width:100%;padding:9px 12px;background:rgba(0,168,132,.12);border:1px solid rgba(0,168,132,.3);color:#00a884;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.5 2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6.08 6.08l1.87-1.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Marcar primeiro contato</button>`;
