@@ -581,7 +581,7 @@ function _renderChecklistExistente(check){
   const fotos = check.fotos||[];
   const consultor = check.perfis?.nome||'—';
   const assinatura = check.assinatura_url
-    ? `<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">✍️ Assinatura do cliente</div><img src="${check.assinatura_url}" style="max-width:280px;width:100%;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:6px">${check.pdf_url?`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><a href="${check.pdf_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:6px 12px;background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.25);border-radius:8px">📄 Ver PDF da vistoria assinada</a><button onclick="_chkEnviarWpp('${check.id}','${check.locacao_id}','${check.pdf_url}','${check.tipo}')" id="btn-chk-wpp-${check.id}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#16a34a;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:8px;padding:6px 12px;cursor:pointer">💬 Enviar no WhatsApp</button></div>`:''}</div>`
+    ? `<div style="margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);margin-bottom:6px">✍️ Assinatura do cliente</div><img src="${check.assinatura_url}" style="max-width:280px;width:100%;background:#fff;border:1px solid var(--border2);border-radius:8px;padding:6px">${check.pdf_url?`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><a href="${check.pdf_url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:6px 12px;background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.25);border-radius:8px">📄 Ver PDF da vistoria assinada</a><button onclick="_chkEnviarWpp('${check.id}','${check.locacao_id}','${check.pdf_url}','${check.tipo}')" id="btn-chk-wpp-${check.id}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#16a34a;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);border-radius:8px;padding:6px 12px;cursor:pointer">💬 Enviar no WhatsApp</button></div>`:`<div style="margin-top:8px"><button onclick="_chkGerarPdfDepois('${check.id}','${check.locacao_id}','${check.tipo}')" id="btn-chk-gerarpdf-${check.id}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#d97706;background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.3);border-radius:8px;padding:6px 12px;cursor:pointer">🔄 Gerar PDF da vistoria</button></div>`}</div>`
     : '';
   return `
   <div style="background:var(--bg2);border-radius:10px;padding:16px;margin-bottom:12px">
@@ -1292,6 +1292,49 @@ function _previewFotos(input, tipo){
 }
 
 // ══ ENVIAR PDF DA VISTORIA PELO WHATSAPP (documento) ══
+// ══ GERAR PDF DEPOIS (quando falhou na hora de salvar a vistoria) ══
+async function _chkGerarPdfDepois(checkId, locId, tipo){
+  const btn = document.getElementById(`btn-chk-gerarpdf-${checkId}`);
+  const original = btn?.textContent;
+  try{
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Gerando...'; }
+    const {data:check} = await sb.from('checklists').select('*').eq('id', checkId).single();
+    if(!check) throw new Error('checklist não encontrado');
+    if(!check.assinatura_url) throw new Error('vistoria sem assinatura — não é possível gerar o PDF');
+
+    const {data:locFull} = await sb.from('locacoes')
+      .select('*, clientes(*), veiculos(*)').eq('id', locId).single();
+
+    // Converte a assinatura (já salva como imagem) de volta para data URL,
+    // que é o formato que _gerarPdfChecklist espera para desenhar no PDF
+    const imgResp = await fetch(check.assinatura_url);
+    const imgBlob = await imgResp.blob();
+    const assinaturaDataUrl = await new Promise(res=>{ const r=new FileReader(); r.onloadend=()=>res(r.result); r.readAsDataURL(imgBlob); });
+
+    const pdfBlob = await _gerarPdfChecklist(locFull, {
+      tipo: check.tipo, km: check.km, comb: check.combustivel, hora: check.horario,
+      itens: check.itens||[], obs: check.observacoes, assinaturaDataUrl, fotos: check.fotos||[],
+    });
+    const numCt = locFull?.num_contrato || locId;
+    const pdfPath = `${locId}/${tipo}/checklist_contrato_${numCt}_${tipo}_${Date.now()}.pdf`;
+    const {error:pdfErr} = await sb.storage.from('checklists').upload(pdfPath, pdfBlob, {contentType:'application/pdf'});
+    if(pdfErr) throw pdfErr;
+    const {data:pdfSign} = await sb.storage.from('checklists').createSignedUrl(pdfPath, 60*60*24*365*5);
+    const pdfUrl = pdfSign?.signedUrl || null;
+    if(!pdfUrl) throw new Error('falha ao gerar o link do PDF');
+
+    await sb.from('checklists').update({pdf_url: pdfUrl}).eq('id', checkId);
+    notify('📄 PDF da vistoria gerado com sucesso!','success');
+
+    // Recarrega o modal da locação para mostrar o botão "Ver PDF" atualizado
+    if(typeof abrirModalLocacao === 'function') abrirModalLocacao(locId);
+  }catch(e){
+    console.warn('[chk/gerar-pdf-depois]', e.message);
+    notify('Erro ao gerar o PDF: '+e.message, 'error');
+    if(btn){ btn.disabled=false; btn.textContent=original; }
+  }
+}
+
 async function _chkEnviarWpp(checkId, locId, pdfUrl, tipo){
   const btn = document.getElementById(`btn-chk-wpp-${checkId}`);
   const original = btn?.textContent;
