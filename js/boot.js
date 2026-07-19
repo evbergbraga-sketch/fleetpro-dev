@@ -5,6 +5,19 @@ const FP_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 // Flag global — evita reinicializar o app quando o Supabase dispara auth events
 let _appIniciado = false;
 
+// ── PRESENÇA (painel Desempenho) ──
+// Heartbeat: a cada 60s com a aba visível, soma 1 minuto em presenca_diaria
+// via RPC registrar_presenca(). Idempotente (não cria intervalos duplicados)
+// e fail-safe: qualquer erro é silencioso, nunca afeta o app.
+let _presencaTimer = null;
+function iniciarPresenca(){
+  if(_presencaTimer) return;
+  _presencaTimer = setInterval(async ()=>{
+    if(document.visibilityState !== 'visible') return;
+    try{ await sb.rpc('registrar_presenca'); }catch(_e){ /* silencioso */ }
+  }, 60000);
+}
+
 window.addEventListener('DOMContentLoaded', async()=>{
   const url = localStorage.getItem('fp_url') || FP_URL;
   const key = localStorage.getItem('fp_key') || FP_KEY;
@@ -58,6 +71,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
     if(session?.user){
       await carregarPerfil(session.user);
       _appIniciado = true;
+      iniciarPresenca();
       if(currentPerfil?.perfil !== 'investidor'){
         const lastPage = sessionStorage.getItem('fp_last_page');
         const lastChat = sessionStorage.getItem('fp_last_chat');
@@ -100,6 +114,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
       const lastChat = sessionStorage.getItem('fp_last_chat');
       await carregarPerfil(session.user);
       _appIniciado = true;
+      iniciarPresenca();
       if(lastPage && lastPage!=='dashboard' && currentPerfil?.perfil !== 'investidor'){
         setTimeout(async ()=>{
           goPage(lastPage);
