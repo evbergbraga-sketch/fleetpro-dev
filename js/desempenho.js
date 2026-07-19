@@ -8,6 +8,8 @@
 
 let _dpPeriodo = '7d'; // 'hoje' | '7d' | '30d' | 'custom'
 let _dpIniciado = false;
+let _dpElegiveis = [];  // todos os usuários admin+atendente (para o modal Equipe)
+let _dpEquipeIds = null; // seleção salva em sys_config (null = padrão: atendentes)
 
 function iniciarDesempenho(){
   if(!_dpIniciado){
@@ -68,17 +70,25 @@ async function carregarDesempenho(){
   const iniDia = iniISO.slice(0,10), fimDia = fimISO.slice(0,10);
 
   try{
-    const [rPerfis, rClientes, rNotas, rLogs, rPres] = await Promise.all([
-      sb.from('perfis').select('id,nome,perfil').eq('perfil','atendente'),
+    const [rPerfis, rClientes, rNotas, rLogs, rPres, rCfg] = await Promise.all([
+      sb.from('perfis').select('id,nome,perfil').in('perfil',['admin','atendente']),
       sb.from('clientes').select('id,responsavel_id,status_crm,created_at,primeiro_contato_em,followup_em').not('status_crm','is',null),
       sb.from('notas_internas').select('cliente_id,criado_por,texto,created_at').gte('created_at',iniISO).lte('created_at',fimISO),
       sb.from('crm_status_log').select('cliente_id,para,por,created_at').gte('created_at',iniISO).lte('created_at',fimISO),
       sb.from('presenca_diaria').select('user_id,dia,minutos').gte('dia',iniDia).lte('dia',fimDia),
+      sb.from('sys_config').select('valor').eq('chave','dp_equipe').maybeSingle(),
     ]);
     const erro = rPerfis.error||rClientes.error||rNotas.error||rLogs.error||rPres.error;
     if(erro) throw erro;
 
-    const perfis   = rPerfis.data||[];
+    const todos = rPerfis.data||[];
+    // Equipe exibida: lista salva em sys_config (dp_equipe); sem config, todos os atendentes
+    let equipeIds = null;
+    try{ if(rCfg?.data?.valor) equipeIds = JSON.parse(rCfg.data.valor); }catch(_e){}
+    if(!Array.isArray(equipeIds)) equipeIds = null;
+    _dpElegiveis = todos;
+    _dpEquipeIds = equipeIds;
+    const perfis = equipeIds ? todos.filter(p=>equipeIds.includes(p.id)) : todos.filter(p=>p.perfil==='atendente');
     const clientes = rClientes.data||[];
     const notas    = rNotas.data||[];
     const logs     = rLogs.data||[];
@@ -87,7 +97,7 @@ async function carregarDesempenho(){
     const agora    = new Date();
 
     if(!perfis.length){
-      cards.innerHTML = '<div class="card" style="color:var(--muted);font-size:13px">Nenhum atendente cadastrado.</div>';
+      cards.innerHTML = '<div class="card" style="color:var(--muted);font-size:13px">Nenhum usuário selecionado — clique em Equipe para escolher quem aparece no painel.</div>';
       return;
     }
 
@@ -166,5 +176,35 @@ async function carregarDesempenho(){
 
   }catch(e){
     cards.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+  }
+}
+
+// ── EQUIPE: escolher quem aparece no painel ──
+function _dpAbrirEquipe(){
+  const lista = document.getElementById('dp-equipe-lista');
+  if(!lista) return;
+  const selecionados = _dpEquipeIds || _dpElegiveis.filter(p=>p.perfil==='atendente').map(p=>p.id);
+  lista.innerHTML = [..._dpElegiveis].sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(p=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border2);cursor:pointer">
+      <input type="checkbox" class="dp-eq-chk" value="${p.id}" ${selecionados.includes(p.id)?'checked':''}>
+      <span style="font-weight:600;font-size:13px">${p.nome||'—'}</span>
+      <span style="font-size:11px;color:var(--muted);margin-left:auto">${p.perfil==='admin'?'Administrador':'Atendente'}</span>
+    </label>`).join('');
+  document.getElementById('m-dp-equipe').classList.add('show');
+}
+
+async function _dpSalvarEquipe(){
+  const ids = [...document.querySelectorAll('.dp-eq-chk:checked')].map(c=>c.value);
+  try{
+    const {error} = await sb.from('sys_config').upsert(
+      {chave:'dp_equipe', valor:JSON.stringify(ids), descricao:'IDs dos usuarios exibidos no painel Desempenho', updated_at:new Date().toISOString()},
+      {onConflict:'chave'}
+    );
+    if(error) throw error;
+    closeModal('dp-equipe');
+    notify('Equipe do painel atualizada!','success');
+    carregarDesempenho();
+  }catch(e){
+    notify('Erro ao salvar: '+(e.message||e),'error');
   }
 }
