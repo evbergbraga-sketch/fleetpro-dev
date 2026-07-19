@@ -11,6 +11,12 @@ let _dpIniciado = false;
 let _dpElegiveis = [];  // todos os usuários admin+atendente (para o modal Equipe)
 let _dpEquipeIds = null; // seleção salva em sys_config (null = padrão: atendentes)
 
+// Normaliza status pra comparação: minúsculas, hífen vira espaço
+// (no banco existem variantes como 'Em Locação', 'em-locação', 'reprovado', 'PERDIDO')
+const _dpNorm = s => (s||'').toLowerCase().replace(/-/g,' ').trim();
+const _DP_CONVERSAO = ['em locação','ativo'];            // conversão = cliente rodando
+const _DP_PERDA     = ['perdido','reprovado','inativo']; // funil encerrado sem locação
+
 function iniciarDesempenho(){
   if(!_dpIniciado){
     _dpIniciado = true;
@@ -70,15 +76,14 @@ async function carregarDesempenho(){
   const iniDia = iniISO.slice(0,10), fimDia = fimISO.slice(0,10);
 
   try{
-    const [rPerfis, rClientes, rNotas, rLogs, rPres, rCfg] = await Promise.all([
+    const [rPerfis, rClientes, rNotas, rPres, rCfg] = await Promise.all([
       sb.from('perfis').select('id,nome,perfil').in('perfil',['admin','atendente']),
       sb.from('clientes').select('id,responsavel_id,status_crm,created_at,primeiro_contato_em,followup_em').not('status_crm','is',null),
       sb.from('notas_internas').select('cliente_id,criado_por,texto,created_at').gte('created_at',iniISO).lte('created_at',fimISO),
-      sb.from('crm_status_log').select('cliente_id,para,por,created_at').gte('created_at',iniISO).lte('created_at',fimISO),
       sb.from('presenca_diaria').select('user_id,dia,minutos').gte('dia',iniDia).lte('dia',fimDia),
       sb.from('sys_config').select('valor').eq('chave','dp_equipe').maybeSingle(),
     ]);
-    const erro = rPerfis.error||rClientes.error||rNotas.error||rLogs.error||rPres.error;
+    const erro = rPerfis.error||rClientes.error||rNotas.error||rPres.error;
     if(erro) throw erro;
 
     const todos = rPerfis.data||[];
@@ -91,7 +96,6 @@ async function carregarDesempenho(){
     const perfis = equipeIds ? todos.filter(p=>equipeIds.includes(p.id)) : todos.filter(p=>p.perfil==='atendente');
     const clientes = rClientes.data||[];
     const notas    = rNotas.data||[];
-    const logs     = rLogs.data||[];
     const pres     = rPres.data||[];
     const cliById  = Object.fromEntries(clientes.map(c=>[c.id,c]));
     const agora    = new Date();
@@ -104,7 +108,9 @@ async function carregarDesempenho(){
     const dados = perfis.map(p=>{
       const minhasNotas = notas.filter(n=>n.criado_por===p.id);
       const primNotas   = minhasNotas.filter(n=>(n.texto||'').startsWith('Primeiro contato'));
-      const atendidos   = new Set(primNotas.map(n=>n.cliente_id)).size;
+      // Leads atendidos: leads distintos com QUALQUER interação registrada
+      // pelo atendente no período (1º contato, contato de acompanhamento ou nota)
+      const atendidos   = new Set(minhasNotas.map(n=>n.cliente_id)).size;
 
       // SLA: média (entrada do lead → primeiro contato) dos leads que ESTE atendente atendeu
       let slaMedio = null;
@@ -116,16 +122,18 @@ async function carregarDesempenho(){
       }).filter(x=>x!=null);
       if(deltas.length) slaMedio = deltas.reduce((a,b)=>a+b,0)/deltas.length;
 
-      const meusLogs = logs.filter(l=>l.por===p.id);
-      const conv   = new Set(meusLogs.filter(l=>(l.para||'').toLowerCase()==='ativo').map(l=>l.cliente_id)).size;
-      const perdas = new Set(meusLogs.filter(l=>['reprovado','inativo'].includes((l.para||'').toLowerCase())).map(l=>l.cliente_id)).size;
-      const taxa   = (conv+perdas) ? Math.round(conv/(conv+perdas)*100) : null;
-
+      // Conversão = lead da carteira que está EM LOCAÇÃO hoje (estado atual,
+      // retroativo). Perda = funil encerrado (Perdido/Reprovado/Inativo).
       const carteira = clientes.filter(c=>c.responsavel_id===p.id);
-      const fupsAtrasados = carteira.filter(c=>
-        c.followup_em && new Date(c.followup_em) < agora &&
-        ['interesse','potencial'].includes((c.status_crm||'').toLowerCase())
-      ).length;
+      const conv   = carteira.filter(c=>_DP_CONVERSAO.includes(_dpNorm(c.status_crm))).length;
+      const perdas = carteira.filter(c=>_DP_PERDA.includes(_dpNorm(c.status_crm))).length;
+      const taxa   = carteira.length ? Math.round(conv/carteira.length*100) : null;
+
+      const fupsAtrasados = carteira.filter(c=>{
+        const st = _dpNorm(c.status_crm);
+        return c.followup_em && new Date(c.followup_em) < agora &&
+               !_DP_CONVERSAO.includes(st) && !_DP_PERDA.includes(st);
+      }).length;
 
       const online = pres.filter(x=>x.user_id===p.id).reduce((a,b)=>a+(b.minutos||0),0);
 
@@ -168,8 +176,8 @@ async function carregarDesempenho(){
         ${linha(ico('<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>'),'Leads atendidos',d.atendidos)}
         ${linha(ico('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),'Contatos registrados',d.contatos)}
         ${linha(ico('<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>'),'Tempo 1ª resposta',_dpFmtSla(d.slaMedio))}
-        ${linha(ico('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>'),'Conversões (Ativo)',d.conv,'#16a34a')}
-        ${linha(ico('<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'),'Perdas (Reprov./Inativo)',d.perdas,d.perdas?'#F87171':null)}
+        ${linha(ico('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>'),'Em Locação (conversões)',d.conv,'#16a34a')}
+        ${linha(ico('<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'),'Perdas (Perdido/Reprov.)',d.perdas,d.perdas?'#F87171':null)}
         ${linha(ico('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),'Taxa de conversão',d.taxa==null?'—':d.taxa+'%',d.taxa!=null&&d.taxa>=50?'#16a34a':null)}
         ${linha(ico('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'),'Follow-ups em atraso',d.fupsAtrasados,d.fupsAtrasados?'#F5B942':null)}
       </div>`).join('');
