@@ -1970,7 +1970,7 @@ async function loadHistoricoLocacoes(){
       .select(`
         id, num_contrato, data_inicio, data_fim, data_inicio_hora, data_fim_hora,
         km_inicial, km_final, diaria, total, status, forma_pgto, tipo_contrato, plano_moto, caucao,
-        veiculos(id, marca, modelo, placa, tipo),
+        veiculos(id, marca, modelo, placa, tipo, foto_url),
         clientes(id, nome, telefone)
       `)
       .eq('status','encerrada')
@@ -2034,7 +2034,7 @@ function renderHistoricoLocacoes(){
     <tr>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="display:flex;align-items:center;color:var(--accent)">${icoTipo(l)}</span>
+          <span style="display:flex;align-items:center;color:var(--accent)">${_veiculoThumb(l.veiculos||{tipo:l.tipo_contrato}, 30)}</span>
           <div>
             <div style="font-weight:600;font-size:13px">${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}</div>
             <div style="font-size:11px;color:var(--muted2)">${l.veiculos?.placa||'—'}</div>
