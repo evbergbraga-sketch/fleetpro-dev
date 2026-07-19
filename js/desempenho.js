@@ -230,7 +230,7 @@ function _dpRenderFila(){
   }
   lista.innerHTML = fila.slice(0,30).map(c=>{
     const resp = c.responsavel_id ? (_dpNomes[c.responsavel_id]||'—') : null;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
+    return `<div onclick="_dpAbrirLead('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap;cursor:pointer">
       <span style="font-weight:600;font-size:13px">${c.nome||'—'}</span>
       <span style="font-size:11px;color:var(--muted);background:rgba(79,70,229,0.08);padding:2px 8px;border-radius:999px">${c.status_crm||'—'}</span>
       <span style="margin-left:auto;display:flex;align-items:center;gap:12px">
@@ -241,6 +241,22 @@ function _dpRenderFila(){
       </span>
     </div>`;
   }).join('') + (fila.length>30 ? `<div style="font-size:12px;color:var(--muted);padding:10px 0 2px;text-align:center">Mostrando os 30 mais antigos — e mais ${fila.length-30} na fila.</div>` : '');
+}
+
+// Abre o cartão do lead (mesmo modal do Pipeline) a partir da fila.
+// Se os dados do pipeline ainda não estão na memória, carrega antes.
+async function _dpAbrirLead(id){
+  try{
+    if(typeof iniciarPipeline==='function' && (typeof _plDados==='undefined' || !_plDados.length)){
+      await iniciarPipeline();
+    }
+    const existe = typeof _plDados!=='undefined' && _plDados.some(c=>c.id===id);
+    if(!existe){
+      notify('Este lead está sem status no funil — defina um status no Pipeline para abrir o cartão.','error');
+      return;
+    }
+    await _plAbrirModal(id);
+  }catch(e){ notify('Erro ao abrir lead: '+(e.message||e),'error'); }
 }
 
 // ── EQUIPE: escolher quem aparece no painel ──
