@@ -485,7 +485,7 @@ function renderVeiculos(){
       const inv = allPerfis.find(p=>p.id===v.investidor_id);
       return `<tr>
         <td><div style="display:flex;align-items:center;gap:10px">
-          <div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}" style="${v.foto_url?'padding:0;overflow:hidden':''}">${v.foto_url?`<img src="${v.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${v.tipo}')">`:SVG_VEICULO(v.tipo)}</div>
+          <div class="vi ${v.foto_url?'vi-foto':(v.tipo==='carro'?'vi-car':'vi-moto')}">${v.foto_url?`<img src="${v.foto_url}" onerror="this.parentElement.className='vi ${v.tipo==='carro'?'vi-car':'vi-moto'}';this.parentElement.innerHTML=SVG_VEICULO('${v.tipo}')">`:SVG_VEICULO(v.tipo)}</div>
           <div>
             <div style="font-weight:500">${v.marca} ${v.modelo}</div>
             <div style="font-size:11px;color:var(--muted)">${v.cor||''} · ${v.cambio||''}</div>
