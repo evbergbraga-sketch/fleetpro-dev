@@ -361,6 +361,16 @@ a { color: inherit; text-decoration: none; }
   object-fit: cover;
   border-radius: 14px;
 }
+.hero-moto-icone.tem-foto {
+  width: 100px; height: 64px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+.hero-moto-icone.tem-foto img {
+  object-fit: contain;
+  border-radius: 0;
+}
 .hero-moto-info { flex: 1; min-width: 0; }
 .hero-moto-label {
   font-size: 10px;
@@ -1113,7 +1123,7 @@ function renderInicio(loc, parcelas, sorteios) {
          </svg>`;
     heroWrap.innerHTML = `
       <div class="hero-moto">
-        <div class="hero-moto-icone">${icone}</div>
+        <div class="hero-moto-icone${vei.foto_url ? ' tem-foto' : ''}">${icone}</div>
         <div class="hero-moto-info">
           <div class="hero-moto-label">Seu veículo</div>
           <div class="hero-moto-nome">${vei.marca || ''} ${vei.modelo || ''}</div>
