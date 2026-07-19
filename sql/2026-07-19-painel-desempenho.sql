@@ -25,3 +25,16 @@ CREATE TABLE IF NOT EXISTS crm_status_log (
 );
 CREATE INDEX IF NOT EXISTS idx_csl_created ON crm_status_log (created_at);
 CREATE INDEX IF NOT EXISTS idx_csl_por ON crm_status_log (por);
+
+-- 3) Gravacao da equipe do painel (sys_config tem RLS): RPC admin-only
+CREATE OR REPLACE FUNCTION dp_salvar_equipe(ids jsonb)
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM perfis WHERE id = auth.uid() AND perfil = 'admin') THEN
+    RAISE EXCEPTION 'Apenas administradores podem alterar a equipe do painel';
+  END IF;
+  INSERT INTO sys_config (chave, valor, descricao, updated_at)
+  VALUES ('dp_equipe', ids::text, 'IDs dos usuarios exibidos no painel Desempenho', now())
+  ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor, updated_at = now();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

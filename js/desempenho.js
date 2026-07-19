@@ -204,10 +204,9 @@ function _dpAbrirEquipe(){
 async function _dpSalvarEquipe(){
   const ids = [...document.querySelectorAll('.dp-eq-chk:checked')].map(c=>c.value);
   try{
-    const {error} = await sb.from('sys_config').upsert(
-      {chave:'dp_equipe', valor:JSON.stringify(ids), descricao:'IDs dos usuarios exibidos no painel Desempenho', updated_at:new Date().toISOString()},
-      {onConflict:'chave'}
-    );
+    // sys_config tem RLS (guarda o hash da senha admin) — a gravação é feita
+    // por RPC security definer que só aceita admins e só toca na chave dp_equipe
+    const {error} = await sb.rpc('dp_salvar_equipe', {ids});
     if(error) throw error;
     closeModal('dp-equipe');
     notify('Equipe do painel atualizada!','success');
