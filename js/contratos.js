@@ -2020,7 +2020,7 @@ async function calSelectDay(d){
       dispInfo = `<div style="font-size:10px;color:var(--muted);margin-top:2px">devolução ${hhmm(fimDt)} · 🧹 livre ${hhmm(dispDt)}${dispDt.toDateString()!==fimDt.toDateString()?' (+1d)':''}</div>`;
     }
 
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}">${v.tipo==='carro'?'🚗':'🏍️'}</div><div><div style="font-size:13px;font-weight:500">${v.marca} ${v.modelo}</div><div style="font-size:11px;color:var(--muted)">${v.placa}</div>${dispInfo}</div></div><span class="badge ${b}">${lb}</span></div>`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px"><div class="vi ${v.tipo==='carro'?'vi-car':'vi-moto'}" style="${v.foto_url?'padding:0;overflow:hidden':''}">${v.foto_url?`<img src="${v.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${v.tipo}')">`:SVG_VEICULO(v.tipo)}</div><div><div style="font-size:13px;font-weight:500">${v.marca} ${v.modelo}</div><div style="font-size:11px;color:var(--muted)">${v.placa}</div>${dispInfo}</div></div><span class="badge ${b}">${lb}</span></div>`;
   }).join('')||'<p style="color:var(--muted2)">Sem veículos.</p>';
 }
 

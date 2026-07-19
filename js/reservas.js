@@ -44,7 +44,7 @@ function renderReservas(){
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="vi ${veic?.tipo==='carro'?'vi-car':'vi-moto'}">${veic?.tipo==='carro'?'🚗':'🏍️'}</div>
+          <div class="vi ${veic?.tipo==='carro'?'vi-car':'vi-moto'}" style="${veic?.foto_url?'padding:0;overflow:hidden':''}">${veic?.foto_url?`<img src="${veic.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${veic?.tipo}')">`:SVG_VEICULO(veic?.tipo)}</div>
           <div>
             <div style="font-weight:500">${veic?.marca||'—'} ${veic?.modelo||''}</div>
             <div style="font-size:11px;color:var(--muted)">${veic?.placa||''}</div>

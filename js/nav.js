@@ -477,7 +477,7 @@ function renderDashboard(){
       const lb = diff<0 ? 'Atrasado'  : diff===0 ? 'Hoje'         : 'No prazo';
       return `<tr style="cursor:pointer" onclick="goPage('locacoes')" title="Ver locações">
         <td><div style="display:flex;align-items:center;gap:8px">
-          <div class="vi ${l.veiculos?.tipo==='carro'?'vi-car':'vi-moto'}">${SVG_VEICULO(l.veiculos?.tipo)}</div>
+          <div class="vi ${l.veiculos?.tipo==='carro'?'vi-car':'vi-moto'}" style="${l.veiculos?.foto_url?'padding:0;overflow:hidden':''}">${l.veiculos?.foto_url?`<img src="${l.veiculos.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${l.veiculos?.tipo}')">`:SVG_VEICULO(l.veiculos?.tipo)}</div>
           <div><div style="font-weight:500">${l.veiculos?.modelo||'—'}</div><div style="font-size:11px;color:var(--muted)">${l.veiculos?.placa||''}</div></div>
         </div></td>
         <td>${l.clientes?.nome||'—'}</td>
