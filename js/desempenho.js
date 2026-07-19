@@ -1,0 +1,170 @@
+// desempenho.js — Painel de rendimento dos atendentes (admin-only)
+// Fontes de dados:
+//  - perfis (perfil='atendente')            → quem aparece no painel
+//  - clientes                               → carteira, SLA, follow-ups atrasados
+//  - notas_internas (criado_por)            → atendimentos e contatos no período
+//  - crm_status_log (por/para)              → conversões e perdas no período
+//  - presenca_diaria (heartbeat do boot.js) → tempo on-line no período
+
+let _dpPeriodo = '7d'; // 'hoje' | '7d' | '30d' | 'custom'
+let _dpIniciado = false;
+
+function iniciarDesempenho(){
+  if(!_dpIniciado){
+    _dpIniciado = true;
+    document.querySelectorAll('.dp-chip').forEach(ch=>{
+      ch.onclick = ()=>{
+        _dpPeriodo = ch.dataset.p;
+        document.querySelectorAll('.dp-chip').forEach(c=>c.classList.remove('active'));
+        ch.classList.add('active');
+        document.getElementById('dp-custom').style.display = _dpPeriodo==='custom' ? 'flex' : 'none';
+        if(_dpPeriodo!=='custom') carregarDesempenho();
+      };
+    });
+    const btnAplicar = document.getElementById('dp-aplicar');
+    if(btnAplicar) btnAplicar.onclick = ()=>carregarDesempenho();
+  }
+  carregarDesempenho();
+}
+
+function _dpIntervalo(){
+  const fim = new Date();
+  let ini = new Date();
+  if(_dpPeriodo==='hoje'){ ini.setHours(0,0,0,0); }
+  else if(_dpPeriodo==='7d'){ ini.setDate(ini.getDate()-7); }
+  else if(_dpPeriodo==='30d'){ ini.setDate(ini.getDate()-30); }
+  else {
+    const i = document.getElementById('dp-ini')?.value;
+    const f = document.getElementById('dp-fim')?.value;
+    if(i) ini = new Date(i+'T00:00:00');
+    if(f){ const ff = new Date(f+'T23:59:59'); return {ini, fim:ff}; }
+  }
+  return {ini, fim};
+}
+
+function _dpFmtMin(min){
+  if(!min) return '0m';
+  const h = Math.floor(min/60), m = min%60;
+  return h ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m`;
+}
+
+function _dpFmtSla(ms){
+  if(ms==null) return '—';
+  const min = Math.round(ms/60000);
+  if(min < 60) return `${min} min`;
+  if(min < 60*24) return `${Math.floor(min/60)}h ${String(min%60).padStart(2,'0')}m`;
+  return `${(min/(60*24)).toFixed(1).replace('.',',')} dias`;
+}
+
+async function carregarDesempenho(){
+  const cards = document.getElementById('dp-cards');
+  const podio = document.getElementById('dp-podio');
+  if(!cards) return;
+  cards.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px">Carregando…</div>';
+  if(podio) podio.innerHTML = '';
+
+  const {ini, fim} = _dpIntervalo();
+  const iniISO = ini.toISOString(), fimISO = fim.toISOString();
+  const iniDia = iniISO.slice(0,10), fimDia = fimISO.slice(0,10);
+
+  try{
+    const [rPerfis, rClientes, rNotas, rLogs, rPres] = await Promise.all([
+      sb.from('perfis').select('id,nome,perfil').eq('perfil','atendente'),
+      sb.from('clientes').select('id,responsavel_id,status_crm,created_at,primeiro_contato_em,followup_em').not('status_crm','is',null),
+      sb.from('notas_internas').select('cliente_id,criado_por,texto,created_at').gte('created_at',iniISO).lte('created_at',fimISO),
+      sb.from('crm_status_log').select('cliente_id,para,por,created_at').gte('created_at',iniISO).lte('created_at',fimISO),
+      sb.from('presenca_diaria').select('user_id,dia,minutos').gte('dia',iniDia).lte('dia',fimDia),
+    ]);
+    const erro = rPerfis.error||rClientes.error||rNotas.error||rLogs.error||rPres.error;
+    if(erro) throw erro;
+
+    const perfis   = rPerfis.data||[];
+    const clientes = rClientes.data||[];
+    const notas    = rNotas.data||[];
+    const logs     = rLogs.data||[];
+    const pres     = rPres.data||[];
+    const cliById  = Object.fromEntries(clientes.map(c=>[c.id,c]));
+    const agora    = new Date();
+
+    if(!perfis.length){
+      cards.innerHTML = '<div class="card" style="color:var(--muted);font-size:13px">Nenhum atendente cadastrado.</div>';
+      return;
+    }
+
+    const dados = perfis.map(p=>{
+      const minhasNotas = notas.filter(n=>n.criado_por===p.id);
+      const primNotas   = minhasNotas.filter(n=>(n.texto||'').startsWith('Primeiro contato'));
+      const atendidos   = new Set(primNotas.map(n=>n.cliente_id)).size;
+
+      // SLA: média (entrada do lead → primeiro contato) dos leads que ESTE atendente atendeu
+      let slaMedio = null;
+      const deltas = primNotas.map(n=>{
+        const c = cliById[n.cliente_id];
+        if(!c?.created_at || !c?.primeiro_contato_em) return null;
+        const d = new Date(c.primeiro_contato_em) - new Date(c.created_at);
+        return d >= 0 ? d : null;
+      }).filter(x=>x!=null);
+      if(deltas.length) slaMedio = deltas.reduce((a,b)=>a+b,0)/deltas.length;
+
+      const meusLogs = logs.filter(l=>l.por===p.id);
+      const conv   = new Set(meusLogs.filter(l=>(l.para||'').toLowerCase()==='ativo').map(l=>l.cliente_id)).size;
+      const perdas = new Set(meusLogs.filter(l=>['reprovado','inativo'].includes((l.para||'').toLowerCase())).map(l=>l.cliente_id)).size;
+      const taxa   = (conv+perdas) ? Math.round(conv/(conv+perdas)*100) : null;
+
+      const carteira = clientes.filter(c=>c.responsavel_id===p.id);
+      const fupsAtrasados = carteira.filter(c=>
+        c.followup_em && new Date(c.followup_em) < agora &&
+        ['interesse','potencial'].includes((c.status_crm||'').toLowerCase())
+      ).length;
+
+      const online = pres.filter(x=>x.user_id===p.id).reduce((a,b)=>a+(b.minutos||0),0);
+
+      return {p, atendidos, contatos:minhasNotas.length, slaMedio, conv, perdas, taxa, carteira:carteira.length, fupsAtrasados, online};
+    });
+
+    // ── Pódio (top 3 por conversões; desempate por atendidos) ──
+    if(podio){
+      const top = [...dados].sort((a,b)=>(b.conv-a.conv)||(b.atendidos-a.atendidos)).slice(0,3);
+      const medalhas = ['#F5B942','#9CA3AF','#B45309'];
+      podio.innerHTML = top.map((d,i)=>`
+        <div class="stat-card" style="text-align:center">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${medalhas[i]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            <span style="font-size:12px;color:var(--muted);font-weight:600">${i+1}º lugar</span>
+          </div>
+          <div style="font-family:var(--font-display);font-weight:800;font-size:17px">${d.p.nome||'—'}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">${d.conv} conversõe${d.conv===1?'':'s'} · ${d.atendidos} atendido${d.atendidos===1?'':'s'}</div>
+        </div>`).join('');
+    }
+
+    // ── Cards por atendente ──
+    const ico = (path)=>`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+    const linha = (icone,label,valor,cor)=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2)">
+        <span style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)">${icone} ${label}</span>
+        <span style="font-weight:700;font-size:13px;${cor?`color:${cor}`:''}">${valor}</span>
+      </div>`;
+
+    cards.innerHTML = dados.sort((a,b)=>(b.conv-a.conv)||(b.atendidos-a.atendidos)).map(d=>`
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:38px;height:38px;border-radius:50%;background:rgba(79,70,229,0.12);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--accent);font-family:var(--font-display)">${(d.p.nome||'?').trim().charAt(0).toUpperCase()}</div>
+          <div>
+            <div style="font-weight:700">${d.p.nome||'—'}</div>
+            <div style="font-size:11px;color:var(--muted)">${d.carteira} lead${d.carteira===1?'':'s'} na carteira</div>
+          </div>
+        </div>
+        ${linha(ico('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),'Tempo on-line',_dpFmtMin(d.online))}
+        ${linha(ico('<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>'),'Leads atendidos',d.atendidos)}
+        ${linha(ico('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),'Contatos registrados',d.contatos)}
+        ${linha(ico('<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>'),'Tempo 1ª resposta',_dpFmtSla(d.slaMedio))}
+        ${linha(ico('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>'),'Conversões (Ativo)',d.conv,'#16a34a')}
+        ${linha(ico('<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>'),'Perdas (Reprov./Inativo)',d.perdas,d.perdas?'#F87171':null)}
+        ${linha(ico('<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>'),'Taxa de conversão',d.taxa==null?'—':d.taxa+'%',d.taxa!=null&&d.taxa>=50?'#16a34a':null)}
+        ${linha(ico('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'),'Follow-ups em atraso',d.fupsAtrasados,d.fupsAtrasados?'#F5B942':null)}
+      </div>`).join('');
+
+  }catch(e){
+    cards.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+  }
+}

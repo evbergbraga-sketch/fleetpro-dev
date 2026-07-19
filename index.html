@@ -1979,6 +1979,22 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       </div>
 
 
+      <div class="page" id="page-desempenho">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="btn btn-ghost dp-chip" data-p="hoje" style="font-size:12px;padding:6px 14px">Hoje</button>
+          <button class="btn btn-ghost dp-chip active" data-p="7d" style="font-size:12px;padding:6px 14px">7 dias</button>
+          <button class="btn btn-ghost dp-chip" data-p="30d" style="font-size:12px;padding:6px 14px">30 dias</button>
+          <button class="btn btn-ghost dp-chip" data-p="custom" style="font-size:12px;padding:6px 14px">Personalizado</button>
+          <div id="dp-custom" style="display:none;align-items:center;gap:6px">
+            <input type="date" id="dp-ini" style="font-size:12px;padding:5px 8px">
+            <span style="color:var(--muted);font-size:12px">até</span>
+            <input type="date" id="dp-fim" style="font-size:12px;padding:5px 8px">
+            <button class="btn btn-primary" id="dp-aplicar" style="font-size:12px;padding:6px 14px">Aplicar</button>
+          </div>
+        </div>
+        <div id="dp-podio" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px"></div>
+        <div id="dp-cards" class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))"></div>
+      </div>
       <div class="page" id="page-denied">
         <div class="access-denied">
           <div class="ad-icon">🚫</div>
@@ -3060,13 +3076,14 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <div class="notify" id="notify"></div>
 
 <!-- Scripts — ordem importa! -->
-<script src="js/config.js?v=20260710n"></script>
+<script src="js/config.js?v=20260719a"></script>
 <script src="js/ajuda.js?v=20260710n"></script>
 <script src="js/pipeline.js?v=20260719a"></script>
+<script src="js/desempenho.js?v=20260719a"></script>
 <script src="js/apilogs.js?v=20260710n"></script>
 <script src="js/ui.js?v=20260710n"></script>
 <script src="js/setup.js?v=20260710n"></script>
-<script src="js/nav.js?v=20260719a"></script>
+<script src="js/nav.js?v=20260719b"></script>
 <script src="js/veiculos.js?v=20260719b"></script>
 <script src="js/clientes.js?v=20260710n"></script>
 <script src="js/historico.js?v=20260710n"></script>

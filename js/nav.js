@@ -8,6 +8,7 @@ const PAGE_CFG = {
   historico:   {title:'Histórico & Manutenção',  action:'+ Manutenção',        modal:'manutencao',roles:['admin','atendente']},
   clientes:    {title:'Clientes',                action:'+ Novo cliente',      modal:'cliente',   roles:['admin','atendente']},
   pipeline:    {title:'Pipeline CRM',            action:'',                    modal:null,        roles:['admin','atendente']},
+  desempenho:  {title:'Desempenho da Equipe',    action:'',                    modal:null,        roles:['admin']},
   apilogs:     {title:'Logs da API',             action:'',                    modal:null,        roles:['admin','atendente']},
   reservas:    {title:'Reservas',                action:'+ Nova reserva',      modal:'reserva',   roles:['admin','atendente']},
   locacoes:    {title:'Locações em andamento',   action:'',                    modal:null,        roles:['admin','atendente']},
@@ -111,6 +112,7 @@ function goPage(id, navEl){
   }
   if(id==='ajuda' && typeof renderAjudaAcordeon==='function') renderAjudaAcordeon();
   if(id==='pipeline'  && typeof iniciarPipeline==='function')  iniciarPipeline();
+  if(id==='desempenho'&& typeof iniciarDesempenho==='function') iniciarDesempenho();
   if(id==='apilogs'   && typeof iniciarApiLogs==='function')   iniciarApiLogs();
   if(id==='calendario'){renderCal();}
   if(id==='chat'){
