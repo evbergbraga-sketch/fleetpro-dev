@@ -758,6 +758,9 @@ async function _uploadCrlv(input) {
 // (Frota e Portal do Cliente) e herdada por cadastros novos.
 // ══════════════════════════════════════════════════════════════
 const _vfNorm = s => (s||'').toString().trim().toLowerCase();
+// Versão segura para atributos HTML — escapa aspas/apóstrofos/etc que
+// quebrariam o handler inline se estiverem no cadastro (marca/modelo/cor)
+const _vfAttr = s => _vfNorm(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;');
 
 // Busca a foto da biblioteca para uma combinação (usada no cadastro de veículo)
 async function _vfBuscarFoto(marca, modelo, cor){
@@ -803,7 +806,7 @@ async function abrirFotosModelos(){
       </div>
       <label class="btn btn-ghost" style="font-size:11px;padding:6px 12px;cursor:pointer;white-space:nowrap">
         ${foto?ICO.atualizar+' Trocar foto':ICO.camera+' Enviar foto'}
-        <input type="file" accept="image/*" style="display:none" onchange="_vfUpload(this,'${_vfNorm(c.marca)}','${_vfNorm(c.modelo)}','${_vfNorm(c.cor)}')">
+        <input type="file" accept="image/*" style="display:none" data-marca="${_vfAttr(c.marca)}" data-modelo="${_vfAttr(c.modelo)}" data-cor="${_vfAttr(c.cor)}" onchange="_vfUpload(this, this.dataset.marca, this.dataset.modelo, this.dataset.cor)">
       </label>
     </div>`;
   }).join('');

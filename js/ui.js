@@ -212,7 +212,10 @@ function _toDatetimeLocalValue(date){
 // tamanho em px (quadrado, cantos arredondados, object-fit:cover).
 function _veiculoThumb(v, tamanho=28){
   if(v?.foto_url){
-    return `<img src="${v.foto_url}" style="width:${tamanho}px;height:${tamanho}px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='${SVG_VEICULO(v.tipo).replace(/'/g,"\\'")}'">`;
+    // O onerror chama SVG_VEICULO() na hora, em vez de embutir o SVG inteiro
+    // no atributo — o SVG contém aspas duplas que fechavam o atributo no meio
+    // e quebravam o handler ("missing ) after argument list")
+    return `<img src="${v.foto_url}" style="width:${tamanho}px;height:${tamanho}px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.outerHTML=SVG_VEICULO('${(v.tipo||'').replace(/[^a-z]/gi,'')}')">`;
   }
   return SVG_VEICULO(v?.tipo);
 }
