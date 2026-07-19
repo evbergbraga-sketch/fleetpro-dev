@@ -97,6 +97,12 @@ async function carregarDesempenho(){
     _dpEquipeIds = equipeIds;
     const perfis = equipeIds ? todos.filter(p=>equipeIds.includes(p.id)) : todos.filter(p=>p.perfil==='atendente');
 
+    const clientes = rClientes.data||[];
+    const notas    = rNotas.data||[];
+    const pres     = rPres.data||[];
+    const cliById  = Object.fromEntries(clientes.map(c=>[c.id,c]));
+    const agora    = new Date();
+
     // Fila de leads esquecidos: vivos no funil, sem NENHUM primeiro contato.
     // Independe do filtro de período — é sempre a foto de agora.
     _dpFilaDados = clientes.filter(c=>{
@@ -105,11 +111,6 @@ async function carregarDesempenho(){
     });
     _dpNomes = Object.fromEntries(todos.map(p=>[p.id, p.nome||'—']));
     _dpRenderFila();
-    const clientes = rClientes.data||[];
-    const notas    = rNotas.data||[];
-    const pres     = rPres.data||[];
-    const cliById  = Object.fromEntries(clientes.map(c=>[c.id,c]));
-    const agora    = new Date();
 
     if(!perfis.length){
       cards.innerHTML = '<div class="card" style="color:var(--muted);font-size:13px">Nenhum usuário selecionado — clique em Equipe para escolher quem aparece no painel.</div>';
