@@ -227,7 +227,7 @@ function _dpRenderFila(){
       Nenhum lead esquecido — todo mundo recebeu contato dentro do prazo.</div>`;
     return;
   }
-  lista.innerHTML = fila.map(c=>{
+  lista.innerHTML = fila.slice(0,30).map(c=>{
     const resp = c.responsavel_id ? (_dpNomes[c.responsavel_id]||'—') : null;
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
       <span style="font-weight:600;font-size:13px">${c.nome||'—'}</span>
@@ -239,7 +239,7 @@ function _dpRenderFila(){
         <span style="font-size:12px;font-weight:800;color:#F87171">${_dpEspera(c.created_at)}</span>
       </span>
     </div>`;
-  }).join('');
+  }).join('') + (fila.length>30 ? `<div style="font-size:12px;color:var(--muted);padding:10px 0 2px;text-align:center">Mostrando os 30 mais antigos — e mais ${fila.length-30} na fila.</div>` : '');
 }
 
 // ── EQUIPE: escolher quem aparece no painel ──
