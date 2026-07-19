@@ -33,7 +33,7 @@ function renderLocacoes(){
     return `<tr>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
-          <div class="vi ${l.veiculos?.tipo==='carro'?'vi-car':'vi-moto'}" style="${l.veiculos?.foto_url?'padding:0;overflow:hidden':''}">${l.veiculos?.foto_url?`<img src="${l.veiculos.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${l.veiculos?.tipo}')">`:icone}</div>
+          <div class="vi ${l.veiculos?.foto_url?'vi-foto':(l.veiculos?.tipo==='carro'?'vi-car':'vi-moto')}">${l.veiculos?.foto_url?`<img src="${l.veiculos.foto_url}" onerror="this.parentElement.className='vi ${l.veiculos?.tipo==='carro'?'vi-car':'vi-moto'}';this.parentElement.innerHTML=SVG_VEICULO('${l.veiculos?.tipo}')">`:icone}</div>
           <div>
             <div style="font-weight:500">${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}</div>
             <div style="font-size:11px;color:var(--muted)">${l.veiculos?.placa||''}</div>
