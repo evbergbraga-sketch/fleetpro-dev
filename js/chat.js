@@ -1580,7 +1580,12 @@ async function _crmSetStatus(status){
   const c = allClientes?.find(x=>x.id===activeChatId);
   if(!c){ notify('Cliente não cadastrado','error'); return; }
   try{
+    const _statusAnterior = c.status_crm;
     await sb.from('clientes').update({status_crm:status}).eq('id',c.id);
+    // Auditoria do funil (painel Desempenho) — fail-safe
+    try{
+      await sb.from('crm_status_log').insert({cliente_id:c.id, de:_statusAnterior||null, para:status, por:currentUser?.id||null});
+    }catch(_e){ /* silencioso */ }
     c.status_crm = status;
     // Sincroniza _plDados (pipeline) se estiver carregado
     if(typeof _plDados !== 'undefined'){

@@ -379,6 +379,11 @@ async function _plDrop(e, novoStatus){
   // Persiste no banco
   try{
     await sb.from('clientes').update({status_crm: novoStatus}).eq('id', id);
+    // Auditoria do funil (painel Desempenho): quem moveu, de onde, pra onde.
+    // Fail-safe: erro aqui não pode desfazer a mudança de status já persistida.
+    try{
+      await sb.from('crm_status_log').insert({cliente_id:id, de:statusAtual||null, para:novoStatus, por:currentUser?.id||null});
+    }catch(_e){ /* silencioso */ }
     notify(`${c.nome} → ${novoStatus}`,'success');
   }catch(err){
     // Reverte se falhou
