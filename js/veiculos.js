@@ -541,6 +541,17 @@ function editarVeiculo(id){
   document.getElementById('ev-km').value    = v.km_atual||0;
   document.getElementById('ev-diaria').value= v.diaria||'';
   document.getElementById('ev-status').value = v.status||'disponivel';
+  // Foto do veículo (se cadastrada) no topo do modal
+  const fotoPrev = document.getElementById('ev-foto-preview');
+  if(fotoPrev){
+    if(v.foto_url){
+      fotoPrev.style.display = 'block';
+      fotoPrev.innerHTML = `<img src="${v.foto_url}" style="max-width:100%;max-height:150px;object-fit:contain" onerror="this.parentElement.style.display='none'">`;
+    } else {
+      fotoPrev.style.display = 'none';
+      fotoPrev.innerHTML = '';
+    }
+  }
   _preencherCamposExtras('ev', v);
   document.getElementById('ev-obs').value   = v.observacoes||'';
   // Mostrar CRLV atual
