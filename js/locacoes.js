@@ -33,7 +33,7 @@ function renderLocacoes(){
     return `<tr>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
-          <div class="vi ${l.veiculos?.tipo==='carro'?'vi-car':'vi-moto'}">${icone}</div>
+          <div class="vi ${l.veiculos?.tipo==='carro'?'vi-car':'vi-moto'}" style="${l.veiculos?.foto_url?'padding:0;overflow:hidden':''}">${l.veiculos?.foto_url?`<img src="${l.veiculos.foto_url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=SVG_VEICULO('${l.veiculos?.tipo}')">`:icone}</div>
           <div>
             <div style="font-weight:500">${l.veiculos?.marca||''} ${l.veiculos?.modelo||''}</div>
             <div style="font-size:11px;color:var(--muted)">${l.veiculos?.placa||''}</div>
@@ -69,7 +69,7 @@ async function loadLocacoesCompletas(){
       forma_pgto, servicos_adicionais,
       data_inicio_hora, data_fim_hora,
       asaas_subscription_id,
-      veiculos(id, marca, modelo, placa, tipo, km_atual),
+      veiculos(id, marca, modelo, placa, tipo, km_atual, foto_url),
       clientes(id, nome, cpf, telefone, email)
     `)
     .eq('status','ativa')
@@ -77,7 +77,7 @@ async function loadLocacoesCompletas(){
   if(error){
     // Fallback sem campos novos caso SQL não tenha rodado ainda
     const {data:data2} = await sb.from('locacoes')
-      .select('*,veiculos(id,marca,modelo,placa,tipo,km_atual),clientes(id,nome,cpf,telefone,email)')
+      .select('*,veiculos(id,marca,modelo,placa,tipo,km_atual,foto_url),clientes(id,nome,cpf,telefone,email)')
       .eq('status','ativa')
       .order('data_fim',{ascending:true});
     allLocacoesCompletas = data2||[];
