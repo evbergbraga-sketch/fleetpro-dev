@@ -31,6 +31,8 @@ function iniciarDesempenho(){
     });
     const btnAplicar = document.getElementById('dp-aplicar');
     if(btnAplicar) btnAplicar.onclick = ()=>carregarDesempenho();
+    const selFila = document.getElementById('dp-fila-h');
+    if(selFila) selFila.onchange = ()=>_dpRenderFila();
   }
   carregarDesempenho();
 }
@@ -78,7 +80,7 @@ async function carregarDesempenho(){
   try{
     const [rPerfis, rClientes, rNotas, rPres, rCfg] = await Promise.all([
       sb.from('perfis').select('id,nome,perfil').in('perfil',['admin','atendente']),
-      sb.from('clientes').select('id,responsavel_id,status_crm,created_at,primeiro_contato_em,followup_em').not('status_crm','is',null),
+      sb.from('clientes').select('id,nome,responsavel_id,status_crm,created_at,primeiro_contato_em,followup_em').not('status_crm','is',null),
       sb.from('notas_internas').select('cliente_id,criado_por,texto,created_at').gte('created_at',iniISO).lte('created_at',fimISO),
       sb.from('presenca_diaria').select('user_id,dia,minutos').gte('dia',iniDia).lte('dia',fimDia),
       sb.from('sys_config').select('valor').eq('chave','dp_equipe').maybeSingle(),
@@ -94,6 +96,15 @@ async function carregarDesempenho(){
     _dpElegiveis = todos;
     _dpEquipeIds = equipeIds;
     const perfis = equipeIds ? todos.filter(p=>equipeIds.includes(p.id)) : todos.filter(p=>p.perfil==='atendente');
+
+    // Fila de leads esquecidos: vivos no funil, sem NENHUM primeiro contato.
+    // Independe do filtro de período — é sempre a foto de agora.
+    _dpFilaDados = clientes.filter(c=>{
+      const st = _dpNorm(c.status_crm);
+      return !c.primeiro_contato_em && !_DP_CONVERSAO.includes(st) && !_DP_PERDA.includes(st);
+    });
+    _dpNomes = Object.fromEntries(todos.map(p=>[p.id, p.nome||'—']));
+    _dpRenderFila();
     const clientes = rClientes.data||[];
     const notas    = rNotas.data||[];
     const pres     = rPres.data||[];
@@ -185,6 +196,50 @@ async function carregarDesempenho(){
   }catch(e){
     cards.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
   }
+}
+
+// ── FILA DE LEADS ESQUECIDOS ──
+let _dpFilaDados = [];
+let _dpNomes = {};
+
+function _dpEspera(created){
+  const h = Math.floor((Date.now() - new Date(created)) / 3600000);
+  if(h < 24) return `há ${h}h`;
+  return `há ${Math.floor(h/24)}d ${h%24}h`;
+}
+
+function _dpRenderFila(){
+  const card  = document.getElementById('dp-fila-card');
+  const lista = document.getElementById('dp-fila');
+  const badge = document.getElementById('dp-fila-count');
+  if(!card || !lista) return;
+  const horas = parseInt(document.getElementById('dp-fila-h')?.value || '12', 10);
+  const corte = Date.now() - horas*3600000;
+  const fila  = _dpFilaDados
+    .filter(c => new Date(c.created_at).getTime() < corte)
+    .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+  card.style.display = 'block';
+  badge.textContent = fila.length;
+  if(!fila.length){
+    lista.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#16a34a;font-size:13px;padding:8px 0">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+      Nenhum lead esquecido — todo mundo recebeu contato dentro do prazo.</div>`;
+    return;
+  }
+  lista.innerHTML = fila.map(c=>{
+    const resp = c.responsavel_id ? (_dpNomes[c.responsavel_id]||'—') : null;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap">
+      <span style="font-weight:600;font-size:13px">${c.nome||'—'}</span>
+      <span style="font-size:11px;color:var(--muted);background:rgba(79,70,229,0.08);padding:2px 8px;border-radius:999px">${c.status_crm||'—'}</span>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        ${resp
+          ? `<span style="font-size:11px;color:var(--muted)">Resp.: <b>${resp}</b></span>`
+          : `<span style="font-size:11px;color:#F5B942;font-weight:700">Sem responsável</span>`}
+        <span style="font-size:12px;font-weight:800;color:#F87171">${_dpEspera(c.created_at)}</span>
+      </span>
+    </div>`;
+  }).join('');
 }
 
 // ── EQUIPE: escolher quem aparece no painel ──

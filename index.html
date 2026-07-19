@@ -1993,6 +1993,22 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           </div>
           <button class="btn btn-ghost" onclick="_dpAbrirEquipe()" style="font-size:12px;padding:6px 14px;margin-left:auto;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Equipe</button>
         </div>
+        <div class="card" id="dp-fila-card" style="margin-bottom:14px;display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="display:flex;align-items:center;gap:8px;font-weight:700;font-family:var(--font-display)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Leads esquecidos
+              <span id="dp-fila-count" style="background:rgba(248,113,113,.15);color:#F87171;font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px">0</span>
+            </span>
+            <select id="dp-fila-h" style="margin-left:auto;font-size:12px;padding:4px 8px">
+              <option value="6">+ de 6h sem contato</option>
+              <option value="12" selected>+ de 12h sem contato</option>
+              <option value="24">+ de 24h sem contato</option>
+              <option value="48">+ de 48h sem contato</option>
+            </select>
+          </div>
+          <div id="dp-fila"></div>
+        </div>
         <div id="dp-podio" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px"></div>
         <div id="dp-cards" class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))"></div>
       </div>
@@ -3093,7 +3109,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/config.js?v=20260719a"></script>
 <script src="js/ajuda.js?v=20260710n"></script>
 <script src="js/pipeline.js?v=20260719a"></script>
-<script src="js/desempenho.js?v=20260719d"></script>
+<script src="js/desempenho.js?v=20260719e"></script>
 <script src="js/apilogs.js?v=20260710n"></script>
 <script src="js/ui.js?v=20260710n"></script>
 <script src="js/setup.js?v=20260710n"></script>
