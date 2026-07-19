@@ -186,7 +186,9 @@
   .badge { font-size: 10px; padding: 2px 8px; }
 
   /* ── Notificações ── */
-  .notify { right: 12px; left: 12px; bottom: 16px; text-align: center; }
+  /* (o posicionamento do .notify é todo controlado em styles.css — a regra
+     antiga daqui, com left/right/bottom fixos, conflitava com o novo toast
+     centralizado via transform e o esticava/cortava na tela do celular) */
 
   /* ── Chat mobile — redesign completo ── */
   .chat-layout {
