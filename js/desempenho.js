@@ -202,6 +202,12 @@ async function carregarDesempenho(){
 // ── FILA DE LEADS ESQUECIDOS ──
 let _dpFilaDados = [];
 let _dpNomes = {};
+let _dpFilaExpandida = false;
+
+function _dpToggleFila(){
+  _dpFilaExpandida = !_dpFilaExpandida;
+  _dpRenderFila();
+}
 
 function _dpEspera(created){
   const h = Math.floor((Date.now() - new Date(created)) / 3600000);
@@ -228,7 +234,9 @@ function _dpRenderFila(){
       Nenhum lead esquecido — todo mundo recebeu contato dentro do prazo.</div>`;
     return;
   }
-  lista.innerHTML = fila.slice(0,30).map(c=>{
+  const limite = _dpFilaExpandida ? 30 : 5;
+  const restante = fila.length - limite;
+  lista.innerHTML = fila.slice(0,limite).map(c=>{
     const resp = c.responsavel_id ? (_dpNomes[c.responsavel_id]||'—') : null;
     return `<div onclick="_dpAbrirLead('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap;cursor:pointer">
       <span style="font-weight:600;font-size:13px">${c.nome||'—'}</span>
@@ -240,7 +248,13 @@ function _dpRenderFila(){
         <span style="font-size:12px;font-weight:800;color:#F87171">${_dpEspera(c.created_at)}</span>
       </span>
     </div>`;
-  }).join('') + (fila.length>30 ? `<div style="font-size:12px;color:var(--muted);padding:10px 0 2px;text-align:center">Mostrando os 30 mais antigos — e mais ${fila.length-30} na fila.</div>` : '');
+  }).join('') + (fila.length>5 ? `
+    <div style="text-align:center;padding-top:10px;display:flex;align-items:center;justify-content:center;gap:10px">
+      <button class="btn btn-ghost" onclick="_dpToggleFila()" style="font-size:12px;padding:5px 16px">
+        ${_dpFilaExpandida ? 'Exibir menos' : `Exibir mais (${restante})`}
+      </button>
+      ${_dpFilaExpandida && restante>0 ? `<span style="font-size:12px;color:var(--muted)">Mostrando os 30 mais antigos — e mais ${restante} na fila.</span>` : ''}
+    </div>` : '');
 }
 
 // Abre o cartão do lead (mesmo modal do Pipeline) a partir da fila.
