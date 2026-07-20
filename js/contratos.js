@@ -435,8 +435,10 @@ function previewContrato(){
   } else {
     totalBruto = diaComDesconto * days;
     const lavagem = parseFloat(document.getElementById('c-lavagem')?.value)||0;
-    const protVal = document.getElementById('c-protecao')?.value==='Completa'
+    // Proteção completa é POR DIÁRIA: R$ X × nº de dias do contrato
+    const protDia = document.getElementById('c-protecao')?.value==='Completa'
       ? parseFloat(document.getElementById('c-protecao-valor')?.value)||0 : 0;
+    const protVal = protDia * days;
     totalBruto += lavagem + protVal;
   }
   totalBruto += totalServicos;
