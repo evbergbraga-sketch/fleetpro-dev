@@ -119,6 +119,13 @@ function _plFiltrar(){
       if(fu==='hoje'     && d !== hoje)         return false;
       if(fu==='atrasado' && (d>=hoje||!d))      return false;
       if(fu==='pendente' && !d)                 return false;
+      if(fu==='sem_contato'){
+        // Mesmo critério do badge vermelho "Atrasado Xh": lead elegível,
+        // sem primeiro contato registrado, há 6h+ desde a entrada
+        const eleg = ['interesse','potencial'].includes((c.status_crm||'').toLowerCase()) && !c.primeiro_contato_em;
+        const horas = c.created_at ? (Date.now() - new Date(c.created_at).getTime())/3600000 : 0;
+        if(!eleg || horas < 6) return false;
+      }
     }
     return true;
   });
