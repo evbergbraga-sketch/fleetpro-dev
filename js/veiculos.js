@@ -558,7 +558,7 @@ function editarVeiculo(id){
   const crlvNome = document.getElementById('ev-crlv-nome');
   const crlvPreview = document.getElementById('ev-crlv-preview');
   if(crlvNome) crlvNome.textContent = v.crlv_url ? 'CRLV enviado' : 'Nenhum arquivo enviado';
-  if(crlvPreview) crlvPreview.innerHTML = v.crlv_url ? `<a href="${v.crlv_url}" target="_blank" style="font-size:12px;color:var(--accent)">${ICO.arquivo} Ver CRLV atual</a>` : '';
+  if(crlvPreview) crlvPreview.innerHTML = v.crlv_url ? `<a href="${v.crlv_url}" target="_blank" style="font-size:12px;color:var(--accent)">${ICO.arquivo} Ver CRLV atual</a> <button onclick="_removerCrlv()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;font-weight:600;margin-left:10px">Remover</button>` : '';
   preencherSelectInvestidores('ev-investidor').then(()=>{
     const sel = document.getElementById('ev-investidor');
     if(sel) sel.value = v.investidor_id||'';
@@ -755,12 +755,39 @@ async function _uploadCrlv(input) {
 
     document.getElementById('ev-crlv-nome').textContent = file.name;
     document.getElementById('ev-crlv-preview').innerHTML = `
-      <a href="${publicUrl}" target="_blank" style="font-size:12px;color:var(--accent)">${ICO.arquivo} Ver CRLV enviado</a>`;
+      <a href="${publicUrl}" target="_blank" style="font-size:12px;color:var(--accent)">${ICO.arquivo} Ver CRLV enviado</a> <button onclick="_removerCrlv()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;font-weight:600;margin-left:10px">Remover</button>`;
     notify('CRLV salvo! Disponível no portal do cliente.', 'success');
   } catch(e) {
     document.getElementById('ev-crlv-nome').textContent = 'Erro ao enviar';
     notify('Erro: ' + e.message, 'error');
   }
+}
+
+// Remove o CRLV do veículo: apaga o arquivo do storage e limpa o campo no
+// banco — o botão do CRLV some do portal do cliente imediatamente.
+async function _removerCrlv(){
+  const veiculoId = document.getElementById('ev-id')?.value;
+  if(!veiculoId){ notify('Nenhum veículo em edição.','error'); return; }
+  if(!confirm('Remover o CRLV deste veículo? Ele deixará de aparecer no portal do cliente.')) return;
+  try{
+    const v = (typeof allVeiculos!=='undefined' ? allVeiculos : []).find(x=>x.id===veiculoId);
+    const url = v?.crlv_url;
+    // Exclusão do arquivo é melhor-esforço: se falhar, ainda limpamos o banco
+    if(url && url.includes('/veiculos-docs/')){
+      try{
+        const path = decodeURIComponent(url.split('/veiculos-docs/')[1].split('?')[0]);
+        await sb.storage.from('veiculos-docs').remove([path]);
+      }catch(_e){ /* arquivo órfão tolerado */ }
+    }
+    const {error} = await sb.from('veiculos').update({crlv_url:null}).eq('id',veiculoId);
+    if(error) throw error;
+    if(v) v.crlv_url = null;
+    const n = document.getElementById('ev-crlv-nome');
+    const p = document.getElementById('ev-crlv-preview');
+    if(n) n.textContent = 'Nenhum arquivo enviado';
+    if(p) p.innerHTML = '';
+    notify('CRLV removido — não aparece mais no portal do cliente.','success');
+  }catch(e){ notify('Erro ao remover: '+e.message,'error'); }
 }
 
 // ══════════════════════════════════════════════════════════════
