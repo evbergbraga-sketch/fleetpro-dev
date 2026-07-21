@@ -228,8 +228,11 @@ async function _portalRealizarSorteio(sorteioId) {
   if (!locacoes?.length) { notify('Nenhum cliente de moto ativo.','error'); return; }
   const elegiveis = [];
   for (const loc of locacoes) {
+    // Inelegível se houver cobrança já marcada 'atrasado' OU 'pendente' vencida
     const { data: venc } = await sb.from('cobrancas_semanais').select('id')
-      .eq('locacao_id',loc.id).eq('status','pendente').lt('data_vencimento',hoje).limit(1);
+      .eq('locacao_id',loc.id)
+      .or(`status.eq.atrasado,and(status.eq.pendente,data_vencimento.lt.${hoje})`)
+      .limit(1);
     if (!venc?.length) elegiveis.push(loc);
   }
   if (!elegiveis.length) { notify('Nenhum cliente elegível.','error'); return; }
@@ -252,8 +255,11 @@ async function _portalVerElegiveis(sorteioId) {
     .eq('status','ativa').not('plano_moto','is',null);
   const elegiveis = [], nao = [];
   for (const loc of locacoes||[]) {
+    // Inelegível se houver cobrança já marcada 'atrasado' OU 'pendente' vencida
     const { data: venc } = await sb.from('cobrancas_semanais').select('id')
-      .eq('locacao_id',loc.id).eq('status','pendente').lt('data_vencimento',hoje).limit(1);
+      .eq('locacao_id',loc.id)
+      .or(`status.eq.atrasado,and(status.eq.pendente,data_vencimento.lt.${hoje})`)
+      .limit(1);
     (venc?.length ? nao : elegiveis).push(loc);
   }
   document.getElementById('m-elegiveis-body').innerHTML = `
