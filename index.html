@@ -234,6 +234,12 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <div class="stat-val" id="st-alert-val">—</div>
             <div class="stat-sub" id="st-alert-sub">verificando...</div>
           </div>
+          <div id="st-sematraso-card" class="stat-card" onclick="abrirLocacoesSemAtraso()" style="cursor:pointer">
+            <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 14v3"/><path d="M12 19.5v.01"/></svg></div>
+            <div class="stat-label">Semanas em atraso</div>
+            <div class="stat-val" id="st-sematraso-val">—</div>
+            <div class="stat-sub" id="st-sematraso-sub">verificando...</div>
+          </div>
           <div id="st-cp-card" class="stat-card" onclick="goPage('contas-pagar')" style="cursor:pointer;display:none">
             <div class="stat-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg></div>
             <div class="stat-label">Contas — Alertas</div>
@@ -3114,7 +3120,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/apilogs.js?v=20260710n"></script>
 <script src="js/ui.js?v=20260710n"></script>
 <script src="js/setup.js?v=20260710n"></script>
-<script src="js/nav.js?v=20260719b"></script>
+<script src="js/nav.js?v=20260721a"></script>
 <script src="js/veiculos.js?v=20260720a"></script>
 <script src="js/clientes.js?v=20260710n"></script>
 <script src="js/historico.js?v=20260710n"></script>
@@ -3125,7 +3131,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/categorias.js?v=20260710n"></script>
 <script src="js/portal-admin.js?v=20260720a"></script>
 <script src="js/reservas.js?v=20260719a"></script>
-<script src="js/locacoes.js?v=20260719a"></script>
+<script src="js/locacoes.js?v=20260721a"></script>
 <script src="js/chat.js?v=20260721a"></script>
 <script src="js/respostas-rapidas.js?v=20260710n"></script>
 <script src="js/investidores.js?v=20260710n"></script>

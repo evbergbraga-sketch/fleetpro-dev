@@ -3,16 +3,31 @@
 // allLocacoesCompletas declarado em config.js
 let _checklistItens = [];      // itens padrão do checklist
 
+// Limpa o filtro do card "Semanas em atraso" e volta à lista completa
+function _locLimparFiltroAtraso(){
+  _locFiltroSemAtraso = false;
+  renderLocacoes();
+}
+
 // ══ RENDER LISTA DE LOCAÇÕES ══
 function renderLocacoes(){
   const tb = document.getElementById('tb-locacoes');
   if(!tb) return;
-  const ativas = allLocacoesCompletas.filter(l=>l.status==='ativa');
+  let ativas = allLocacoesCompletas.filter(l=>l.status==='ativa');
+  // Filtro vindo do card "Semanas em atraso" do dashboard
+  let avisoFiltro = '';
+  if(typeof _locFiltroSemAtraso!=='undefined' && _locFiltroSemAtraso){
+    ativas = ativas.filter(l=>_locIdsSemAtraso.has(l.id));
+    avisoFiltro = `<tr><td colspan="7" style="background:rgba(248,113,113,.08);padding:10px 14px">
+      <span style="font-size:12px;font-weight:700;color:#F87171">Mostrando apenas locações com semana em atraso (${ativas.length})</span>
+      <button onclick="_locLimparFiltroAtraso()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-weight:600;margin-left:12px">Ver todas ✕</button>
+    </td></tr>`;
+  }
   if(!ativas.length){
-    tb.innerHTML='<tr class="empty-row"><td colspan="7">Nenhuma locação ativa no momento</td></tr>';
+    tb.innerHTML = avisoFiltro + '<tr class="empty-row"><td colspan="7">Nenhuma locação ativa no momento</td></tr>';
     return;
   }
-  tb.innerHTML = ativas.map(l=>{
+  tb.innerHTML = avisoFiltro + ativas.map(l=>{
     const diff = Math.ceil((new Date(l.data_fim)-new Date())/86400000);
     const badge = diff<0
       ? '<span class="badge badge-red">Atrasado</span>'

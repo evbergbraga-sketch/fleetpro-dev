@@ -131,7 +131,11 @@ function goPage(id, navEl){
   if(id==='historico'){renderHistVeiculosList();}
   if(id==='carros'||id==='motos'){preencherSelectInvestidores();}
   if(id==='reservas'){renderReservas();}
-  if(id==='locacoes'){renderLocacoes();}
+  if(id==='locacoes'){
+    if(!_locFiltroSemAtrasoPreservar) _locFiltroSemAtraso = false;
+    _locFiltroSemAtrasoPreservar = false;
+    renderLocacoes();
+  }
   if(id==='financeiro'){ if(typeof iniciarFinanceiro==='function') iniciarFinanceiro(); }
   if(id==='portal'){ if(typeof iniciarPortalAdmin==='function') iniciarPortalAdmin(); }
 }
@@ -408,6 +412,48 @@ async function loadReservas(){
 }
 
 // ══ DASHBOARD ══
+// ── SEMANAS EM ATRASO (card do dashboard + filtro em Locações) ──
+let _locIdsSemAtraso = new Set();       // locações ativas com cobrança semanal vencida
+let _locFiltroSemAtraso = false;        // filtro ativo na lista de Locações
+let _locFiltroSemAtrasoPreservar = false; // one-shot: preserva o filtro no próximo goPage
+
+async function _dashSemAtraso(){
+  const val = document.getElementById('st-sematraso-val');
+  const sub = document.getElementById('st-sematraso-sub');
+  const card = document.getElementById('st-sematraso-card');
+  if(!val) return;
+  try{
+    const hoje = new Date().toISOString().slice(0,10);
+    const {data, error} = await sb.from('cobrancas_semanais')
+      .select('locacao_id,valor,status,data_vencimento')
+      .or(`status.eq.atrasado,and(status.eq.pendente,data_vencimento.lt.${hoje})`);
+    if(error) throw error;
+    const base = (typeof allLocacoesCompletas!=='undefined' && allLocacoesCompletas?.length) ? allLocacoesCompletas : (allLocacoes||[]);
+    const ativasIds = new Set(base.filter(l=>l.status==='ativa'||!l.status).map(l=>l.id));
+    const rel = (data||[]).filter(c=>ativasIds.has(c.locacao_id));
+    _locIdsSemAtraso = new Set(rel.map(c=>c.locacao_id));
+    const total = rel.reduce((a,b)=>a+(parseFloat(b.valor)||0),0);
+    val.textContent = _locIdsSemAtraso.size;
+    if(sub) sub.textContent = _locIdsSemAtraso.size === 0
+      ? 'Tudo em dia ✓'
+      : `${rel.length} semana${rel.length>1?'s':''} · R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})} a receber`;
+    if(card){
+      if(_locIdsSemAtraso.size > 0){ card.classList.add('stat-alert'); val.style.color=''; }
+      else { card.classList.remove('stat-alert'); val.style.color='#166534'; }
+    }
+  }catch(e){
+    val.textContent = '—';
+    if(sub) sub.textContent = 'erro ao verificar';
+  }
+}
+
+function abrirLocacoesSemAtraso(){
+  if(_locIdsSemAtraso.size === 0){ goPage('locacoes'); return; }
+  _locFiltroSemAtraso = true;
+  _locFiltroSemAtrasoPreservar = true;
+  goPage('locacoes');
+}
+
 function renderDashboard(){
   const isInv = currentPerfil?.perfil === 'investidor';
   const meusVeiculos = isInv
@@ -447,7 +493,7 @@ function renderDashboard(){
   const isAdmin = currentPerfil?.perfil === 'admin';
   const kpiGrid = document.getElementById('dash-kpi-grid');
   const cpCard  = document.getElementById('st-cp-card');
-  if(kpiGrid) kpiGrid.style.gridTemplateColumns = isAdmin ? 'repeat(6,1fr)' : 'repeat(5,1fr)';
+  if(kpiGrid) kpiGrid.style.gridTemplateColumns = isAdmin ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
   if(cpCard){
     cpCard.style.display = isAdmin ? '' : 'none';
     if(isAdmin){
@@ -470,6 +516,8 @@ function renderDashboard(){
       if(elAvencer) elAvencer.innerHTML = '';
     }
   }
+
+  _dashSemAtraso();
 
   const dl = document.getElementById('dash-loc');
   if(dl){
