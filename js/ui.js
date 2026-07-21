@@ -277,6 +277,9 @@ function openModal(type, subtipo){
     if(err) err.style.display='none';
     if(ok)  ok.style.display='none';
     document.getElementById('m-criar-usuario').classList.add('show');
+  } else if(type==='multa'){
+    if(typeof _mtAbrirNovo==='function') _mtAbrirNovo();
+    document.getElementById('m-multa').classList.add('show');
   }
 }
 function closeModal(t){

@@ -452,6 +452,7 @@ function editarCliente(id){
   sv('ec-nome', c.nome);
   sv('ec-cpf',  c.cpf);
   sv('ec-obs',  c.observacoes);
+  if(typeof _mtRenderListaCliente==='function') _mtRenderListaCliente(c.id);
 
   // Popular select de status com os status reais do banco
   const selStatus = document.getElementById('ec-status-crm');

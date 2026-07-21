@@ -541,6 +541,7 @@ function editarVeiculo(id){
   document.getElementById('ev-km').value    = v.km_atual||0;
   document.getElementById('ev-diaria').value= v.diaria||'';
   document.getElementById('ev-status').value = v.status||'disponivel';
+  if(typeof _mtRenderListaVeiculo==='function') _mtRenderListaVeiculo(v.id);
   // Foto do veículo (se cadastrada) no topo do modal
   const fotoPrev = document.getElementById('ev-foto-preview');
   if(fotoPrev){
