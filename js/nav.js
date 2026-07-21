@@ -15,6 +15,7 @@ const PAGE_CFG = {
   contratos:   {title:'Contratos',               action:'',                    modal:null,        roles:['admin','atendente']},
   calendario:  {title:'Calendário',              action:'',                    modal:null,        roles:['admin','atendente']},
   chat:        {title:'Chat WhatsApp',           action:'',                    modal:null,        roles:['admin','atendente']},
+  multas:      {title:'Multas',                  action:'+ Cadastrar Multa',   modal:'multa',     roles:['admin','atendente']},
   usuarios:    {title:'Usuários & Acessos',      action:'',                    modal:null,        roles:['admin']},
   investidores:{title:'Minha Carteira',          action:'',                    modal:null,        roles:['admin','investidor']},
   financeiro:  {title:'Financeiro',               action:'+ Lançamento',        modal:null,        roles:['admin']},
@@ -113,6 +114,7 @@ function goPage(id, navEl){
   if(id==='ajuda' && typeof renderAjudaAcordeon==='function') renderAjudaAcordeon();
   if(id==='pipeline'  && typeof iniciarPipeline==='function')  iniciarPipeline();
   if(id==='desempenho'&& typeof iniciarDesempenho==='function') iniciarDesempenho();
+  if(id==='multas'    && typeof iniciarMultas==='function')     iniciarMultas();
   if(id==='apilogs'   && typeof iniciarApiLogs==='function')   iniciarApiLogs();
   if(id==='calendario'){renderCal();}
   if(id==='chat'){
