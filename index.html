@@ -352,6 +352,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="reservado">Reservado</option>
             <option value="alugado">Alugado</option>
             <option value="manutencao">Manutenção</option>
+            <option value="vendido">🏷️ Vendido</option>
           </select>
           <button class="btn btn-ghost" onclick="abrirFotosModelos()" title="Fotos genéricas por modelo e cor" style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg> Fotos dos modelos</button>
             <button class="btn btn-primary" id="btn-add-carro" onclick="openModal('veiculo','carro')">+ Cadastrar</button>
@@ -369,6 +370,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="reservado">Reservado</option>
             <option value="alugado">Alugado</option>
             <option value="manutencao">Manutenção</option>
+            <option value="vendido">🏷️ Vendido</option>
           </select>
           <button class="btn btn-ghost" onclick="abrirFotosModelos()" title="Fotos genéricas por modelo e cor" style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg> Fotos dos modelos</button>
             <button class="btn btn-primary" id="btn-add-moto" onclick="openModal('veiculo','moto')">+ Cadastrar</button>
@@ -2911,6 +2913,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="reservado">🗓️ Reservado</option>
             <option value="alugado">🔴 Alugado</option>
             <option value="manutencao">🔧 Manutenção</option>
+            <option value="vendido">🏷️ Vendido</option>
           </select>
         </div>
         <div class="form-group"><label>Diária (R$)</label><input type="number" id="ev-diaria" style="width:100%"></div>
@@ -3291,7 +3294,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/ui.js?v=20260710n"></script>
 <script src="js/setup.js?v=20260710n"></script>
 <script src="js/nav.js?v=20260721a"></script>
-<script src="js/veiculos.js?v=20260720a"></script>
+<script src="js/veiculos.js?v=20260721c"></script>
 <script src="js/clientes.js?v=20260710n"></script>
 <script src="js/historico.js?v=20260710n"></script>
 <script src="js/contratos.js?v=20260720a"></script>
