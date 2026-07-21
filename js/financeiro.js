@@ -31,7 +31,7 @@ async function iniciarFinanceiro(){
 
 // ══ ABAS ══
 function _finTab(tab){
-  ['fluxo','veiculo','seguros','ipva'].forEach(t=>{
+  ['fluxo','veiculo','seguros','ipva','analise'].forEach(t=>{
     const p = document.getElementById('fin-painel-'+t);
     const b = document.getElementById('fin-tab-'+t);
     if(p) p.style.display = t===tab ? '' : 'none';
@@ -42,6 +42,7 @@ function _finTab(tab){
     }
   });
   if(tab==='veiculo') finPopularSelectVeiculos();
+  if(tab==='analise' && typeof iniciarAnalise==='function') iniciarAnalise();
 }
 
 // ══ POPULAR SELECTS DE VEÍCULO ══

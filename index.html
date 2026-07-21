@@ -1290,6 +1290,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
           <button id="fin-tab-veiculo"  onclick="_finTab('veiculo')"  class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">🚗 Por Veículo</button>
           <button id="fin-tab-seguros"  onclick="_finTab('seguros')"  class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">🛡️ Seguros</button>
           <button id="fin-tab-ipva"     onclick="_finTab('ipva')"     class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">📋 IPVA</button>
+          <button id="fin-tab-analise"  onclick="_finTab('analise')"  class="perfil-tab" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px">📊 Análise</button>
         </div>
 
         <!-- PAINEL FLUXO DE CAIXA -->
@@ -1377,6 +1378,10 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <tbody id="tb-ipva"></tbody>
             </table>
           </div>
+        </div>
+        <div id="fin-painel-analise" style="display:none">
+          <div id="an-realizado"></div>
+          <div id="an-caixa" style="margin-top:14px"></div>
         </div>
       </div>
 
@@ -3126,6 +3131,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/historico.js?v=20260710n"></script>
 <script src="js/contratos.js?v=20260720a"></script>
 <script src="js/financeiro.js?v=20260710n"></script>
+<script src="js/analise.js?v=20260721a"></script>
 <script src="js/contaspagar.js?v=20260710n"></script>
 <script src="js/cartoes.js?v=20260710n"></script>
 <script src="js/categorias.js?v=20260710n"></script>
