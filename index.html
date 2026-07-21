@@ -989,6 +989,66 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       </div>
 
       <!-- CHAT -->
+      <div class="page" id="page-multas">
+        <div class="stats-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px">
+          <div class="stat-card">
+            <div class="stat-label">Multas pendentes</div>
+            <div class="stat-val" id="mt-c-pendentes">—</div>
+            <div class="stat-sub" id="mt-c-pendentes-s">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">A receber de clientes</div>
+            <div class="stat-val" id="mt-c-receber">—</div>
+            <div class="stat-sub" id="mt-c-receber-s">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Multas vencidas</div>
+            <div class="stat-val" id="mt-c-vencidas">—</div>
+            <div class="stat-sub" id="mt-c-vencidas-s">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Em recurso</div>
+            <div class="stat-val" id="mt-c-recurso">—</div>
+            <div class="stat-sub" id="mt-c-recurso-s">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pagas este mês</div>
+            <div class="stat-val" id="mt-c-pagas">—</div>
+            <div class="stat-sub" id="mt-c-pagas-s">—</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+          <input type="text" id="mt-f-busca" placeholder="🔍 Buscar por placa, cliente, auto de infração..." style="flex:1;min-width:220px" oninput="renderMultas()">
+          <select id="mt-f-status" onchange="renderMultas()">
+            <option value="">Todos os status</option>
+            <option value="recebida">Recebida</option>
+            <option value="cliente_identificado">Cliente identificado</option>
+            <option value="em_cobranca">Em cobrança</option>
+            <option value="pago_cliente">Pago pelo cliente</option>
+            <option value="pago_locadora">Pago pela locadora</option>
+            <option value="reembolsado">Reembolsado</option>
+            <option value="em_recurso">Em recurso</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="vencida">⚠️ Vencidas</option>
+          </select>
+          <select id="mt-f-veiculo" onchange="renderMultas()"><option value="">Todos os veículos</option></select>
+          <select id="mt-f-cliente" onchange="renderMultas()"><option value="">Todos os clientes</option></select>
+          <input type="date" id="mt-f-de" onchange="renderMultas()" title="Infração de">
+          <input type="date" id="mt-f-ate" onchange="renderMultas()" title="Infração até">
+        </div>
+
+        <div class="card" style="padding:0;overflow-x:auto">
+          <table class="table">
+            <thead><tr>
+              <th>Data/Hora</th><th>Veículo</th><th>Cliente</th><th>Infração</th>
+              <th>Valor</th><th>Vencimento</th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody id="tb-multas"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="page" id="page-chat" style="height:100%;overflow:hidden;padding:0;">
         <div class="chat-layout" style="height:calc(100vh - 130px);">
           <div class="chat-list">
@@ -2439,6 +2499,9 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <div id="ec-cli-anexos-lista" style="margin-top:8px"></div>
       </div>
 
+      <div class="form-section-title">🚨 Multas deste cliente</div>
+      <div id="ec-multas-lista" style="font-size:12px;color:var(--muted);margin-bottom:6px">—</div>
+
       <div class="form-section-title">💬 Observações</div>
       <div class="form-group full"><textarea id="ec-obs" rows="2" style="width:100%;resize:vertical"></textarea></div>
     </div>
@@ -2710,6 +2773,106 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="m-multa">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title" id="mt-modal-title">🚨 Cadastrar Multa</div>
+      <button class="modal-close" onclick="closeModal('multa')">✕</button>
+    </div>
+    <div style="max-height:72vh;overflow-y:auto;padding:4px 2px">
+      <input type="hidden" id="mt-id">
+
+      <div class="form-section-title">📄 Dados da multa</div>
+      <div class="form-grid">
+        <div><label>Número do auto*</label><input type="text" id="mt-numero-auto" placeholder="AEI12345678"></div>
+        <div><label>Órgão autuador*</label>
+          <select id="mt-orgao"><option value="DETRAN">DETRAN</option><option value="PRF">PRF</option><option value="Prefeitura">Prefeitura</option><option value="DER">DER</option><option value="Outros">Outros</option></select>
+        </div>
+        <div><label>Data da infração*</label><input type="date" id="mt-data-infracao" onchange="_mtAutoDetectarResponsavel()"></div>
+        <div><label>Hora da infração</label><input type="time" id="mt-hora-infracao" onchange="_mtAutoDetectarResponsavel()"></div>
+        <div style="grid-column:1/-1"><label>Local da infração</label><input type="text" id="mt-local"></div>
+        <div><label>Tipo da infração*</label><input type="text" id="mt-tipo" placeholder="Avanço de sinal"></div>
+        <div><label>Código/artigo</label><input type="text" id="mt-codigo"></div>
+        <div><label>Pontuação</label><input type="number" id="mt-pontuacao" min="0" step="1"></div>
+        <div><label>Valor original*</label><input type="number" id="mt-valor-original" min="0" step="0.01"></div>
+        <div><label>Valor com desconto</label><input type="number" id="mt-valor-desconto" min="0" step="0.01"></div>
+        <div><label>Vencimento*</label><input type="date" id="mt-vencimento"></div>
+        <div><label>Status</label>
+          <select id="mt-status">
+            <option value="recebida">Recebida</option>
+            <option value="cliente_identificado">Cliente identificado</option>
+            <option value="em_cobranca">Em cobrança</option>
+            <option value="pago_cliente">Pago pelo cliente</option>
+            <option value="pago_locadora">Pago pela locadora</option>
+            <option value="reembolsado">Reembolsado</option>
+            <option value="em_recurso">Em recurso</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1"><label>Descrição</label><textarea id="mt-descricao" rows="2"></textarea></div>
+      </div>
+
+      <div class="form-section-title">🚗 Veículo</div>
+      <div class="form-grid">
+        <div style="grid-column:1/-1;position:relative">
+          <label>Veículo*</label>
+          <input type="text" id="mt-veiculo-busca" placeholder="Buscar por placa ou modelo..." oninput="_mtBuscarVeiculo(this.value)" autocomplete="off">
+          <div id="mt-veiculo-resultados" class="search-results" style="display:none"></div>
+          <input type="hidden" id="mt-veiculo-id" onchange="_mtAutoDetectarResponsavel()">
+          <div id="mt-veiculo-selecionado" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
+        </div>
+      </div>
+
+      <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>🧑 Responsável pela infração</span>
+        <span id="mt-resp-auto-badge" style="display:none;font-size:10px;font-weight:700;color:#16a34a;text-transform:none;letter-spacing:0">✓ identificado automaticamente</span>
+      </div>
+      <div class="form-grid">
+        <div style="grid-column:1/-1;position:relative">
+          <label>Cliente responsável</label>
+          <input type="text" id="mt-cliente-busca" placeholder="Buscar cliente (ou deixe em branco se ainda não identificado)..." oninput="_mtBuscarCliente(this.value)" autocomplete="off">
+          <div id="mt-cliente-resultados" class="search-results" style="display:none"></div>
+          <input type="hidden" id="mt-cliente-id">
+          <input type="hidden" id="mt-locacao-id">
+          <div id="mt-cliente-selecionado" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
+        </div>
+        <div><label>Telefone</label><input type="text" id="mt-telefone"></div>
+        <div><label>E-mail</label><input type="text" id="mt-email"></div>
+        <div><label>Condutor principal</label><input type="text" id="mt-condutor-principal"></div>
+        <div><label>Condutor adicional</label><input type="text" id="mt-condutor-adicional"></div>
+      </div>
+
+      <div class="form-section-title">📎 Anexos</div>
+      <input type="file" id="mt-anexo-input" multiple onchange="_mtUploadAnexos(this.files)" accept="image/*,.pdf" style="margin-bottom:8px">
+      <div id="mt-anexos-lista"></div>
+
+      <div class="form-section-title">📝 Observações</div>
+      <textarea id="mt-observacoes" rows="2" style="width:100%"></textarea>
+    </div>
+    <div style="padding:14px 4px 4px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border2);margin-top:8px">
+      <button class="btn btn-ghost" onclick="closeModal('multa')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarMulta()">Salvar Multa</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="m-multa-detalhe">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title" id="mtd-titulo">Multa</div>
+      <button class="modal-close" onclick="closeModal('multa-detalhe')">✕</button>
+    </div>
+    <div id="mtd-corpo" style="max-height:74vh;overflow-y:auto;padding:4px 2px"></div>
+    <div style="padding:14px 4px 4px;display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border2);margin-top:8px">
+      <button class="btn btn-ghost" style="color:var(--red)" onclick="excluirMulta()">🗑️ Excluir</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="_mtAbrirEdicao()">✏️ Editar</button>
+        <button class="btn btn-primary" onclick="closeModal('multa-detalhe')">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="m-editar-veiculo">
   <div class="modal" style="max-width:700px">
     <div class="modal-header"><div class="modal-title">✏️ Editar Veículo</div><button class="modal-close" onclick="closeModal('editar-veiculo')">✕</button></div>
@@ -2830,6 +2993,8 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         </div>
         <div id="ev-crlv-preview" style="margin-top:8px"></div>
       </div>
+      <div class="form-section-title">🚨 Multas deste veículo</div>
+      <div id="ev-multas-lista" style="font-size:12px;color:var(--muted);margin-bottom:6px">—</div>
       <div class="form-section-title">💬 Observações</div>
       <div class="form-group full"><textarea id="ev-obs" rows="2" style="width:100%;resize:none"></textarea></div>
     </div>
