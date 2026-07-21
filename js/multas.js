@@ -141,9 +141,13 @@ function renderMultas(){
     const badge = _mtBadge(m);
     const dtInfr = m.data_infracao ? fmtData(m.data_infracao) + (m.hora_infracao?' às '+m.hora_infracao.slice(0,5):'') : '—';
     const veic = m.veiculos ? `${m.veiculos.marca||''} ${m.veiculos.modelo||''}`.trim() : '—';
+    const vTipo = m.veiculos?.tipo||'carro';
+    const vThumb = m.veiculos
+      ? `<div class="vi ${m.veiculos.foto_url?'vi-foto':(vTipo==='carro'?'vi-car':'vi-moto')}">${m.veiculos.foto_url?`<img src="${m.veiculos.foto_url}" onerror="this.parentElement.className='vi ${vTipo==='carro'?'vi-car':'vi-moto'}';this.parentElement.innerHTML=SVG_VEICULO('${vTipo}')">`:SVG_VEICULO(vTipo)}</div>`
+      : '';
     return `<tr style="cursor:pointer" onclick="abrirDetalheMulta('${m.id}')">
       <td>${dtInfr}</td>
-      <td><div style="font-weight:500">${veic||'—'}</div><div style="font-size:11px;color:var(--muted)">${m.veiculos?.placa||''}</div></td>
+      <td><div style="display:flex;align-items:center;gap:10px">${vThumb}<div><div style="font-weight:500">${veic||'—'}</div><div style="font-size:11px;color:var(--muted)">${m.veiculos?.placa||''}</div></div></div></td>
       <td>${m.clientes?.nome || '<span style="color:var(--muted)">Não identificado</span>'}</td>
       <td>${m.tipo_infracao||'—'}</td>
       <td>${_mtFmt(_mtValorCobrado(m))}</td>
