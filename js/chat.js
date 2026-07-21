@@ -565,7 +565,10 @@ async function evoSendText(telefone, texto){
       body: JSON.stringify({
         numero: num,
         texto,
-        clienteId: activeChatId||null,
+        // Contato não cadastrado: activeChatId é o telefone, não um UUID —
+        // enviar null faz o bridge salvar server-side vinculado ao numero
+        // (telefone como clienteId estourava o insert e caía no fallback)
+        clienteId: (activeChatId && activeChatId.includes('-')) ? activeChatId : null,
         nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
       })
     });
@@ -1859,7 +1862,7 @@ async function _enviarMidiaWpp(c){
         tipo,
         base64,
         fileName: fileName||null,
-        clienteId: activeChatId||null,
+        clienteId: (activeChatId && activeChatId.includes('-')) ? activeChatId : null,
         nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
       })
     });
