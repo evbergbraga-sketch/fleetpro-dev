@@ -663,8 +663,6 @@ async function registrarContrato(retornarId=false){
     if(error) throw error;
 
     await sb.from('veiculos').update({status:'alugado'}).eq('id',vid);
-    // Lançamento financeiro automático
-    if(typeof finRegistrarLancamentoLocacao==='function') finRegistrarLancamentoLocacao(locSalva).catch(()=>{});
 
     // Criar assinatura recorrente no Asaas (via n8n) — apenas planos moto
     // MODO MIGRAÇÃO: cliente já tem assinatura ativa no Asaas (veio de outro
@@ -672,6 +670,18 @@ async function registrarContrato(retornarId=false){
     // busca e vincula a assinatura existente pelo CPF, e reconcilia na hora
     // quais semanas já foram pagas.
     const modoMigracao = document.getElementById('c-modo-migracao')?.checked;
+
+    // Lançamento financeiro automático (caução + cobranças semanais).
+    // No Modo Migração isso precisa TERMINAR antes de reconciliar com o
+    // Asaas — a reconciliação casa pagamento com cobrança pela data de
+    // vencimento, então precisa que as cobranças já existam no banco
+    // (senão não acha nada pra casar e a migração silenciosamente não
+    // marca nenhuma semana como paga).
+    if(typeof finRegistrarLancamentoLocacao==='function'){
+      if(modoMigracao) await finRegistrarLancamentoLocacao(locSalva).catch(()=>{});
+      else finRegistrarLancamentoLocacao(locSalva).catch(()=>{});
+    }
+
     if(planoMoto && modoMigracao && typeof vincularAssinaturaAsaasExistente==='function'){
       vincularAssinaturaAsaasExistente(locSalva, cid).catch(e=>console.warn('[migracao/asaas] falha:', e.message));
     } else if(planoMoto && typeof criarAssinaturaAsaas==='function'){
