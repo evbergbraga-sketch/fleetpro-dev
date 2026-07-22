@@ -463,6 +463,7 @@ function abrirDetalheMulta(id){
       campo('Cliente', m.clientes?.nome) + campo('Telefone', m.telefone) +
       campo('Condutor principal', m.condutor_principal) + campo('Condutor adicional', m.condutor_adicional)
     )}
+    ${_mtBlocoCobranca(m, campo)}
     <div class="form-section-title">📎 Anexos</div>
     <div style="margin-bottom:6px">
       ${anexos.length ? anexos.map(u=>`<a href="${u}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;margin:0 6px 6px 0;font-size:12px;color:var(--accent);text-decoration:none">${_iconeArquivo(_nomeArquivo(u))} ${_nomeArquivo(u)}</a>`).join('')
@@ -536,4 +537,94 @@ async function _mtRenderListaCliente(clienteId){
       </div>`;
     }).join('');
   }catch(e){ el.innerHTML = 'Erro ao carregar multas.'; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FASE 2 — COBRANÇA (lançamento financeiro simples; sem Asaas por ora)
+// "Gerar cobrança" cria um lançamento de receita (categoria "Multa") no
+// valor da multa + taxa administrativa, vinculado ao veículo. Sem cliente
+// identificado não dá pra cobrar — o botão exige isso.
+// ══════════════════════════════════════════════════════════════
+function _mtBlocoCobranca(m, campo){
+  const podeGerar = m.cliente_id && !m.lancamento_id && !['pago_cliente','pago_locadora','reembolsado','cancelada'].includes(m.status);
+  const jaGerou = !!m.lancamento_id;
+  const podeMarcarPago = jaGerou && m.status==='em_cobranca';
+
+  if(!m.cliente_id && !jaGerou){
+    return `<div class="form-section-title">💳 Cobrança</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Identifique o cliente responsável antes de gerar a cobrança.</div>`;
+  }
+
+  const total = _mtValorCobrado(m) + (parseFloat(m.taxa_administrativa)||0);
+  return `
+    <div class="form-section-title">💳 Cobrança</div>
+    <div class="form-grid" style="margin-bottom:8px">
+      ${jaGerou ? campo('Valor da multa', _mtFmt(_mtValorCobrado(m))) : ''}
+      ${jaGerou ? campo('Taxa administrativa', _mtFmt(m.taxa_administrativa||0)) : ''}
+      ${jaGerou ? campo('Total cobrado', _mtFmt(total)) : ''}
+      ${jaGerou ? campo('Forma de pagamento', m.forma_pagamento||'—') : ''}
+      ${jaGerou ? campo('Pago em', m.data_pagamento?fmtData(m.data_pagamento.slice(0,10)):'—') : ''}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${podeGerar?`<button class="btn btn-primary" style="font-size:12px" onclick="_mtAbrirGerarCobranca('${m.id}')">💳 Gerar cobrança</button>`:''}
+      ${podeMarcarPago?`<button class="btn btn-primary" style="font-size:12px;background:var(--green)" onclick="_mtMarcarPagoCliente('${m.id}')">✓ Marcar como pago</button>`:''}
+    </div>`;
+}
+
+function _mtAbrirGerarCobranca(multaId){
+  const m = _mtDados.find(x=>x.id===multaId);
+  if(!m) return;
+  const taxaStr = prompt('Taxa administrativa a somar ao valor da multa (R$):', '50');
+  if(taxaStr===null) return;
+  const taxa = parseFloat(taxaStr.replace(',','.'))||0;
+  const forma = prompt('Forma de pagamento combinada com o cliente (Pix, Boleto, Dinheiro, Cartão, Transferência):', 'Pix') || 'Pix';
+  _mtConfirmarGerarCobranca(multaId, taxa, forma);
+}
+
+async function _mtConfirmarGerarCobranca(multaId, taxa, forma){
+  const m = _mtDados.find(x=>x.id===multaId);
+  if(!m) return;
+  const valorMulta = _mtValorCobrado(m);
+  const total = valorMulta + taxa;
+  try{
+    const { data: lanc, error: errLanc } = await sb.from('lancamentos').insert({
+      tipo: 'receita',
+      categoria: 'Multa',
+      valor: total,
+      veiculo_id: m.veiculo_id,
+      data: new Date().toISOString().slice(0,10),
+      descricao: `Multa #${m.numero_auto} — ${m.clientes?.nome||'cliente'} (${m.veiculos?.placa||''})${taxa>0?` — inclui taxa administrativa de ${_mtFmt(taxa)}`:''}`,
+    }).select('id').single();
+    if(errLanc) throw errLanc;
+
+    const { error: errUpd } = await sb.from('multas').update({
+      taxa_administrativa: taxa,
+      forma_pagamento: forma,
+      lancamento_id: lanc.id,
+      status: 'em_cobranca',
+      updated_at: new Date().toISOString(),
+    }).eq('id', multaId);
+    if(errUpd) throw errUpd;
+
+    notify(`✓ Cobrança gerada — total ${_mtFmt(total)}`,'success');
+    await carregarMultas();
+    renderCardsMultas(); renderMultas();
+    abrirDetalheMulta(multaId);
+  }catch(e){ notify('Erro ao gerar cobrança: '+e.message,'error'); }
+}
+
+async function _mtMarcarPagoCliente(multaId){
+  if(!confirm('Confirma que o cliente pagou esta multa?')) return;
+  try{
+    const { error } = await sb.from('multas').update({
+      status: 'pago_cliente',
+      data_pagamento: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', multaId);
+    if(error) throw error;
+    notify('✓ Multa marcada como paga pelo cliente!','success');
+    await carregarMultas();
+    renderCardsMultas(); renderMultas();
+    abrirDetalheMulta(multaId);
+  }catch(e){ notify('Erro ao marcar como pago: '+e.message,'error'); }
 }
