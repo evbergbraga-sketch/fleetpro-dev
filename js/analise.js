@@ -6,6 +6,11 @@
 
 const fmtR$ = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
 
+// Fonte "estilo iPhone" pros números grandes (SF Pro/system, não a Syne
+// decorativa) + cores mais vivas e saturadas, só pra esses destaques.
+const _anFontMoney = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
+const _anVivo = { green:'#16A34A', red:'#EF4444', roxo:'#7C3AED' };
+
 let _anCarregado = false;
 
 async function iniciarAnalise(){
@@ -69,19 +74,19 @@ async function _anRenderRealizado(){
 
     el.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:16px">
-        <div class="card" style="border-left:3px solid var(--green)">
+        <div class="card" style="border-left:3px solid ${_anVivo.green}">
           <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Receita do mês</div>
-          <div style="font-family:var(--font-display);font-size:26px;font-weight:800;margin:6px 0 4px;color:var(--green);font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(rec)}</div>
+          <div style="font-family:${_anFontMoney};font-size:28px;font-weight:700;margin:6px 0 4px;color:${_anVivo.green};font-variant-numeric:tabular-nums;letter-spacing:-0.02em">${fmtR$(rec)}</div>
           ${setaVar(varRec,false)}
         </div>
-        <div class="card" style="border-left:3px solid var(--red)">
+        <div class="card" style="border-left:3px solid ${_anVivo.red}">
           <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Despesa do mês</div>
-          <div style="font-family:var(--font-display);font-size:26px;font-weight:800;margin:6px 0 4px;color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(desp)}</div>
+          <div style="font-family:${_anFontMoney};font-size:28px;font-weight:700;margin:6px 0 4px;color:${_anVivo.red};font-variant-numeric:tabular-nums;letter-spacing:-0.02em">${fmtR$(desp)}</div>
           ${setaVar(varDesp,true)}
         </div>
         <div class="card" style="border-left:3px solid var(--accent)">
           <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Resultado líquido</div>
-          <div style="font-family:var(--font-display);font-size:26px;font-weight:800;margin:6px 0 4px;color:${liq>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(liq)}</div>
+          <div style="font-family:${_anFontMoney};font-size:28px;font-weight:700;margin:6px 0 4px;color:${liq>=0?_anVivo.green:_anVivo.red};font-variant-numeric:tabular-nums;letter-spacing:-0.02em">${fmtR$(liq)}</div>
           ${setaVar(varLiq,false)}
         </div>
       </div>
@@ -169,7 +174,7 @@ async function _anRenderCaixaProjetado(){
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;flex-wrap:wrap;gap:12px">
           <div>
             <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Caixa projetado · 8 semanas</div>
-            <div style="font-family:var(--font-display);font-size:28px;font-weight:800;margin:6px 0 0;color:${acumulado>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(acumulado)}</div>
+            <div style="font-family:${_anFontMoney};font-size:32px;font-weight:700;margin:6px 0 0;color:${acumulado>=0?_anVivo.green:_anVivo.red};font-variant-numeric:tabular-nums;letter-spacing:-0.02em">${fmtR$(acumulado)}</div>
           </div>
           ${semanaPior ? `<div style="text-align:right">
             <div style="font-size:11px;color:var(--muted)">Pior ponto do período</div>
@@ -184,11 +189,11 @@ async function _anRenderCaixaProjetado(){
         <div style="display:flex;gap:20px;flex-wrap:wrap;padding-top:14px;margin-top:8px;border-top:1px solid var(--border2)">
           <div>
             <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Entradas contratadas</div>
-            <div style="font-size:16px;font-weight:700;color:var(--green);margin-top:3px;font-variant-numeric:tabular-nums">+${fmtR$(totalEntradas)}</div>
+            <div style="font-size:16px;font-weight:700;color:${_anVivo.green};margin-top:3px;font-variant-numeric:tabular-nums">+${fmtR$(totalEntradas)}</div>
           </div>
           <div>
             <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Saídas agendadas</div>
-            <div style="font-size:16px;font-weight:700;color:var(--red);margin-top:3px;font-variant-numeric:tabular-nums">-${fmtR$(totalSaidas)}</div>
+            <div style="font-size:16px;font-weight:700;color:${_anVivo.red};margin-top:3px;font-variant-numeric:tabular-nums">-${fmtR$(totalSaidas)}</div>
           </div>
           ${semanaMaiorSaida?.saidas>0 ? `<div style="margin-left:auto;text-align:right">
             <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Maior saída isolada</div>
@@ -203,21 +208,30 @@ async function _anRenderCaixaProjetado(){
       const canvas = document.getElementById(canvasId);
       if(!canvas || typeof Chart==='undefined') return;
       const ctx = canvas.getContext('2d');
-      const corLinha = acumulado>=0 ? '#15803d' : '#DC2626';
+      const corLinha = acumulado>=0 ? _anVivo.green : _anVivo.red;
       const gradiente = ctx.createLinearGradient(0,0,0,180);
-      gradiente.addColorStop(0, acumulado>=0 ? 'rgba(21,128,61,0.22)' : 'rgba(220,38,38,0.22)');
-      gradiente.addColorStop(1, acumulado>=0 ? 'rgba(21,128,61,0)' : 'rgba(220,38,38,0)');
+      gradiente.addColorStop(0, acumulado>=0 ? 'rgba(22,163,74,0.24)' : 'rgba(239,68,68,0.24)');
+      gradiente.addColorStop(1, acumulado>=0 ? 'rgba(22,163,74,0)' : 'rgba(239,68,68,0)');
       new Chart(canvas, {
         type: 'line',
-        data: { labels, datasets: [{
-          data: pontos, borderColor: corLinha, borderWidth: 2.5, pointRadius: 0,
-          pointHoverRadius: 5, pointHoverBackgroundColor: corLinha, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-          fill: true, backgroundColor: gradiente, tension: 0.35,
-        }]},
+        data: { labels, datasets: [
+          {
+            data: pontos, borderColor: corLinha, borderWidth: 2.5, pointRadius: 0,
+            pointHoverRadius: 5, pointHoverBackgroundColor: corLinha, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+            fill: true, backgroundColor: gradiente, tension: 0.35, order: 1,
+          },
+          {
+            // Linha de referência no zero — deixa claro visualmente o quanto
+            // falta pra sair do vermelho (ou quão folgado está o positivo)
+            data: pontos.map(()=>0), borderColor: '#A1A1AA', borderWidth: 1, borderDash: [4,4],
+            pointRadius: 0, fill: false, tension: 0, order: 0,
+          },
+        ]},
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: {display:false}, tooltip: {
             backgroundColor: '#18181B', titleColor: '#A1A1AA', bodyColor: '#FAFAFA', padding: 10, displayColors: false,
+            filter: item => item.datasetIndex===0,
             callbacks: { label: c => fmtR$(c.parsed.y) }
           }},
           scales: {
@@ -418,7 +432,7 @@ async function _anRenderInadimplencia(){
     });
     const totalValor = vencidas.reduce((a,c)=>a+(parseFloat(c.valor)||0),0);
     const maxValor = Math.max(...buckets.map(b=>b.valor), 1);
-    const cores = ['#D97706','#EA580C','#DC2626','#991B1B'];
+    const cores = ['#F59E0B','#F97316',_anVivo.red,'#B91C1C'];
 
     el.innerHTML = `
       <div class="card">
@@ -426,10 +440,10 @@ async function _anRenderInadimplencia(){
           <div style="font-weight:700;font-size:13px">Inadimplência por tempo de atraso</div>
           <div style="text-align:right">
             <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Total vencido</div>
-            <div style="font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--red);margin-top:2px;font-variant-numeric:tabular-nums">${fmtR$(totalValor)}</div>
+            <div style="font-family:${_anFontMoney};font-size:22px;font-weight:700;color:${_anVivo.red};margin-top:2px;font-variant-numeric:tabular-nums">${fmtR$(totalValor)}</div>
           </div>
         </div>
-        ${vencidas.length===0 ? '<div style="font-size:13px;color:var(--green)">Nenhuma cobrança vencida no momento.</div>' :
+        ${vencidas.length===0 ? '<div style="font-size:13px;color:'+_anVivo.green+'">Nenhuma cobrança vencida no momento.</div>' :
           buckets.map((b,i)=>`
             <div style="margin-bottom:14px">
               <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
@@ -498,8 +512,8 @@ async function _anRenderEvolucao(){
         data: {
           labels: meses.map(m=>m.label),
           datasets: [
-            { label:'Receita', data: meses.map(m=>m.receita), backgroundColor:'#15803d', borderRadius:4, maxBarThickness:22 },
-            { label:'Despesa', data: meses.map(m=>m.despesa), backgroundColor:'#DC2626', borderRadius:4, maxBarThickness:22 },
+            { label:'Receita', data: meses.map(m=>m.receita), backgroundColor:_anVivo.green, borderRadius:4, maxBarThickness:22 },
+            { label:'Despesa', data: meses.map(m=>m.despesa), backgroundColor:_anVivo.red, borderRadius:4, maxBarThickness:22 },
           ]
         },
         options: {
