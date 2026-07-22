@@ -216,7 +216,7 @@ async function _anRenderVeiculos(){
     const janela90 = new Date(hoje.getTime() - 90*86400000);
 
     const [rVeic, rRec, rLoc] = await Promise.all([
-      sb.from('veiculos').select('id,marca,modelo,placa,tipo,status,valor_compra,data_compra').neq('status','vendido'),
+      sb.from('veiculos').select('id,marca,modelo,placa,tipo,status,foto_url,valor_compra,data_compra').neq('status','vendido'),
       sb.from('lancamentos').select('veiculo_id,valor').eq('tipo','receita').not('veiculo_id','is',null),
       sb.from('locacoes').select('veiculo_id,data_inicio,data_fim,status'),
     ]);
@@ -261,6 +261,22 @@ async function _anRenderVeiculos(){
     });
 
     _anVeiculosExpandido = false;
+
+    // Shell fixo: renderizado UMA vez. O campo de busca e a lista ficam
+    // dentro de um container próprio (#an-veic-lista) que é o único
+    // atualizado a cada tecla digitada — assim o input nunca perde o foco
+    // (re-renderizar o input inteiro a cada tecla fazia só dar pra digitar
+    // uma letra por vez).
+    el.innerHTML = `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;flex-wrap:wrap;gap:8px">
+          <div style="font-weight:700;font-size:13px">Desempenho por veículo</div>
+          <input type="text" id="an-veic-busca" placeholder="Buscar por modelo ou placa..." oninput="_anRenderVeiculosLista()" style="font-size:12px;padding:5px 10px;max-width:220px">
+        </div>
+        <div id="an-veic-sub" style="font-size:11px;color:var(--muted);margin-bottom:10px"></div>
+        <div id="an-veic-lista"></div>
+      </div>`;
+
     _anRenderVeiculosLista();
   }catch(e){
     el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
@@ -273,8 +289,9 @@ function _anToggleVeiculosExpandido(){
 }
 
 function _anRenderVeiculosLista(){
-  const el = document.getElementById('an-veiculos');
-  if(!el) return;
+  const listaEl = document.getElementById('an-veic-lista');
+  const subEl   = document.getElementById('an-veic-sub');
+  if(!listaEl) return;
   const busca = (document.getElementById('an-veic-busca')?.value||'').toLowerCase().trim();
 
   const linha = (label,val,cor) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--muted)">${label}</span><span style="font-weight:700;${cor?`color:${cor}`:''}">${val}</span></div>`;
@@ -284,12 +301,25 @@ function _anRenderVeiculosLista(){
     const alvo = `${d.v.marca} ${d.v.modelo} ${d.v.placa}`.toLowerCase();
     return alvo.includes(busca);
   });
-  const limite = _anVeiculosExpandido ? filtrados.length : 5;
+  const limite = _anVeiculosExpandido ? filtrados.length : 7;
   const visiveis = filtrados.slice(0, limite);
   const restante = filtrados.length - limite;
 
-  const cardsHtml = visiveis.map(d=>`
+  if(subEl) subEl.textContent = `Payback (receita histórica ÷ custo de compra) · Ocupação nos últimos 90 dias · ${filtrados.length} veículo${filtrados.length===1?'':'s'}`;
+
+  if(!filtrados.length){
+    listaEl.innerHTML = '<div style="font-size:13px;color:var(--muted)">Nenhum veículo encontrado.</div>';
+    return;
+  }
+
+  const cardsHtml = visiveis.map(d=>{
+    const vTipo = d.v.tipo||'carro';
+    const thumb = d.v.foto_url
+      ? `<div class="vi vi-foto" style="margin-bottom:6px"><img src="${d.v.foto_url}" onerror="this.parentElement.className='vi ${vTipo==='carro'?'vi-car':'vi-moto'}';this.parentElement.innerHTML=SVG_VEICULO('${vTipo}')"></div>`
+      : `<div class="vi ${vTipo==='carro'?'vi-car':'vi-moto'}" style="margin-bottom:6px">${SVG_VEICULO(vTipo)}</div>`;
+    return `
             <div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px">
+              ${thumb}
               <div style="font-weight:700;font-size:13px">${d.v.marca} ${d.v.modelo}</div>
               <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${d.v.placa}</div>
               ${d.custo>0 ? `
@@ -299,29 +329,22 @@ function _anRenderVeiculosLista(){
                   <div style="background:${d.pctRecuperado>=100?'#16a34a':'var(--accent)'};height:100%;width:${Math.min(100,d.pctRecuperado)}%"></div>
                 </div>
                 ${linha('Payback', d.pctRecuperado+'%', d.pctRecuperado>=100?'#16a34a':null)}
-              ` : `<div style="font-size:11px;color:${d.custoSuspeito?'#F5B942':'var(--muted)'};font-style:italic;margin-bottom:6px">${d.custoSuspeito?'⚠️ Valor de compra parece incorreto (R$ '+d.v.valor_compra+') — confira o cadastro':'Sem valor de compra cadastrado'}</div>`}
+              ` : `<div style="font-size:11px;color:${d.custoSuspeito?'#F5B942':'var(--muted)'};font-style:italic;margin-bottom:6px">${d.custoSuspeito?'Valor de compra parece incorreto (R$ '+d.v.valor_compra+') — confira o cadastro':'Sem valor de compra cadastrado'}</div>`}
               ${linha('Ocupação (90d)', d.pctOcupacao+'%', d.pctOcupacao>=70?'#16a34a':d.pctOcupacao<30?'#F87171':null)}
               ${d.receitaDia!=null?linha('Receita/dia (média)', fmtR$(d.receitaDia)):''}
-            </div>`).join('');
+            </div>`;
+  }).join('');
 
-  el.innerHTML = `
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;flex-wrap:wrap;gap:8px">
-          <div style="font-weight:700;font-size:13px">Desempenho por veículo</div>
-          <input type="text" id="an-veic-busca" placeholder="🔍 Buscar por modelo ou placa..." oninput="_anRenderVeiculosLista()" value="${busca}" style="font-size:12px;padding:5px 10px;max-width:220px">
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Payback (receita histórica ÷ custo de compra) · Ocupação nos últimos 90 dias · ${filtrados.length} veículo${filtrados.length===1?'':'s'}</div>
-        ${filtrados.length===0 ? '<div style="font-size:13px;color:var(--muted)">Nenhum veículo encontrado.</div>' : `
+  listaEl.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">
           ${cardsHtml}
         </div>
-        ${filtrados.length>5 ? `
+        ${filtrados.length>7 ? `
         <div style="text-align:center;padding-top:12px">
           <button class="btn btn-ghost" onclick="_anToggleVeiculosExpandido()" style="font-size:12px;padding:5px 16px">
             ${_anVeiculosExpandido ? 'Exibir menos' : `Exibir mais (${restante})`}
           </button>
-        </div>` : ''}`}
-      </div>`;
+        </div>` : ''}`;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -367,7 +390,7 @@ async function _anRenderInadimplencia(){
           <div style="font-weight:700;font-size:13px">Inadimplência por tempo de atraso</div>
           <div style="font-size:12px;color:var(--muted)">Total vencido: <b style="color:#F87171">${fmtR$(totalValor)}</b> em ${vencidas.length} semana${vencidas.length===1?'':'s'}</div>
         </div>
-        ${vencidas.length===0 ? '<div style="font-size:13px;color:var(--muted)">Nenhuma cobrança vencida no momento 🎉</div>' :
+        ${vencidas.length===0 ? '<div style="font-size:13px;color:#16a34a">Nenhuma cobrança vencida no momento.</div>' :
           buckets.map((b,i)=>`
             <div style="margin-bottom:8px">
               <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">

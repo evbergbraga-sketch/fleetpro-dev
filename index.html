@@ -352,7 +352,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="reservado">Reservado</option>
             <option value="alugado">Alugado</option>
             <option value="manutencao">Manutenção</option>
-            <option value="vendido">🏷️ Vendido</option>
+            <option value="vendido">Vendido</option>
           </select>
           <button class="btn btn-ghost" onclick="abrirFotosModelos()" title="Fotos genéricas por modelo e cor" style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg> Fotos dos modelos</button>
             <button class="btn btn-primary" id="btn-add-carro" onclick="openModal('veiculo','carro')">+ Cadastrar</button>
@@ -370,7 +370,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="reservado">Reservado</option>
             <option value="alugado">Alugado</option>
             <option value="manutencao">Manutenção</option>
-            <option value="vendido">🏷️ Vendido</option>
+            <option value="vendido">Vendido</option>
           </select>
           <button class="btn btn-ghost" onclick="abrirFotosModelos()" title="Fotos genéricas por modelo e cor" style="white-space:nowrap;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg> Fotos dos modelos</button>
             <button class="btn btn-primary" id="btn-add-moto" onclick="openModal('veiculo','moto')">+ Cadastrar</button>
@@ -1025,7 +1025,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
-          <input type="text" id="mt-f-busca" placeholder="🔍 Buscar por placa, cliente, auto de infração..." style="flex:1;min-width:220px" oninput="renderMultas()">
+          <input type="text" id="mt-f-busca" placeholder="Buscar por placa, cliente, auto de infração..." style="flex:1;min-width:220px" oninput="renderMultas()">
           <select id="mt-f-status" onchange="renderMultas()">
             <option value="">Todos os status</option>
             <option value="recebida">Recebida</option>
@@ -1036,7 +1036,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="reembolsado">Reembolsado</option>
             <option value="em_recurso">Em recurso</option>
             <option value="cancelada">Cancelada</option>
-            <option value="vencida">⚠️ Vencidas</option>
+            <option value="vencida">Vencidas</option>
           </select>
           <select id="mt-f-veiculo" onchange="renderMultas()"><option value="">Todos os veículos</option></select>
           <select id="mt-f-cliente" onchange="renderMultas()"><option value="">Todos os clientes</option></select>
@@ -1967,7 +1967,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
               <option value="">Todos follow-ups</option>
               <option value="hoje">🔔 Follow-up hoje</option>
               <option value="atrasado">⚠️ Follow-up atrasado</option>
-              <option value="sem_contato">🚨 Atrasados (sem 1º contato)</option>
+              <option value="sem_contato">Atrasados (sem 1º contato)</option>
               <option value="pendente">📅 Com follow-up</option>
             </select>
             <select id="pl-ordem" onchange="renderPipeline()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px">
@@ -2508,7 +2508,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         <div id="ec-cli-anexos-lista" style="margin-top:8px"></div>
       </div>
 
-      <div class="form-section-title">🚨 Multas deste cliente</div>
+      <div class="form-section-title">Multas deste cliente</div>
       <div id="ec-multas-lista" style="font-size:12px;color:var(--muted);margin-bottom:6px">—</div>
 
       <div class="form-section-title">💬 Observações</div>
@@ -2785,13 +2785,13 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <div class="modal-overlay" id="m-multa">
   <div class="modal" style="max-width:640px">
     <div class="modal-header">
-      <div class="modal-title" id="mt-modal-title">🚨 Cadastrar Multa</div>
+      <div class="modal-title" id="mt-modal-title">Cadastrar Multa</div>
       <button class="modal-close" onclick="closeModal('multa')">✕</button>
     </div>
     <div style="max-height:72vh;overflow-y:auto;padding:4px 2px">
       <input type="hidden" id="mt-id">
 
-      <div class="form-section-title">📄 Dados da multa</div>
+      <div class="form-section-title">Dados da multa</div>
       <div class="form-grid">
         <div><label>Número do auto*</label><input type="text" id="mt-numero-auto" placeholder="AEI12345678"></div>
         <div><label>Órgão autuador*</label>
@@ -2875,7 +2875,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
     <div style="padding:14px 4px 4px;display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border2);margin-top:8px">
       <button class="btn btn-ghost" style="color:var(--red)" onclick="excluirMulta()">🗑️ Excluir</button>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" onclick="_mtAbrirEdicao()">✏️ Editar</button>
+        <button class="btn btn-ghost" onclick="_mtAbrirEdicao()">Editar</button>
         <button class="btn btn-primary" onclick="closeModal('multa-detalhe')">Fechar</button>
       </div>
     </div>
@@ -2920,7 +2920,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
             <option value="reservado">🗓️ Reservado</option>
             <option value="alugado">🔴 Alugado</option>
             <option value="manutencao">🔧 Manutenção</option>
-            <option value="vendido">🏷️ Vendido</option>
+            <option value="vendido">Vendido</option>
           </select>
         </div>
         <div class="form-group"><label>Diária (R$)</label><input type="number" id="ev-diaria" style="width:100%"></div>
@@ -3003,7 +3003,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
         </div>
         <div id="ev-crlv-preview" style="margin-top:8px"></div>
       </div>
-      <div class="form-section-title">🚨 Multas deste veículo</div>
+      <div class="form-section-title">Multas deste veículo</div>
       <div id="ev-multas-lista" style="font-size:12px;color:var(--muted);margin-bottom:6px">—</div>
       <div class="form-section-title">💬 Observações</div>
       <div class="form-group full"><textarea id="ev-obs" rows="2" style="width:100%;resize:none"></textarea></div>
@@ -3301,19 +3301,19 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/ui.js?v=20260710n"></script>
 <script src="js/setup.js?v=20260710n"></script>
 <script src="js/nav.js?v=20260721a"></script>
-<script src="js/veiculos.js?v=20260721c"></script>
+<script src="js/veiculos.js?v=20260722a"></script>
 <script src="js/clientes.js?v=20260710n"></script>
 <script src="js/historico.js?v=20260710n"></script>
 <script src="js/contratos.js?v=20260722a"></script>
 <script src="js/financeiro.js?v=20260721a"></script>
-<script src="js/analise.js?v=20260722b"></script>
+<script src="js/analise.js?v=20260722c"></script>
 <script src="js/contaspagar.js?v=20260710n"></script>
 <script src="js/cartoes.js?v=20260710n"></script>
 <script src="js/categorias.js?v=20260710n"></script>
 <script src="js/portal-admin.js?v=20260720a"></script>
 <script src="js/reservas.js?v=20260719a"></script>
-<script src="js/locacoes.js?v=20260722a"></script>
-<script src="js/multas.js?v=20260722a"></script>
+<script src="js/locacoes.js?v=20260722b"></script>
+<script src="js/multas.js?v=20260722b"></script>
 <script src="js/chat.js?v=20260722a"></script>
 <script src="js/respostas-rapidas.js?v=20260710n"></script>
 <script src="js/investidores.js?v=20260710n"></script>

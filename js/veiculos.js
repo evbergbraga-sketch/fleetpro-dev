@@ -469,7 +469,7 @@ function statusBadge(s){
     : s==='disponivel' ? '<span class="badge badge-green">Disponível</span>'
        : s==='alugado'    ? '<span class="badge badge-red">Alugado</span>'
        : s==='reservado'  ? '<span class="badge badge-blue">Reservado</span>'
-       : s==='vendido'    ? '<span class="badge badge-gray">🏷️ Vendido</span>'
+       : s==='vendido'    ? '<span class="badge badge-gray">Vendido</span>'
                           : '<span class="badge badge-yellow">Manutenção</span>';
 }
 

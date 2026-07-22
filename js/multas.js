@@ -66,7 +66,7 @@ function _mtEhVencida(m){
   return m.data_vencimento < new Date().toISOString().slice(0,10);
 }
 function _mtBadge(m){
-  if(_mtEhVencida(m)) return {label:'⚠️ Vencida', cls:'badge-red'};
+  if(_mtEhVencida(m)) return {label:'⚠ Vencida', cls:'badge-red'};
   const map = {
     recebida:'badge-gray', cliente_identificado:'badge-blue', em_cobranca:'badge-yellow',
     pago_cliente:'badge-green', pago_locadora:'badge-purple', reembolsado:'badge-green',
@@ -154,7 +154,7 @@ function renderMultas(){
       <td>${m.data_vencimento?fmtData(m.data_vencimento):'—'}</td>
       <td><span class="badge ${badge.cls}">${badge.label}</span></td>
       <td onclick="event.stopPropagation()">
-        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="_mtAbrirEdicao('${m.id}')">✏️</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px" onclick="_mtAbrirEdicao('${m.id}')">Editar</button>
       </td>
     </tr>`;
   }).join('');
@@ -164,7 +164,7 @@ function renderMultas(){
 // MODAL CADASTRO / EDIÇÃO
 // ══════════════════════════════════════════════════════════════
 function _mtAbrirNovo(){
-  document.getElementById('mt-modal-title').textContent = '🚨 Cadastrar Multa';
+  document.getElementById('mt-modal-title').textContent = 'Cadastrar Multa';
   ['mt-id','mt-numero-auto','mt-data-infracao','mt-hora-infracao','mt-local','mt-tipo','mt-codigo',
    'mt-pontuacao','mt-valor-original','mt-valor-desconto','mt-vencimento','mt-descricao',
    'mt-veiculo-busca','mt-veiculo-id','mt-cliente-busca','mt-cliente-id','mt-locacao-id',
@@ -187,7 +187,7 @@ function _mtAbrirEdicao(id){
   const m = id ? _mtDados.find(x=>x.id===id) : _mtDados.find(x=>x.id===document.getElementById('mtd-titulo')?.dataset?.id);
   if(!m) return;
   closeModal('multa-detalhe');
-  document.getElementById('mt-modal-title').textContent = '✏️ Editar Multa';
+  document.getElementById('mt-modal-title').textContent = 'Editar Multa';
   const sv = (elId,val) => { const el = document.getElementById(elId); if(el) el.value = val ?? ''; };
   sv('mt-id', m.id);
   sv('mt-numero-auto', m.numero_auto);
@@ -450,26 +450,26 @@ function abrirDetalheMulta(id){
       </div>
       <span class="badge ${badge.cls}" style="font-size:13px;padding:6px 14px">${badge.label}</span>
     </div>
-    ${bloco('📄 Detalhes da infração',
+    ${bloco('Detalhes da infração',
       campo('Órgão autuador', m.orgao_autuador) + campo('Data/Hora', fmtData(m.data_infracao)+(m.hora_infracao?' às '+m.hora_infracao.slice(0,5):'')) +
       campo('Tipo', m.tipo_infracao) + campo('Código', m.codigo_infracao) +
       campo('Pontuação', m.pontuacao) + campo('Local', m.local_infracao) +
       `<div style="grid-column:1/-1">${campo('Descrição', m.descricao)}</div>`
     )}
-    ${bloco('🚗 Veículo',
+    ${bloco('Veículo',
       campo('Modelo', m.veiculos ? `${m.veiculos.marca} ${m.veiculos.modelo}` : '—') + campo('Placa', m.veiculos?.placa)
     )}
-    ${bloco('🧑 Responsável',
+    ${bloco('Responsável',
       campo('Cliente', m.clientes?.nome) + campo('Telefone', m.telefone) +
       campo('Condutor principal', m.condutor_principal) + campo('Condutor adicional', m.condutor_adicional)
     )}
     ${_mtBlocoCobranca(m, campo)}
-    <div class="form-section-title">📎 Anexos</div>
+    <div class="form-section-title">Anexos</div>
     <div style="margin-bottom:6px">
       ${anexos.length ? anexos.map(u=>`<a href="${u}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;margin:0 6px 6px 0;font-size:12px;color:var(--accent);text-decoration:none">${_iconeArquivo(_nomeArquivo(u))} ${_nomeArquivo(u)}</a>`).join('')
         : '<div style="font-size:12px;color:var(--muted)">Nenhum anexo.</div>'}
     </div>
-    ${m.observacoes ? bloco('📝 Observações', `<div style="grid-column:1/-1;font-size:13px">${m.observacoes}</div>`) : ''}
+    ${m.observacoes ? bloco('Observações', `<div style="grid-column:1/-1;font-size:13px">${m.observacoes}</div>`) : ''}
   `;
   document.getElementById('m-multa-detalhe').classList.add('show');
 }
@@ -551,13 +551,13 @@ function _mtBlocoCobranca(m, campo){
   const podeMarcarPago = jaGerou && m.status==='em_cobranca';
 
   if(!m.cliente_id && !jaGerou){
-    return `<div class="form-section-title">💳 Cobrança</div>
+    return `<div class="form-section-title">Cobrança</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Identifique o cliente responsável antes de gerar a cobrança.</div>`;
   }
 
   const total = _mtValorCobrado(m) + (parseFloat(m.taxa_administrativa)||0);
   return `
-    <div class="form-section-title">💳 Cobrança</div>
+    <div class="form-section-title">Cobrança</div>
     <div class="form-grid" style="margin-bottom:8px">
       ${jaGerou ? campo('Valor da multa', _mtFmt(_mtValorCobrado(m))) : ''}
       ${jaGerou ? campo('Taxa administrativa', _mtFmt(m.taxa_administrativa||0)) : ''}
@@ -566,7 +566,7 @@ function _mtBlocoCobranca(m, campo){
       ${jaGerou ? campo('Pago em', m.data_pagamento?fmtData(m.data_pagamento.slice(0,10)):'—') : ''}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${podeGerar?`<button class="btn btn-primary" style="font-size:12px" onclick="_mtAbrirGerarCobranca('${m.id}')">💳 Gerar cobrança</button>`:''}
+      ${podeGerar?`<button class="btn btn-primary" style="font-size:12px" onclick="_mtAbrirGerarCobranca('${m.id}')">Gerar cobrança</button>`:''}
       ${podeMarcarPago?`<button class="btn btn-primary" style="font-size:12px;background:var(--green)" onclick="_mtMarcarPagoCliente('${m.id}')">✓ Marcar como pago</button>`:''}
     </div>`;
 }

@@ -214,7 +214,7 @@ function _renderCobrancasSemanais(cobrancas, loc){
         <div style="font-size:12px;font-weight:600;color:var(--text2)">Sem. ${c.numero_semana}</div>
         <div style="font-size:12px;color:var(--muted)">${fmtData(c.data_vencimento)}</div>
         <div style="font-size:12px;font-weight:600;text-align:right">R$ ${Number(valorExibido).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        <div style="text-align:center">${clicavel?`<span onclick="event.stopPropagation();_abrirEditarValorSemana('${c.id}', ${c.valor}, '${c.asaas_payment_id||''}')" title="Editar valor desta semana" style="cursor:pointer;font-size:13px">✏️</span>`:''}</div>
+        <div style="text-align:center">${clicavel?`<span onclick="event.stopPropagation();_abrirEditarValorSemana('${c.id}', ${c.valor}, '${c.asaas_payment_id||''}')" title="Editar valor desta semana" style="cursor:pointer;font-size:11px;font-weight:600;color:var(--accent)">Editar</span>`:''}</div>
         <div style="display:flex;justify-content:flex-end">
           <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;color:${info.color};background:${info.bg};border:1px solid ${info.border}">${info.icon} ${info.label}</span>
         </div>
@@ -247,8 +247,8 @@ function _renderCobrancasSemanais(cobrancas, loc){
           <span style="color:var(--muted)">·</span>
           <span style="color:var(--muted)">${total-pagos-atrasados} pendentes</span>
           ${atrasados>0?`<span style="color:var(--muted)">·</span><span style="color:var(--red);font-weight:600">${atrasados} atrasadas</span>`:''}
-          ${loc.asaas_subscription_id?`<button onclick="_locSincronizarAsaasAgora('${loc.id}')" id="btn-sync-asaas" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">🔄 Sincronizar Asaas</button>`:''}
-          ${loc.asaas_subscription_id?`<button onclick="_abrirReajusteSemanas('${loc.id}','${loc.asaas_subscription_id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">💰 Reajustar valor</button>`:''}
+          ${loc.asaas_subscription_id?`<button onclick="_locSincronizarAsaasAgora('${loc.id}')" id="btn-sync-asaas" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Sincronizar Asaas</button>`:''}
+          ${loc.asaas_subscription_id?`<button onclick="_abrirReajusteSemanas('${loc.id}','${loc.asaas_subscription_id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar valor</button>`:''}
         </div>
       </div>
       <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">💡 Clique em uma semana pendente/atrasada para marcar como paga manualmente (ex: pagamento em dinheiro na loja)</div>
