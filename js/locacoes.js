@@ -189,6 +189,13 @@ function _renderCobrancasSemanais(cobrancas, loc){
   const atrasados = cobrancas.filter(c=>c.status==='atrasado' || (c.status==='pendente' && c.data_vencimento < hoje)).length;
   const total     = cobrancas.length;
 
+  // Resumo financeiro: quanto já entrou, quanto falta, % do contrato pago
+  const valorRecebido = cobrancas.filter(c=>c.status==='pago').reduce((a,c)=>a+parseFloat(c.valor_pago ?? c.valor ?? 0),0);
+  const valorTotalContrato = cobrancas.reduce((a,c)=>a+parseFloat(c.valor||0),0);
+  const valorRestante = Math.max(0, valorTotalContrato - valorRecebido);
+  const pctPago = valorTotalContrato>0 ? Math.round(valorRecebido/valorTotalContrato*100) : 0;
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+
   const statusInfo = {
     pago:     {label:'Pago',     color:'var(--green)', bg:'var(--green-bg)', border:'var(--green-border)', icon:'✓'},
     pendente: {label:'Pendente', color:'var(--muted)',  bg:'var(--bg2)',      border:'var(--border2)',      icon:'⏳'},
@@ -202,11 +209,12 @@ function _renderCobrancasSemanais(cobrancas, loc){
     const valorExibido = c.valor_pago!=null ? c.valor_pago : c.valor;
     const clicavel = c.status!=='pago';
     return `
-      <div id="cobr-row-${c.id}" style="display:grid;grid-template-columns:70px 1fr 90px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)${clicavel?';cursor:pointer':''}"
+      <div id="cobr-row-${c.id}" style="display:grid;grid-template-columns:70px 1fr 90px 24px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)${clicavel?';cursor:pointer':''}"
         ${clicavel?`onclick="_abrirFormPagarSemana('${c.id}', ${c.valor})"`:''} title="${clicavel?'Clique para marcar como pago':''}">
         <div style="font-size:12px;font-weight:600;color:var(--text2)">Sem. ${c.numero_semana}</div>
         <div style="font-size:12px;color:var(--muted)">${fmtData(c.data_vencimento)}</div>
         <div style="font-size:12px;font-weight:600;text-align:right">R$ ${Number(valorExibido).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <div style="text-align:center">${clicavel?`<span onclick="event.stopPropagation();_abrirEditarValorSemana('${c.id}', ${c.valor}, '${c.asaas_payment_id||''}')" title="Editar valor desta semana" style="cursor:pointer;font-size:13px">✏️</span>`:''}</div>
         <div style="display:flex;justify-content:flex-end">
           <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;color:${info.color};background:${info.bg};border:1px solid ${info.border}">${info.icon} ${info.label}</span>
         </div>
@@ -215,19 +223,38 @@ function _renderCobrancasSemanais(cobrancas, loc){
 
   return `
     <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+        <div style="background:var(--card);border-radius:8px;padding:10px 12px;border:1px solid var(--green-border)">
+          <div style="font-size:10px;color:var(--muted2);text-transform:uppercase">Recebido</div>
+          <div style="font-size:16px;font-weight:800;color:var(--green)">${fmtR(valorRecebido)}</div>
+        </div>
+        <div style="background:var(--card);border-radius:8px;padding:10px 12px;border:1px solid var(--border2)">
+          <div style="font-size:10px;color:var(--muted2);text-transform:uppercase">Total do contrato</div>
+          <div style="font-size:16px;font-weight:800">${fmtR(valorTotalContrato)}</div>
+        </div>
+        <div style="background:var(--card);border-radius:8px;padding:10px 12px;border:1px solid var(--border2)">
+          <div style="font-size:10px;color:var(--muted2);text-transform:uppercase">Restante</div>
+          <div style="font-size:16px;font-weight:800">${fmtR(valorRestante)}</div>
+        </div>
+      </div>
+      <div style="background:var(--border2);border-radius:999px;height:6px;overflow:hidden;margin-bottom:14px">
+        <div style="background:var(--green);height:100%;width:${pctPago}%"></div>
+      </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2)">Cobranças Semanais</div>
-        <div style="display:flex;gap:8px;font-size:11px;align-items:center">
+        <div style="display:flex;gap:8px;font-size:11px;align-items:center;flex-wrap:wrap">
           <span style="color:var(--green);font-weight:600">${pagos} pagas</span>
           <span style="color:var(--muted)">·</span>
           <span style="color:var(--muted)">${total-pagos-atrasados} pendentes</span>
           ${atrasados>0?`<span style="color:var(--muted)">·</span><span style="color:var(--red);font-weight:600">${atrasados} atrasadas</span>`:''}
+          ${loc.asaas_subscription_id?`<button onclick="_locSincronizarAsaasAgora('${loc.id}')" id="btn-sync-asaas" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">🔄 Sincronizar Asaas</button>`:''}
+          ${loc.asaas_subscription_id?`<button onclick="_abrirReajusteSemanas('${loc.id}','${loc.asaas_subscription_id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">💰 Reajustar valor</button>`:''}
         </div>
       </div>
       <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">💡 Clique em uma semana pendente/atrasada para marcar como paga manualmente (ex: pagamento em dinheiro na loja)</div>
       <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border2);border-radius:8px">
-        <div style="display:grid;grid-template-columns:70px 1fr 90px 100px;gap:8px;padding:6px 10px;background:var(--bg3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:600;position:sticky;top:0">
-          <div>Semana</div><div>Vencimento</div><div style="text-align:right">Valor</div><div style="text-align:right">Status</div>
+        <div style="display:grid;grid-template-columns:70px 1fr 90px 24px 100px;gap:8px;padding:6px 10px;background:var(--bg3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:600;position:sticky;top:0">
+          <div>Semana</div><div>Vencimento</div><div style="text-align:right">Valor</div><div></div><div style="text-align:right">Status</div>
         </div>
         ${linhas}
       </div>
@@ -292,6 +319,97 @@ async function _confirmarPagamentoSemana(cobrancaId){
   }catch(e){
     notify('Erro ao confirmar pagamento: '+e.message,'error');
   }
+}
+
+// ── Sincronizar com o Asaas na hora (sem esperar o cron de 6h) ──
+async function _locSincronizarAsaasAgora(locId){
+  const btn = document.getElementById('btn-sync-asaas');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Sincronizando...'; }
+  try{
+    const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+    const resp = await fetch(bridge+'/api/asaas/sync-agora', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ locacao_id: locId })
+    });
+    const r = await resp.json();
+    if(!resp.ok || r.erro){ notify('Erro na sincronização: '+(r.error||r.erro),'error'); }
+    else notify(`✓ Sincronizado — ${r.marcadasPagas||0} semana(s) marcada(s) como paga(s), ${r.vinculadas||0} vinculada(s).`,'success');
+    abrirModalLocacao(locId);
+  }catch(e){ notify('Erro ao sincronizar: '+e.message,'error'); }
+}
+
+// ── Editar o valor de UMA semana específica (só se ainda não paga) ──
+function _abrirEditarValorSemana(cobrancaId, valorAtual, asaasPaymentId){
+  const row = document.getElementById(`cobr-row-${cobrancaId}`);
+  if(!row) return;
+  row.setAttribute('onclick','');
+  row.style.cursor = 'default';
+  row.style.gridTemplateColumns = '1fr';
+  row.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 0">
+      <span style="font-size:12px;color:var(--muted)">Novo valor desta semana (R$)</span>
+      <input type="number" id="cobr-novovalor-${cobrancaId}" value="${Number(valorAtual).toFixed(2)}" step="0.01" style="width:100px;font-size:12px;padding:4px 8px">
+      <button onclick="_confirmarEditarValorSemana('${cobrancaId}','${asaasPaymentId||''}')" style="font-size:12px;padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">✓ Salvar</button>
+      <button onclick="abrirModalLocacao(window._locDetalheAtualId)" style="font-size:12px;padding:5px 12px;background:var(--bg3);color:var(--text);border:none;border-radius:6px;cursor:pointer">Cancelar</button>
+      ${asaasPaymentId?'<span style="font-size:11px;color:var(--muted)">🔗 também atualiza no Asaas</span>':'<span style="font-size:11px;color:var(--muted)">(ainda não vinculada ao Asaas — só muda aqui)</span>'}
+    </div>`;
+}
+
+async function _confirmarEditarValorSemana(cobrancaId, asaasPaymentId){
+  const novoValor = parseFloat(document.getElementById(`cobr-novovalor-${cobrancaId}`)?.value);
+  if(!novoValor || novoValor<=0){ notify('Informe um valor válido','error'); return; }
+  try{
+    const { error } = await sb.from('cobrancas_semanais').update({ valor: novoValor }).eq('id', cobrancaId);
+    if(error) throw error;
+
+    if(asaasPaymentId){
+      const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+      const resp = await fetch(bridge+'/api/asaas/atualizar-valor-pagamento', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ asaas_payment_id: asaasPaymentId, novo_valor: novoValor })
+      });
+      const r = await resp.json();
+      if(!resp.ok) notify('Valor salvo no FleetPro, mas o Asaas recusou: '+(r.error||'erro desconhecido'),'error');
+      else notify('Valor atualizado no FleetPro e no Asaas!','success');
+    } else {
+      notify('Valor atualizado!','success');
+    }
+    abrirModalLocacao(window._locDetalheAtualId);
+  }catch(e){ notify('Erro ao atualizar valor: '+e.message,'error'); }
+}
+
+// ── Reajuste em massa: novo valor pra TODAS as semanas ainda não pagas ──
+function _abrirReajusteSemanas(locId, asaasSubscriptionId){
+  const valorNovo = prompt('Novo valor semanal para TODAS as semanas ainda não pagas (as já pagas não mudam):');
+  if(!valorNovo) return;
+  const novoValor = parseFloat(valorNovo.replace(',','.'));
+  if(!novoValor || novoValor<=0){ notify('Valor inválido','error'); return; }
+  if(!confirm(`Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato, aqui e no Asaas.`)) return;
+  _confirmarReajusteSemanas(locId, asaasSubscriptionId, novoValor);
+}
+
+async function _confirmarReajusteSemanas(locId, asaasSubscriptionId, novoValor){
+  try{
+    const { data: afetadas, error } = await sb.from('cobrancas_semanais')
+      .update({ valor: novoValor })
+      .eq('locacao_id', locId)
+      .in('status', ['pendente','atrasado'])
+      .select('id');
+    if(error) throw error;
+
+    notify(`✓ ${afetadas?.length||0} semana(s) reajustada(s) no FleetPro. Atualizando no Asaas...`,'success');
+
+    const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+    const resp = await fetch(bridge+'/api/asaas/reajustar-assinatura', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ asaas_subscription_id: asaasSubscriptionId, novo_valor: novoValor })
+    });
+    const r = await resp.json();
+    if(!resp.ok) notify('Reajustado no FleetPro, mas o Asaas recusou: '+(r.error||'erro desconhecido'),'error');
+    else notify(`✓ Asaas atualizado — assinatura + ${r.cobrancasAsaasAtualizadas||0} cobrança(s) já geradas.`,'success');
+
+    abrirModalLocacao(locId);
+  }catch(e){ notify('Erro no reajuste: '+e.message,'error'); }
 }
 
 async function abrirModalLocacao(locId){
