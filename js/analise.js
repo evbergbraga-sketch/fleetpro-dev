@@ -203,6 +203,9 @@ async function _anRenderCaixaProjetado(){
 // comparável entre veículos de idades diferentes).
 // Receita/dia: receita total ÷ dias corridos desde a compra.
 // ══════════════════════════════════════════════════════════════
+let _anVeiculosDados = [];
+let _anVeiculosExpandido = false;
+
 async function _anRenderVeiculos(){
   const el = document.getElementById('an-veiculos');
   if(!el) return;
@@ -223,7 +226,7 @@ async function _anRenderVeiculos(){
 
     const veiculos = rVeic.data||[], receitas = rRec.data||[], locacoes = rLoc.data||[];
 
-    const dados = veiculos.map(v=>{
+    _anVeiculosDados = veiculos.map(v=>{
       const receitaTotal = receitas.filter(r=>r.veiculo_id===v.id).reduce((a,r)=>a+(parseFloat(r.valor)||0),0);
       let custo = parseFloat(v.valor_compra)||0;
       // Valores abaixo de R$1.000 para um veículo são quase certamente erro
@@ -257,14 +260,35 @@ async function _anRenderVeiculos(){
       return a.pctRecuperado - b.pctRecuperado;
     });
 
-    const linha = (label,val,cor) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--muted)">${label}</span><span style="font-weight:700;${cor?`color:${cor}`:''}">${val}</span></div>`;
+    _anVeiculosExpandido = false;
+    _anRenderVeiculosLista();
+  }catch(e){
+    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+  }
+}
 
-    el.innerHTML = `
-      <div class="card">
-        <div style="font-weight:700;margin-bottom:2px;font-size:13px">Desempenho por veículo</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Payback (receita histórica ÷ custo de compra) · Ocupação nos últimos 90 dias</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">
-          ${dados.map(d=>`
+function _anToggleVeiculosExpandido(){
+  _anVeiculosExpandido = !_anVeiculosExpandido;
+  _anRenderVeiculosLista();
+}
+
+function _anRenderVeiculosLista(){
+  const el = document.getElementById('an-veiculos');
+  if(!el) return;
+  const busca = (document.getElementById('an-veic-busca')?.value||'').toLowerCase().trim();
+
+  const linha = (label,val,cor) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--muted)">${label}</span><span style="font-weight:700;${cor?`color:${cor}`:''}">${val}</span></div>`;
+
+  const filtrados = _anVeiculosDados.filter(d=>{
+    if(!busca) return true;
+    const alvo = `${d.v.marca} ${d.v.modelo} ${d.v.placa}`.toLowerCase();
+    return alvo.includes(busca);
+  });
+  const limite = _anVeiculosExpandido ? filtrados.length : 5;
+  const visiveis = filtrados.slice(0, limite);
+  const restante = filtrados.length - limite;
+
+  const cardsHtml = visiveis.map(d=>`
             <div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px">
               <div style="font-weight:700;font-size:13px">${d.v.marca} ${d.v.modelo}</div>
               <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${d.v.placa}</div>
@@ -278,12 +302,26 @@ async function _anRenderVeiculos(){
               ` : `<div style="font-size:11px;color:${d.custoSuspeito?'#F5B942':'var(--muted)'};font-style:italic;margin-bottom:6px">${d.custoSuspeito?'⚠️ Valor de compra parece incorreto (R$ '+d.v.valor_compra+') — confira o cadastro':'Sem valor de compra cadastrado'}</div>`}
               ${linha('Ocupação (90d)', d.pctOcupacao+'%', d.pctOcupacao>=70?'#16a34a':d.pctOcupacao<30?'#F87171':null)}
               ${d.receitaDia!=null?linha('Receita/dia (média)', fmtR$(d.receitaDia)):''}
-            </div>`).join('')}
+            </div>`).join('');
+
+  el.innerHTML = `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;flex-wrap:wrap;gap:8px">
+          <div style="font-weight:700;font-size:13px">Desempenho por veículo</div>
+          <input type="text" id="an-veic-busca" placeholder="🔍 Buscar por modelo ou placa..." oninput="_anRenderVeiculosLista()" value="${busca}" style="font-size:12px;padding:5px 10px;max-width:220px">
         </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Payback (receita histórica ÷ custo de compra) · Ocupação nos últimos 90 dias · ${filtrados.length} veículo${filtrados.length===1?'':'s'}</div>
+        ${filtrados.length===0 ? '<div style="font-size:13px;color:var(--muted)">Nenhum veículo encontrado.</div>' : `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">
+          ${cardsHtml}
+        </div>
+        ${filtrados.length>5 ? `
+        <div style="text-align:center;padding-top:12px">
+          <button class="btn btn-ghost" onclick="_anToggleVeiculosExpandido()" style="font-size:12px;padding:5px 16px">
+            ${_anVeiculosExpandido ? 'Exibir menos' : `Exibir mais (${restante})`}
+          </button>
+        </div>` : ''}`}
       </div>`;
-  }catch(e){
-    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
-  }
 }
 
 // ══════════════════════════════════════════════════════════════
