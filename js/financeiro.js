@@ -520,6 +520,55 @@ async function finExcluirLancamento(id){
 }
 
 // ══ ASAAS — ASSINATURA RECORRENTE (via n8n) ══
+// MODO MIGRAÇÃO: cliente já tinha assinatura ativa no Asaas (contrato veio
+// de outro sistema). Em vez de criar uma assinatura nova (cobraria o cliente
+// duas vezes), busca a existente pelo CPF, vincula na locação, e reconcilia
+// na hora quais semanas já foram pagas (casamento por data de vencimento).
+async function vincularAssinaturaAsaasExistente(locacao, clienteId){
+  if(!sb || !locacao) return;
+  try{
+    const c = allClientes.find(x=>x.id===clienteId);
+    if(!c?.cpf){ notify('Cliente sem CPF cadastrado — não foi possível buscar a assinatura no Asaas.','error'); return; }
+
+    const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+
+    const respBusca = await fetch(bridge + '/api/asaas/buscar-assinatura', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ cpf: c.cpf })
+    });
+    if(!respBusca.ok) throw new Error('Bridge respondeu '+respBusca.status);
+    const busca = await respBusca.json();
+
+    if(!busca.encontrado){
+      notify('⚠️ '+(busca.motivo||'Assinatura não encontrada no Asaas')+'. A locação foi criada, mas sem vínculo com o Asaas — vincule manualmente depois se necessário.', 'error');
+      return;
+    }
+
+    await sb.from('locacoes').update({
+      asaas_customer_id: busca.asaas_customer_id,
+      asaas_subscription_id: busca.asaas_subscription_id,
+    }).eq('id', locacao.id);
+
+    notify(`✓ Assinatura Asaas vinculada (${busca.asaas_subscription_id}). Reconciliando semanas pagas...`, 'success');
+
+    // Reconcilia na hora (sem esperar o cron de 6h)
+    const respSync = await fetch(bridge + '/api/asaas/sync-agora', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ locacao_id: locacao.id })
+    });
+    if(!respSync.ok) throw new Error('Bridge (sync) respondeu '+respSync.status);
+    const sync = await respSync.json();
+
+    if(sync.erro){
+      notify('Assinatura vinculada, mas a reconciliação falhou: '+sync.erro+'. O cron das 6h vai tentar de novo.', 'error');
+    } else {
+      notify(`✓ Reconciliação concluída — ${sync.marcadasPagas||0} semana(s) marcada(s) como paga(s), ${sync.vinculadas||0} vinculada(s) ao total.`, 'success');
+    }
+
+    if(typeof carregarTudo==='function') carregarTudo();
+  }catch(e){ notify('Erro na migração Asaas: '+e.message, 'error'); }
+}
+
 async function criarAssinaturaAsaas(locacao){
   if(!sb||!locacao?.plano_moto) return;
   try{

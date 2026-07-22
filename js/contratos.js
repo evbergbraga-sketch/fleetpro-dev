@@ -667,7 +667,14 @@ async function registrarContrato(retornarId=false){
     if(typeof finRegistrarLancamentoLocacao==='function') finRegistrarLancamentoLocacao(locSalva).catch(()=>{});
 
     // Criar assinatura recorrente no Asaas (via n8n) — apenas planos moto
-    if(planoMoto && typeof criarAssinaturaAsaas==='function'){
+    // MODO MIGRAÇÃO: cliente já tem assinatura ativa no Asaas (veio de outro
+    // sistema) — em vez de criar uma nova (o que geraria cobrança duplicada),
+    // busca e vincula a assinatura existente pelo CPF, e reconcilia na hora
+    // quais semanas já foram pagas.
+    const modoMigracao = document.getElementById('c-modo-migracao')?.checked;
+    if(planoMoto && modoMigracao && typeof vincularAssinaturaAsaasExistente==='function'){
+      vincularAssinaturaAsaasExistente(locSalva, cid).catch(e=>console.warn('[migracao/asaas] falha:', e.message));
+    } else if(planoMoto && typeof criarAssinaturaAsaas==='function'){
       criarAssinaturaAsaas(locSalva).catch(e=>console.warn('[asaas] falha:', e.message));
     }
 
@@ -720,10 +727,14 @@ async function registrarContrato(retornarId=false){
           _a.click();
           notify(`PDF do Contrato #${numContrato} gerado!`,'success');
         }
-        // Envia para Autentique com o PDF já gerado (sem regerar)
-        if(_locIdParaAssinatura){
+        // Envia para Autentique com o PDF já gerado (sem regerar) —
+        // MODO MIGRAÇÃO pula esta etapa: o contrato já existe fisicamente
+        // (veio de outro sistema), não precisa de nova assinatura digital.
+        if(_locIdParaAssinatura && !modoMigracao){
           _showLoading('Enviando para assinatura digital...');
           await enviarParaAssinatura(numContrato, d, _locIdParaAssinatura, _pdfDataUrl, cid);
+        } else if(modoMigracao){
+          console.log('[migracao] Autentique pulado — contrato já existe fisicamente');
         }
       }catch(e){
         // SEM ISSO: numa rede instável (ex: wifi do subsolo), um erro aqui
@@ -2260,6 +2271,15 @@ function _recalcFimPlanoMoto(){
   ini.setDate(ini.getDate() + totalSemanas*7 + extraDias);
   const pad = n=>String(n).padStart(2,'0');
   cFim.value = `${ini.getFullYear()}-${pad(ini.getMonth()+1)}-${pad(ini.getDate())}T${pad(ini.getHours())}:${pad(ini.getMinutes())}`;
+}
+
+// Modo Migração: só dá feedback visual (a lógica real roda no salvamento,
+// em registrarContrato). Confirma pro atendente que o modo está ativo.
+function _toggleModoMigracao(){
+  const ativo = document.getElementById('c-modo-migracao')?.checked;
+  if(ativo){
+    notify('Modo Migração ativado: não vai pro Autentique e busca assinatura Asaas existente pelo CPF do cliente.', 'success');
+  }
 }
 
 function _selecionarPlanoContrato(radio){
