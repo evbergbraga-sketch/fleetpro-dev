@@ -558,6 +558,14 @@ async function evoSendText(telefone, texto){
 
   // Tenta enviar pelo bridge (salva no banco automaticamente, evita duplicata)
   const bridgeUrl = cfg.bridgeUrl || cfg.apiUrl.replace('evo.','bridge.');
+  // O dono da mensagem é sempre o cliente do NÚMERO de destino (num) — nunca
+  // activeChatId, que é só "qual chat está aberto na tela agora" e pode estar
+  // desatualizado quando evoSendText é chamada de fora do Chat (ex: tela de
+  // Contratos gerando a confirmação de contrato). Usar activeChatId aqui
+  // causava a mensagem de um cliente aparecer na conversa de outro cliente
+  // que por acaso estava com o chat aberto no momento do envio.
+  const clientePorNumero = (typeof encontrarClientePorNumero==='function') ? encontrarClientePorNumero(num) : null;
+  const clienteIdCorreto = (clientePorNumero && String(clientePorNumero).includes('-')) ? clientePorNumero : null;
   try{
     const r = await fetch(bridgeUrl+'/api/enviar-mensagem', {
       method:'POST',
@@ -565,10 +573,7 @@ async function evoSendText(telefone, texto){
       body: JSON.stringify({
         numero: num,
         texto,
-        // Contato não cadastrado: activeChatId é o telefone, não um UUID —
-        // enviar null faz o bridge salvar server-side vinculado ao numero
-        // (telefone como clienteId estourava o insert e caía no fallback)
-        clienteId: (activeChatId && activeChatId.includes('-')) ? activeChatId : null,
+        clienteId: clienteIdCorreto,
         nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
       })
     });
@@ -589,7 +594,7 @@ async function evoSendText(telefone, texto){
   if(!r.ok){ const t=await r.text(); throw new Error(t); }
   const evoResult = await r.json();
 
-  const cIdParaSalvar = activeChatId && activeChatId.includes('-') ? activeChatId : null;
+  const cIdParaSalvar = clienteIdCorreto;
   const { error: erroSalvar } = await sb.from('wpp_mensagens').insert({
     cliente_id: cIdParaSalvar,
     numero:     num,
@@ -1854,6 +1859,11 @@ async function _enviarMidiaWpp(c){
     // Envia pelo bridge — salva no banco e no Storage automaticamente
     // (endpoint /api/enviar-midia, mesmo padrão de evoSendText)
     const bridgeUrl = cfg.bridgeUrl || cfg.apiUrl.replace('evo.','bridge.');
+    // Mesma correção do evoSendText: dono da mensagem é o cliente do NÚMERO
+    // de destino, não activeChatId (evita mídia de um contrato/envio cair
+    // na conversa de outro cliente que estava aberta na tela).
+    const clientePorNumeroMidia = (typeof encontrarClientePorNumero==='function') ? encontrarClientePorNumero(num) : null;
+    const clienteIdCorretoMidia = (clientePorNumeroMidia && String(clientePorNumeroMidia).includes('-')) ? clientePorNumeroMidia : null;
     const r = await fetch(bridgeUrl+'/api/enviar-midia', {
       method:'POST',
       headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
@@ -1862,7 +1872,7 @@ async function _enviarMidiaWpp(c){
         tipo,
         base64,
         fileName: fileName||null,
-        clienteId: (activeChatId && activeChatId.includes('-')) ? activeChatId : null,
+        clienteId: clienteIdCorretoMidia,
         nomeAtendente: currentPerfil?.nome ? '👤 '+currentPerfil.nome.split(' ')[0] : '👤 Atendente'
       })
     });
