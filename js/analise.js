@@ -303,11 +303,14 @@ async function _anRenderVeiculos(){
 
       return { v, receitaTotal, custo, custoSuspeito, pctRecuperado, pctOcupacao, receitaDia };
     }).sort((a,b)=>{
-      // Sem valor de compra cadastrado vai pro fim; senão, pior payback primeiro
+      // Quem já tem receita de verdade aparece primeiro (do maior pro menor
+      // valor recebido). Empate: melhor payback primeiro. Zerados/sem
+      // faturamento ficam pro fim da lista.
+      if(b.receitaTotal !== a.receitaTotal) return b.receitaTotal - a.receitaTotal;
       if(a.pctRecuperado==null && b.pctRecuperado==null) return 0;
       if(a.pctRecuperado==null) return 1;
       if(b.pctRecuperado==null) return -1;
-      return a.pctRecuperado - b.pctRecuperado;
+      return b.pctRecuperado - a.pctRecuperado;
     });
 
     _anVeiculosExpandido = false;
