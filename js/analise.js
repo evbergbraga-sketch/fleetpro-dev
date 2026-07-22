@@ -15,6 +15,9 @@ async function iniciarAnalise(){
   await Promise.all([
     _anRenderRealizado(),
     _anRenderCaixaProjetado(),
+    _anRenderVeiculos(),
+    _anRenderInadimplencia(),
+    _anRenderEvolucao(),
   ]);
 }
 
@@ -186,6 +189,209 @@ async function _anRenderCaixaProjetado(){
         <div style="display:flex;justify-content:space-between;padding-top:10px;font-size:12.5px">
           <span>Total 8 semanas: <b style="color:#16a34a">+${fmtR$(totalEntradas)}</b> · <b style="color:#F87171">-${fmtR$(totalSaidas)}</b></span>
           <span style="font-weight:800;color:${acumulado>=0?'#16a34a':'#F87171'}">Líquido: ${fmtR$(acumulado)}</span>
+        </div>
+      </div>`;
+  }catch(e){
+    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// BLOCO 3 — DESEMPENHO POR VEÍCULO
+// Payback: receita total (lancamentos) ÷ valor de compra, desde sempre.
+// Ocupação: % de dias em locação nos últimos 90 dias (janela fixa —
+// comparável entre veículos de idades diferentes).
+// Receita/dia: receita total ÷ dias corridos desde a compra.
+// ══════════════════════════════════════════════════════════════
+async function _anRenderVeiculos(){
+  const el = document.getElementById('an-veiculos');
+  if(!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px">Carregando…</div>';
+
+  try{
+    const hoje = new Date();
+    const janela90 = new Date(hoje.getTime() - 90*86400000);
+
+    const [rVeic, rRec, rLoc] = await Promise.all([
+      sb.from('veiculos').select('id,marca,modelo,placa,tipo,status,valor_compra,data_compra').neq('status','vendido'),
+      sb.from('lancamentos').select('veiculo_id,valor').eq('tipo','receita').not('veiculo_id','is',null),
+      sb.from('locacoes').select('veiculo_id,data_inicio,data_fim,status'),
+    ]);
+    if(rVeic.error) throw rVeic.error;
+    if(rRec.error) throw rRec.error;
+    if(rLoc.error) throw rLoc.error;
+
+    const veiculos = rVeic.data||[], receitas = rRec.data||[], locacoes = rLoc.data||[];
+
+    const dados = veiculos.map(v=>{
+      const receitaTotal = receitas.filter(r=>r.veiculo_id===v.id).reduce((a,r)=>a+(parseFloat(r.valor)||0),0);
+      let custo = parseFloat(v.valor_compra)||0;
+      // Valores abaixo de R$1.000 para um veículo são quase certamente erro
+      // de cadastro (ex: faltou dígito) — tratamos como "não informado" em
+      // vez de calcular um payback absurdo (ex: 5000%)
+      const custoSuspeito = custo>0 && custo<1000;
+      if(custoSuspeito) custo = 0;
+      const pctRecuperado = custo>0 ? Math.round(receitaTotal/custo*100) : null;
+
+      // Ocupação nos últimos 90 dias: soma a sobreposição de cada locação
+      // desse veículo com a janela [janela90, hoje]
+      const locsVeic = locacoes.filter(l=>l.veiculo_id===v.id);
+      let diasOcupado = 0;
+      locsVeic.forEach(l=>{
+        if(!l.data_inicio) return;
+        const ini = new Date(Math.max(new Date(l.data_inicio), janela90));
+        const fim = new Date(Math.min(l.data_fim?new Date(l.data_fim):hoje, hoje));
+        if(fim>ini) diasOcupado += Math.round((fim-ini)/86400000);
+      });
+      const pctOcupacao = Math.min(100, Math.round(diasOcupado/90*100));
+
+      const diasDesdeCompra = v.data_compra ? Math.max(1, Math.round((hoje-new Date(v.data_compra))/86400000)) : null;
+      const receitaDia = diasDesdeCompra ? receitaTotal/diasDesdeCompra : null;
+
+      return { v, receitaTotal, custo, custoSuspeito, pctRecuperado, pctOcupacao, receitaDia };
+    }).sort((a,b)=>{
+      // Sem valor de compra cadastrado vai pro fim; senão, pior payback primeiro
+      if(a.pctRecuperado==null && b.pctRecuperado==null) return 0;
+      if(a.pctRecuperado==null) return 1;
+      if(b.pctRecuperado==null) return -1;
+      return a.pctRecuperado - b.pctRecuperado;
+    });
+
+    const linha = (label,val,cor) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--muted)">${label}</span><span style="font-weight:700;${cor?`color:${cor}`:''}">${val}</span></div>`;
+
+    el.innerHTML = `
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:2px;font-size:13px">Desempenho por veículo</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Payback (receita histórica ÷ custo de compra) · Ocupação nos últimos 90 dias</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">
+          ${dados.map(d=>`
+            <div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px">
+              <div style="font-weight:700;font-size:13px">${d.v.marca} ${d.v.modelo}</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${d.v.placa}</div>
+              ${d.custo>0 ? `
+                ${linha('Custo de compra', fmtR$(d.custo))}
+                ${linha('Recebido (histórico)', fmtR$(d.receitaTotal), '#16a34a')}
+                <div style="background:var(--border2);border-radius:999px;height:5px;overflow:hidden;margin:5px 0">
+                  <div style="background:${d.pctRecuperado>=100?'#16a34a':'var(--accent)'};height:100%;width:${Math.min(100,d.pctRecuperado)}%"></div>
+                </div>
+                ${linha('Payback', d.pctRecuperado+'%', d.pctRecuperado>=100?'#16a34a':null)}
+              ` : `<div style="font-size:11px;color:${d.custoSuspeito?'#F5B942':'var(--muted)'};font-style:italic;margin-bottom:6px">${d.custoSuspeito?'⚠️ Valor de compra parece incorreto (R$ '+d.v.valor_compra+') — confira o cadastro':'Sem valor de compra cadastrado'}</div>`}
+              ${linha('Ocupação (90d)', d.pctOcupacao+'%', d.pctOcupacao>=70?'#16a34a':d.pctOcupacao<30?'#F87171':null)}
+              ${d.receitaDia!=null?linha('Receita/dia (média)', fmtR$(d.receitaDia)):''}
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }catch(e){
+    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// BLOCO 4 — INADIMPLÊNCIA COM AGING
+// Cobranças semanais vencidas (pendente/atrasado + data_vencimento no
+// passado), agrupadas por faixa de atraso — prioriza quem cobrar primeiro.
+// ══════════════════════════════════════════════════════════════
+async function _anRenderInadimplencia(){
+  const el = document.getElementById('an-inadimplencia');
+  if(!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px">Carregando…</div>';
+
+  try{
+    const hoje = new Date();
+    const {data, error} = await sb.from('cobrancas_semanais')
+      .select('valor,data_vencimento,status,locacoes(clientes(nome))')
+      .in('status',['pendente','atrasado'])
+      .lt('data_vencimento', hoje.toISOString().slice(0,10));
+    if(error) throw error;
+
+    const vencidas = (data||[]).map(c=>({
+      ...c,
+      diasAtraso: Math.floor((hoje - new Date(c.data_vencimento+'T12:00:00'))/86400000)
+    }));
+
+    const faixas = [
+      {label:'1–7 dias',   min:1,  max:7},
+      {label:'8–14 dias',  min:8,  max:14},
+      {label:'15–30 dias', min:15, max:30},
+      {label:'30+ dias',   min:31, max:Infinity},
+    ];
+    const buckets = faixas.map(f=>{
+      const itens = vencidas.filter(c=>c.diasAtraso>=f.min && c.diasAtraso<=f.max);
+      return { ...f, count:itens.length, valor:itens.reduce((a,c)=>a+(parseFloat(c.valor)||0),0) };
+    });
+    const totalValor = vencidas.reduce((a,c)=>a+(parseFloat(c.valor)||0),0);
+    const maxValor = Math.max(...buckets.map(b=>b.valor), 1);
+    const cores = ['#F5B942','#F59E0B','#F87171','#B91C1C'];
+
+    el.innerHTML = `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+          <div style="font-weight:700;font-size:13px">Inadimplência por tempo de atraso</div>
+          <div style="font-size:12px;color:var(--muted)">Total vencido: <b style="color:#F87171">${fmtR$(totalValor)}</b> em ${vencidas.length} semana${vencidas.length===1?'':'s'}</div>
+        </div>
+        ${vencidas.length===0 ? '<div style="font-size:13px;color:var(--muted)">Nenhuma cobrança vencida no momento 🎉</div>' :
+          buckets.map((b,i)=>`
+            <div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+                <span>${b.label} <span style="color:var(--muted)">(${b.count})</span></span>
+                <span style="font-weight:700">${fmtR$(b.valor)}</span>
+              </div>
+              <div style="background:var(--border2);border-radius:999px;height:7px;overflow:hidden">
+                <div style="background:${cores[i]};height:100%;width:${Math.round(b.valor/maxValor*100)}%;min-width:${b.valor>0?'3px':'0'}"></div>
+              </div>
+            </div>`).join('')}
+      </div>`;
+  }catch(e){
+    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// BLOCO 5 — EVOLUÇÃO (últimos 6 meses)
+// Receita x despesa mês a mês, para enxergar tendência/sazonalidade.
+// ══════════════════════════════════════════════════════════════
+async function _anRenderEvolucao(){
+  const el = document.getElementById('an-evolucao');
+  if(!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px">Carregando…</div>';
+
+  try{
+    const hoje = new Date();
+    const inicio6m = new Date(hoje.getFullYear(), hoje.getMonth()-5, 1);
+    const {data, error} = await sb.from('lancamentos').select('tipo,valor,data')
+      .gte('data', inicio6m.toISOString().slice(0,10));
+    if(error) throw error;
+    const lanc = data||[];
+
+    const meses = Array.from({length:6}, (_,i)=>{
+      const d = new Date(hoje.getFullYear(), hoje.getMonth()-5+i, 1);
+      return { label: d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}), ym: d.toISOString().slice(0,7), receita:0, despesa:0 };
+    });
+    lanc.forEach(l=>{
+      const ym = (l.data||'').slice(0,7);
+      const m = meses.find(x=>x.ym===ym);
+      if(!m) return;
+      if(l.tipo==='receita') m.receita += parseFloat(l.valor)||0;
+      else if(l.tipo==='despesa') m.despesa += parseFloat(l.valor)||0;
+    });
+    const maxVal = Math.max(...meses.map(m=>Math.max(m.receita,m.despesa)), 1);
+
+    el.innerHTML = `
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:12px;font-size:13px">Evolução — últimos 6 meses</div>
+        <div style="display:flex;align-items:flex-end;gap:10px;height:160px;padding:0 4px">
+          ${meses.map(m=>`
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+              <div style="display:flex;align-items:flex-end;gap:3px;height:130px">
+                <div title="Receita: ${fmtR$(m.receita)}" style="width:14px;background:#16a34a;border-radius:3px 3px 0 0;height:${Math.max(2,Math.round(m.receita/maxVal*130))}px"></div>
+                <div title="Despesa: ${fmtR$(m.despesa)}" style="width:14px;background:#F87171;border-radius:3px 3px 0 0;height:${Math.max(2,Math.round(m.despesa/maxVal*130))}px"></div>
+              </div>
+              <div style="font-size:10px;color:var(--muted);text-transform:capitalize">${m.label}</div>
+            </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted)">
+          <span><span style="display:inline-block;width:9px;height:9px;background:#16a34a;border-radius:2px;margin-right:4px"></span>Receita</span>
+          <span><span style="display:inline-block;width:9px;height:9px;background:#F87171;border-radius:2px;margin-right:4px"></span>Despesa</span>
         </div>
       </div>`;
   }catch(e){
