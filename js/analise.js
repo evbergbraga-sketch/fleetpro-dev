@@ -53,7 +53,7 @@ async function _anRenderRealizado(){
     const setaVar = (v,invertido)=>{
       if(v==null) return '<span style="color:var(--muted);font-size:11px">sem comparativo</span>';
       const bom = invertido ? v<=0 : v>=0;
-      const cor = bom ? '#16a34a' : '#F87171';
+      const cor = bom ? 'var(--green)' : 'var(--red)';
       const seta = v>=0 ? '▲' : '▼';
       return `<span style="color:${cor};font-size:11px;font-weight:700">${seta} ${Math.abs(v)}% vs mês anterior</span>`;
     };
@@ -68,37 +68,37 @@ async function _anRenderRealizado(){
     const maxCat = catsOrdenadas[0]?.[1] || 1;
 
     el.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px">
-        <div class="card" style="border-left:3px solid #16a34a">
-          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Receita do mês</div>
-          <div style="font-size:22px;font-weight:800;margin:4px 0;color:#16a34a">${fmtR$(rec)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:16px">
+        <div class="card" style="border-left:3px solid var(--green)">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Receita do mês</div>
+          <div style="font-family:var(--font-display);font-size:26px;font-weight:800;margin:6px 0 4px;color:var(--green);font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(rec)}</div>
           ${setaVar(varRec,false)}
         </div>
-        <div class="card" style="border-left:3px solid #F87171">
-          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Despesa do mês</div>
-          <div style="font-size:22px;font-weight:800;margin:4px 0;color:#F87171">${fmtR$(desp)}</div>
+        <div class="card" style="border-left:3px solid var(--red)">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Despesa do mês</div>
+          <div style="font-family:var(--font-display);font-size:26px;font-weight:800;margin:6px 0 4px;color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(desp)}</div>
           ${setaVar(varDesp,true)}
         </div>
         <div class="card" style="border-left:3px solid var(--accent)">
-          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Resultado líquido</div>
-          <div style="font-size:22px;font-weight:800;margin:4px 0;color:${liq>=0?'#16a34a':'#F87171'}">${fmtR$(liq)}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Resultado líquido</div>
+          <div style="font-family:var(--font-display);font-size:26px;font-weight:800;margin:6px 0 4px;color:${liq>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(liq)}</div>
           ${setaVar(varLiq,false)}
         </div>
       </div>
       <div class="card">
-        <div style="font-weight:700;margin-bottom:10px;font-size:13px">De onde veio a receita este mês</div>
+        <div style="font-weight:700;margin-bottom:12px;font-size:13px">De onde veio a receita este mês</div>
         ${catsOrdenadas.length ? catsOrdenadas.map(([cat,val])=>`
-          <div style="margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px">
-              <span>${cat}</span><span style="font-weight:700">${fmtR$(val)}</span>
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px">
+              <span>${cat}</span><span style="font-weight:700;font-variant-numeric:tabular-nums">${fmtR$(val)}</span>
             </div>
-            <div style="background:var(--border2);border-radius:999px;height:6px;overflow:hidden">
-              <div style="background:var(--accent);height:100%;width:${Math.round(val/maxCat*100)}%"></div>
+            <div style="background:var(--bg3);border-radius:999px;height:7px;overflow:hidden">
+              <div style="background:var(--accent);height:100%;width:${Math.round(val/maxCat*100)}%;border-radius:999px"></div>
             </div>
           </div>`).join('') : '<div style="color:var(--muted);font-size:13px">Nenhuma receita lançada este mês.</div>'}
       </div>`;
   }catch(e){
-    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+    el.innerHTML = `<div class="card" style="color:var(--red);font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
   }
 }
 
@@ -150,49 +150,85 @@ async function _anRenderCaixaProjetado(){
     });
 
     let acumulado = 0;
+    const pontos = [];
     const totalEntradas = semanas.reduce((a,b)=>a+b.entradas,0);
     const totalSaidas   = semanas.reduce((a,b)=>a+b.saidas,0);
-    const maxAbs = Math.max(...semanas.map(s=>Math.max(s.entradas,s.saidas)), 1);
     const fmtDia = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
 
-    const linhas = semanas.map((s,i)=>{
-      acumulado += s.entradas - s.saidas;
-      const largE = Math.round(s.entradas/maxAbs*100);
-      const largS = Math.round(s.saidas/maxAbs*100);
-      return `
-        <div style="display:grid;grid-template-columns:70px 1fr 90px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border2)">
-          <div style="font-size:11px;color:var(--muted)">${fmtDia(s.ini)}–${fmtDia(s.fim)}</div>
-          <div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-              <div style="background:#16a34a;height:7px;border-radius:3px;width:${largE}%;min-width:${s.entradas>0?'3px':'0'}"></div>
-              <span style="font-size:11px;color:#16a34a;font-weight:600">+${fmtR$(s.entradas)}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <div style="background:#F87171;height:7px;border-radius:3px;width:${largS}%;min-width:${s.saidas>0?'3px':'0'}"></div>
-              <span style="font-size:11px;color:#F87171;font-weight:600">-${fmtR$(s.saidas)}</span>
-            </div>
-          </div>
-          <div style="text-align:right;font-weight:800;font-size:13px;color:${acumulado>=0?'#16a34a':'#F87171'}">${fmtR$(acumulado)}</div>
-        </div>`;
-    }).join('');
+    semanas.forEach(s=>{ acumulado += s.entradas - s.saidas; pontos.push(acumulado); });
+    const piorIdx = pontos.indexOf(Math.min(...pontos));
+    const semanaPior = semanas[piorIdx];
+    const maiorSaidaIdx = semanas.reduce((best,s,i)=> s.saidas>semanas[best].saidas ? i : best, 0);
+    const semanaMaiorSaida = semanas[maiorSaidaIdx];
+
+    const labels = semanas.map(s=>`${fmtDia(s.ini)}`);
+    const canvasId = 'an-caixa-chart-'+Date.now();
 
     el.innerHTML = `
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:8px">
-          <div style="font-weight:700;font-size:13px">Caixa projetado — próximas 8 semanas</div>
-          <div style="font-size:12px;color:var(--muted)">Entradas já contratadas · saídas já agendadas</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Caixa projetado · 8 semanas</div>
+            <div style="font-family:var(--font-display);font-size:28px;font-weight:800;margin:6px 0 0;color:${acumulado>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums;letter-spacing:-0.01em">${fmtR$(acumulado)}</div>
+          </div>
+          ${semanaPior ? `<div style="text-align:right">
+            <div style="font-size:11px;color:var(--muted)">Pior ponto do período</div>
+            <div style="font-size:13px;font-weight:700;color:var(--red);margin-top:4px">${fmtR$(pontos[piorIdx])} <span style="font-weight:500;color:var(--muted);font-size:11.5px">em ${fmtDia(semanaPior.ini)}–${fmtDia(semanaPior.fim)}</span></div>
+          </div>` : ''}
         </div>
-        <div style="display:grid;grid-template-columns:70px 1fr 90px;gap:10px;padding:4px 0 6px;font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase">
-          <div>Semana</div><div>Entradas / Saídas</div><div style="text-align:right">Acumulado</div>
+
+        <div style="position:relative;height:180px;margin:14px 0 4px">
+          <canvas id="${canvasId}" role="img" aria-label="Trajetória do saldo de caixa acumulado ao longo das próximas 8 semanas">Saldo de caixa projetado semana a semana.</canvas>
         </div>
-        ${linhas}
-        <div style="display:flex;justify-content:space-between;padding-top:10px;font-size:12.5px">
-          <span>Total 8 semanas: <b style="color:#16a34a">+${fmtR$(totalEntradas)}</b> · <b style="color:#F87171">-${fmtR$(totalSaidas)}</b></span>
-          <span style="font-weight:800;color:${acumulado>=0?'#16a34a':'#F87171'}">Líquido: ${fmtR$(acumulado)}</span>
+
+        <div style="display:flex;gap:20px;flex-wrap:wrap;padding-top:14px;margin-top:8px;border-top:1px solid var(--border2)">
+          <div>
+            <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Entradas contratadas</div>
+            <div style="font-size:16px;font-weight:700;color:var(--green);margin-top:3px;font-variant-numeric:tabular-nums">+${fmtR$(totalEntradas)}</div>
+          </div>
+          <div>
+            <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Saídas agendadas</div>
+            <div style="font-size:16px;font-weight:700;color:var(--red);margin-top:3px;font-variant-numeric:tabular-nums">-${fmtR$(totalSaidas)}</div>
+          </div>
+          ${semanaMaiorSaida?.saidas>0 ? `<div style="margin-left:auto;text-align:right">
+            <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Maior saída isolada</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:3px">${fmtR$(semanaMaiorSaida.saidas)} · ${fmtDia(semanaMaiorSaida.ini)}–${fmtDia(semanaMaiorSaida.fim)}</div>
+          </div>` : ''}
         </div>
       </div>`;
+
+    // Gráfico de trajetória: linha do acumulado, com preenchimento em
+    // gradiente (verde quando positivo, vermelho quando cai abaixo de zero)
+    requestAnimationFrame(()=>{
+      const canvas = document.getElementById(canvasId);
+      if(!canvas || typeof Chart==='undefined') return;
+      const ctx = canvas.getContext('2d');
+      const corLinha = acumulado>=0 ? '#15803d' : '#DC2626';
+      const gradiente = ctx.createLinearGradient(0,0,0,180);
+      gradiente.addColorStop(0, acumulado>=0 ? 'rgba(21,128,61,0.22)' : 'rgba(220,38,38,0.22)');
+      gradiente.addColorStop(1, acumulado>=0 ? 'rgba(21,128,61,0)' : 'rgba(220,38,38,0)');
+      new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets: [{
+          data: pontos, borderColor: corLinha, borderWidth: 2.5, pointRadius: 0,
+          pointHoverRadius: 5, pointHoverBackgroundColor: corLinha, pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+          fill: true, backgroundColor: gradiente, tension: 0.35,
+        }]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: {display:false}, tooltip: {
+            backgroundColor: '#18181B', titleColor: '#A1A1AA', bodyColor: '#FAFAFA', padding: 10, displayColors: false,
+            callbacks: { label: c => fmtR$(c.parsed.y) }
+          }},
+          scales: {
+            y: { grid:{color:'#EBEBEB'}, ticks:{ color:'#A1A1AA', font:{size:10}, callback: v => (v/1000).toFixed(0)+'k' }, border:{display:false} },
+            x: { grid:{display:false}, ticks:{ color:'#A1A1AA', font:{size:10.5} }, border:{display:false} },
+          }
+        }
+      });
+    });
   }catch(e){
-    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+    el.innerHTML = `<div class="card" style="color:var(--red);font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
   }
 }
 
@@ -382,28 +418,31 @@ async function _anRenderInadimplencia(){
     });
     const totalValor = vencidas.reduce((a,c)=>a+(parseFloat(c.valor)||0),0);
     const maxValor = Math.max(...buckets.map(b=>b.valor), 1);
-    const cores = ['#F5B942','#F59E0B','#F87171','#B91C1C'];
+    const cores = ['#D97706','#EA580C','#DC2626','#991B1B'];
 
     el.innerHTML = `
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px">
           <div style="font-weight:700;font-size:13px">Inadimplência por tempo de atraso</div>
-          <div style="font-size:12px;color:var(--muted)">Total vencido: <b style="color:#F87171">${fmtR$(totalValor)}</b> em ${vencidas.length} semana${vencidas.length===1?'':'s'}</div>
+          <div style="text-align:right">
+            <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Total vencido</div>
+            <div style="font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--red);margin-top:2px;font-variant-numeric:tabular-nums">${fmtR$(totalValor)}</div>
+          </div>
         </div>
-        ${vencidas.length===0 ? '<div style="font-size:13px;color:#16a34a">Nenhuma cobrança vencida no momento.</div>' :
+        ${vencidas.length===0 ? '<div style="font-size:13px;color:var(--green)">Nenhuma cobrança vencida no momento.</div>' :
           buckets.map((b,i)=>`
-            <div style="margin-bottom:8px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-                <span>${b.label} <span style="color:var(--muted)">(${b.count})</span></span>
-                <span style="font-weight:700">${fmtR$(b.valor)}</span>
+            <div style="margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+                <span>${b.label} <span style="color:var(--muted);font-size:12px">(${b.count})</span></span>
+                <span style="font-weight:700;font-variant-numeric:tabular-nums">${fmtR$(b.valor)}</span>
               </div>
-              <div style="background:var(--border2);border-radius:999px;height:7px;overflow:hidden">
-                <div style="background:${cores[i]};height:100%;width:${Math.round(b.valor/maxValor*100)}%;min-width:${b.valor>0?'3px':'0'}"></div>
+              <div style="background:var(--bg3);border-radius:999px;height:9px;overflow:hidden">
+                <div style="background:${cores[i]};height:100%;width:${Math.round(b.valor/maxValor*100)}%;min-width:${b.valor>0?'3px':'0'};border-radius:999px"></div>
               </div>
             </div>`).join('')}
       </div>`;
   }catch(e){
-    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+    el.innerHTML = `<div class="card" style="color:var(--red);font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
   }
 }
 
@@ -437,25 +476,46 @@ async function _anRenderEvolucao(){
     });
     const maxVal = Math.max(...meses.map(m=>Math.max(m.receita,m.despesa)), 1);
 
+    const canvasId = 'an-evol-chart-'+Date.now();
+
     el.innerHTML = `
       <div class="card">
-        <div style="font-weight:700;margin-bottom:12px;font-size:13px">Evolução — últimos 6 meses</div>
-        <div style="display:flex;align-items:flex-end;gap:10px;height:160px;padding:0 4px">
-          ${meses.map(m=>`
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
-              <div style="display:flex;align-items:flex-end;gap:3px;height:130px">
-                <div title="Receita: ${fmtR$(m.receita)}" style="width:14px;background:#16a34a;border-radius:3px 3px 0 0;height:${Math.max(2,Math.round(m.receita/maxVal*130))}px"></div>
-                <div title="Despesa: ${fmtR$(m.despesa)}" style="width:14px;background:#F87171;border-radius:3px 3px 0 0;height:${Math.max(2,Math.round(m.despesa/maxVal*130))}px"></div>
-              </div>
-              <div style="font-size:10px;color:var(--muted);text-transform:capitalize">${m.label}</div>
-            </div>`).join('')}
+        <div style="font-weight:700;margin-bottom:4px;font-size:13px">Evolução — últimos 6 meses</div>
+        <div style="display:flex;gap:16px;margin-bottom:12px">
+          <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:9px;height:9px;background:var(--green);border-radius:2px"></span>Receita</span>
+          <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:9px;height:9px;background:var(--red);border-radius:2px"></span>Despesa</span>
         </div>
-        <div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted)">
-          <span><span style="display:inline-block;width:9px;height:9px;background:#16a34a;border-radius:2px;margin-right:4px"></span>Receita</span>
-          <span><span style="display:inline-block;width:9px;height:9px;background:#F87171;border-radius:2px;margin-right:4px"></span>Despesa</span>
+        <div style="position:relative;height:200px">
+          <canvas id="${canvasId}" role="img" aria-label="Gráfico de barras comparando receita e despesa mensal nos últimos 6 meses">Receita e despesa mês a mês.</canvas>
         </div>
       </div>`;
+
+    requestAnimationFrame(()=>{
+      const canvas = document.getElementById(canvasId);
+      if(!canvas || typeof Chart==='undefined') return;
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: meses.map(m=>m.label),
+          datasets: [
+            { label:'Receita', data: meses.map(m=>m.receita), backgroundColor:'#15803d', borderRadius:4, maxBarThickness:22 },
+            { label:'Despesa', data: meses.map(m=>m.despesa), backgroundColor:'#DC2626', borderRadius:4, maxBarThickness:22 },
+          ]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{
+            backgroundColor:'#18181B', titleColor:'#A1A1AA', bodyColor:'#FAFAFA', padding:10, displayColors:false,
+            callbacks:{ label: c => c.dataset.label+': '+fmtR$(c.parsed.y) }
+          }},
+          scales:{
+            y:{ grid:{color:'#EBEBEB'}, ticks:{ color:'#A1A1AA', font:{size:10}, callback:v=>(v/1000).toFixed(0)+'k' }, border:{display:false} },
+            x:{ grid:{display:false}, ticks:{ color:'#A1A1AA', font:{size:11} }, border:{display:false} },
+          }
+        }
+      });
+    });
   }catch(e){
-    el.innerHTML = `<div class="card" style="color:#F87171;font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
+    el.innerHTML = `<div class="card" style="color:var(--red);font-size:13px">Erro ao carregar: ${e.message||e}</div>`;
   }
 }
