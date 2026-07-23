@@ -328,7 +328,7 @@ async function _locSincronizarAsaasAgora(locId){
   try{
     const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
     const resp = await fetch(bridge+'/api/asaas/sync-agora', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
       body: JSON.stringify({ locacao_id: locId })
     });
     const r = await resp.json();
@@ -365,7 +365,7 @@ async function _confirmarEditarValorSemana(cobrancaId, asaasPaymentId){
     if(asaasPaymentId){
       const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
       const resp = await fetch(bridge+'/api/asaas/atualizar-valor-pagamento', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
         body: JSON.stringify({ asaas_payment_id: asaasPaymentId, novo_valor: novoValor })
       });
       const r = await resp.json();
@@ -401,7 +401,7 @@ async function _confirmarReajusteSemanas(locId, asaasSubscriptionId, novoValor){
 
     const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
     const resp = await fetch(bridge+'/api/asaas/reajustar-assinatura', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
       body: JSON.stringify({ asaas_subscription_id: asaasSubscriptionId, novo_valor: novoValor })
     });
     const r = await resp.json();

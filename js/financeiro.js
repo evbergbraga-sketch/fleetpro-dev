@@ -536,7 +536,7 @@ async function vincularAssinaturaAsaasExistente(locacao, clienteId){
     const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
 
     const respBusca = await fetch(bridge + '/api/asaas/buscar-assinatura', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
       body: JSON.stringify({ cpf: c.cpf })
     });
     if(!respBusca.ok) throw new Error('Bridge respondeu '+respBusca.status);
@@ -556,7 +556,7 @@ async function vincularAssinaturaAsaasExistente(locacao, clienteId){
 
     // Reconcilia na hora (sem esperar o cron de 6h)
     const respSync = await fetch(bridge + '/api/asaas/sync-agora', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
       body: JSON.stringify({ locacao_id: locacao.id })
     });
     if(!respSync.ok) throw new Error('Bridge (sync) respondeu '+respSync.status);
@@ -594,7 +594,7 @@ async function criarAssinaturaAsaas(locacao){
 
     const resp = await fetch(bridge + '/api/asaas/criar-assinatura', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'x-secret':'FleetPro2025','Content-Type':'application/json'},
       body: JSON.stringify({
         locacao_id: locacao.id,
         num_contrato: locacao.num_contrato||null,
