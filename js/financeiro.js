@@ -209,19 +209,22 @@ function _finRenderChart(){
     data: {
       labels,
       datasets: [
-        { label:'Receitas', data:receitas, backgroundColor:'rgba(22,163,74,.7)', borderRadius:4 },
-        { label:'Despesas', data:despesas, backgroundColor:'rgba(220,38,38,.7)', borderRadius:4 },
+        { label:'Receitas', data:receitas, backgroundColor:'#16A34A', borderRadius:5, maxBarThickness:46 },
+        { label:'Despesas', data:despesas, backgroundColor:'#EF4444', borderRadius:5, maxBarThickness:46 },
       ],
     },
     options: {
       responsive:true, maintainAspectRatio:false,
       plugins:{
-        legend:{position:'top', labels:{boxWidth:12, font:{size:11}}},
-        tooltip:{callbacks:{ label: ctx => `${ctx.dataset.label}: R$ ${ctx.parsed.y.toLocaleString('pt-BR',{minimumFractionDigits:2})}` }},
+        legend:{position:'top', align:'end', labels:{boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'circle', font:{size:11.5}, color:'#52525B'}},
+        tooltip:{
+          backgroundColor:'#18181B', titleColor:'#A1A1AA', bodyColor:'#FAFAFA', padding:10, displayColors:false, cornerRadius:8,
+          callbacks:{ label: ctx => `${ctx.dataset.label}: R$ ${ctx.parsed.y.toLocaleString('pt-BR',{minimumFractionDigits:2})}` },
+        },
       },
       scales:{
-        y:{ ticks:{ callback: v => 'R$ '+v.toLocaleString('pt-BR') } },
-        x:{ ticks:{ font:{size:10} } },
+        y:{ grid:{color:'#EBEBEB'}, border:{display:false}, ticks:{ color:'#A1A1AA', font:{size:10.5}, callback: v => 'R$ '+v.toLocaleString('pt-BR') } },
+        x:{ grid:{display:false}, border:{display:false}, ticks:{ color:'#71717A', font:{size:10.5} } },
       },
     },
   });
@@ -280,12 +283,12 @@ function finAtualizarCards(){
   if(el('fin-despesa-mes'))  el('fin-despesa-mes').textContent  = fmt(despesaMes);
   if(el('fin-saldo-mes')){
     el('fin-saldo-mes').textContent = fmt(saldoMes);
-    el('fin-saldo-mes').style.color = saldoMes >= 0 ? 'var(--green)' : 'var(--red)';
+    el('fin-saldo-mes').style.color = saldoMes >= 0 ? '#7C3AED' : '#EF4444';
   }
   if(el('fin-saldo-total')){
     const st = totalRec - totalDes;
     el('fin-saldo-total').textContent = fmt(st);
-    el('fin-saldo-total').style.color = st >= 0 ? 'var(--accent)' : 'var(--red)';
+    el('fin-saldo-total').style.color = st >= 0 ? '#7C3AED' : '#EF4444';
   }
 }
 

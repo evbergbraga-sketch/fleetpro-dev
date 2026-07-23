@@ -1318,28 +1318,28 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
       <div class="page" id="page-financeiro">
         <!-- CARDS RESUMO -->
         <div class="mob-2col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Receita <span id="fin-label-periodo-1">do período</span></div>
-            <div id="fin-receita-mes" style="font-size:24px;font-weight:800;color:var(--green)">R$ 0</div>
+          <div class="card" style="text-align:center;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:8px">Receita <span id="fin-label-periodo-1">do período</span></div>
+            <div id="fin-receita-mes" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;font-size:26px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:#16A34A">R$ 0</div>
           </div>
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Despesa <span id="fin-label-periodo-2">do período</span></div>
-            <div id="fin-despesa-mes" style="font-size:24px;font-weight:800;color:var(--red)">R$ 0</div>
+          <div class="card" style="text-align:center;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:8px">Despesa <span id="fin-label-periodo-2">do período</span></div>
+            <div id="fin-despesa-mes" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;font-size:26px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:#EF4444">R$ 0</div>
           </div>
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Saldo <span id="fin-label-periodo-3">do período</span></div>
-            <div id="fin-saldo-mes" style="font-size:24px;font-weight:800;color:var(--accent)">R$ 0</div>
+          <div class="card" style="text-align:center;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:8px">Saldo <span id="fin-label-periodo-3">do período</span></div>
+            <div id="fin-saldo-mes" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;font-size:26px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:#7C3AED">R$ 0</div>
           </div>
-          <div class="card" style="text-align:center;padding:16px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:6px">Saldo acumulado (total)</div>
-            <div id="fin-saldo-total" style="font-size:24px;font-weight:800;color:var(--text)">R$ 0</div>
+          <div class="card" style="text-align:center;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);margin-bottom:8px">Saldo acumulado (total)</div>
+            <div id="fin-saldo-total" style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;font-size:26px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;color:var(--text)">R$ 0</div>
           </div>
         </div>
 
         <!-- GRÁFICO -->
         <div class="card" style="padding:16px;margin-bottom:20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-            <div style="font-size:13px;font-weight:700;color:var(--text)">📊 Receitas x Despesas</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Receitas x Despesas</div>
             <div style="display:flex;gap:6px">
               <button id="fin-chart-btn-cat" onclick="_finChartModo('categoria')" class="btn btn-ghost" style="font-size:11px;padding:5px 12px">Por categoria</button>
               <button id="fin-chart-btn-tempo" onclick="_finChartModo('tempo')" class="btn btn-ghost" style="font-size:11px;padding:5px 12px">Por período</button>
@@ -3305,7 +3305,7 @@ insert into veiculos (tipo,marca,modelo,placa,ano,cor,cambio,km_atual,diaria,sta
 <script src="js/clientes.js?v=20260710n"></script>
 <script src="js/historico.js?v=20260710n"></script>
 <script src="js/contratos.js?v=20260722a"></script>
-<script src="js/financeiro.js?v=20260721a"></script>
+<script src="js/financeiro.js?v=20260722a"></script>
 <script src="js/analise.js?v=20260722f"></script>
 <script src="js/contaspagar.js?v=20260710n"></script>
 <script src="js/cartoes.js?v=20260710n"></script>
