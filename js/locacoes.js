@@ -1414,13 +1414,24 @@ function _selectItem(label, status){
 }
 
 // ══ PREVIEW DE FOTOS ══
+// Bug corrigido: cada vez que o input dispara onchange (no celular, a
+// câmera costuma abrir/fechar uma foto por vez), esta função ERA chamada
+// e SUBSTITUÍA window[_fotos_tipo] pelo novo arquivo — apagando as fotos
+// já tiradas antes. Agora acumula (soma com o que já tinha) em vez de
+// sobrescrever.
 function _previewFotos(input, tipo){
-  const files = Array.from(input.files).slice(0,20);
+  const novos = Array.from(input.files);
+  const existentes = window[`_fotos_${tipo}`] || [];
+  const combinados = [...existentes, ...novos].slice(0,20);
+  window[`_fotos_${tipo}`] = combinados;
+  // Limpa o input — sem isso, em alguns navegadores tirar a MESMA foto de
+  // novo (ou reabrir a câmera) não dispara onchange na próxima vez
+  input.value = '';
+
   const wrap = document.getElementById(`fotos-preview-${tipo}`);
   if(!wrap) return;
   wrap.innerHTML = '';
-  window[`_fotos_${tipo}`] = files;
-  files.forEach((file,i)=>{
+  combinados.forEach((file,i)=>{
     const reader = new FileReader();
     reader.onload = e=>{
       const div = document.createElement('div');
