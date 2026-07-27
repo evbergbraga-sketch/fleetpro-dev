@@ -855,11 +855,25 @@ function _renderFormEstender(locId, loc){
           <option value="Boleto">Boleto</option>
         </select>
       </div>
-      <div class="form-group">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;margin-top:18px">
-          <input type="checkbox" id="est-ja-pago" style="width:auto">
-          Cliente já pagou a extensão
-        </label>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Pagamento da extensão</label>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="est-pgto-tipo" value="nao" checked style="width:auto" onchange="_toggleEstPagamentoParcial()">
+            Ainda não pagou
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="est-pgto-tipo" value="total" style="width:auto" onchange="_toggleEstPagamentoParcial()">
+            Pagou tudo
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+            <input type="radio" name="est-pgto-tipo" value="parcial" style="width:auto" onchange="_toggleEstPagamentoParcial()">
+            Pagamento parcial
+          </label>
+        </div>
+        <div id="est-parcial-wrap" style="display:none;margin-top:8px">
+          <input type="number" id="est-valor-parcial" placeholder="Valor pago agora (R$)" step="0.01" min="0" style="width:100%">
+        </div>
       </div>
     </div>
 
@@ -1079,16 +1093,33 @@ async function _gerarAditivoFromForm(locId, valorUnitario, diasPorUnidade){
   });
 }
 
+// Mostra/esconde o campo de valor quando "Pagamento parcial" é selecionado
+function _toggleEstPagamentoParcial(){
+  const tipo = document.querySelector('input[name="est-pgto-tipo"]:checked')?.value;
+  const wrap = document.getElementById('est-parcial-wrap');
+  if(wrap) wrap.style.display = tipo==='parcial' ? 'block' : 'none';
+}
+
 async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
   const qtd = parseInt(document.getElementById('est-qtd')?.value)||1;
   if(qtd<=0){ notify('Informe uma quantidade válida','error'); return; }
 
   const totalEl = document.getElementById('est-resumo-total');
   const total = parseFloat(totalEl?.dataset?.valor)||0;
-  const jaPago = document.getElementById('est-ja-pago')?.checked||false;
+  const tipoPgto = document.querySelector('input[name="est-pgto-tipo"]:checked')?.value || 'nao';
   const forma = document.getElementById('est-forma-pgto')?.value||'PIX';
 
   const btn = document.querySelector('#form-estender .btn-primary');
+
+  let valorPago = 0;
+  if(tipoPgto === 'total'){
+    valorPago = total;
+  } else if(tipoPgto === 'parcial'){
+    valorPago = parseFloat(document.getElementById('est-valor-parcial')?.value)||0;
+    if(valorPago <= 0){ notify('Informe o valor pago parcialmente.','error'); return; }
+    if(valorPago > total){ notify('O valor pago não pode ser maior que o total da extensão (R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2})+').','error'); return; }
+  }
+
   if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
 
   try{
@@ -1111,7 +1142,7 @@ async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
     // Atualiza locação: nova data de devolução + acumula serviços extras
     const novosServicos = [...(loc.servicos_adicionais||[]), ..._servicosExtensao.map(s=>({...s, extensao:true}))];
     const novoTotal = Number(loc.total||0) + total;
-    const novoRestante = jaPago ? Number(loc.valor_restante||0) : Number(loc.valor_restante||0) + total;
+    const novoRestante = Number(loc.valor_restante||0) + total - valorPago;
 
     await sb.from('locacoes').update({
       data_fim: novaDataISO.slice(0,10),
@@ -1121,12 +1152,13 @@ async function _confirmarExtensao(locId, valorUnitario, diasPorUnidade){
       servicos_adicionais: novosServicos.length>0 ? novosServicos : null,
     }).eq('id', locId);
 
-    // Lançamento financeiro (se já pago)
-    if(jaPago && total>0){
+    // Lançamento financeiro — só do valor efetivamente recebido agora
+    // (cobre os 3 casos: nao pagou=0 nao lanca, total, ou parcial)
+    if(valorPago>0){
       await sb.from('lancamentos').insert({
         tipo:'receita', categoria:'Aluguel',
-        descricao:`Contrato #${loc.num_contrato||locId.slice(0,8)} — ${loc.clientes?.nome||''} — ${loc.veiculos?.placa||''} — Extensão (+${qtd} ${diasPorUnidade===7?'semana(s)':'diária(s)'}) — ${forma}`,
-        valor: total, data: new Date().toISOString().slice(0,10),
+        descricao:`Contrato #${loc.num_contrato||locId.slice(0,8)} — ${loc.clientes?.nome||''} — ${loc.veiculos?.placa||''} — Extensão (+${qtd} ${diasPorUnidade===7?'semana(s)':'diária(s)'})${tipoPgto==='parcial'?' — pagamento parcial':''} — ${forma}`,
+        valor: valorPago, data: new Date().toISOString().slice(0,10),
         veiculo_id: loc.veiculo_id||null, locacao_id: locId,
         origem:'extensao', criado_por: currentUser?.id,
         forma_pgto: forma||null,
