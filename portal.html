@@ -1329,10 +1329,19 @@ function renderContrato(loc, vei) {
   if (loc.contrato_pdf_url) {
     document.getElementById('btn-pdf').style.display = '';
     document.getElementById('btn-pdf').dataset.url = loc.contrato_pdf_url;
+  } else {
+    // Sem isso, se essa mesma aba já tivesse mostrado o PDF de outro
+    // contrato antes, o botão ficava "grudado" com a URL antiga — o
+    // cliente errado (ex: Raquel) baixaria o contrato de outra pessoa.
+    document.getElementById('btn-pdf').style.display = 'none';
+    delete document.getElementById('btn-pdf').dataset.url;
   }
   if (vei.crlv_url) {
     document.getElementById('btn-crlv').style.display = '';
     document.getElementById('btn-crlv').dataset.url = vei.crlv_url;
+  } else {
+    document.getElementById('btn-crlv').style.display = 'none';
+    delete document.getElementById('btn-crlv').dataset.url;
   }
 }
 
