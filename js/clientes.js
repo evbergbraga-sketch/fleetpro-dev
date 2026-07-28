@@ -574,7 +574,11 @@ async function _renderPerfilCliente(c){
         :`<span class="badge badge-green">Válida até ${fmtData(c.cnh_validade)}</span>`)
     :'<span class="badge badge-gray">Não informada</span>';
   const ini=(c.nome||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-  const totalGasto=(locs||[]).reduce((acc,l)=>acc+(l.total||0),0);
+  // Contratos cancelados não contam como "gasto" real nem como locação
+  // válida no resumo — só no histórico completo da aba abaixo (onde faz
+  // sentido ver tudo, inclusive o que foi cancelado)
+  const locsValidas=(locs||[]).filter(l=>l.status!=='cancelada');
+  const totalGasto=locsValidas.reduce((acc,l)=>acc+(l.total||0),0);
   const locAtiva=(locs||[]).find(l=>l.status==='ativa');
 
   // Telefones e emails (múltiplos)
@@ -603,7 +607,7 @@ async function _renderPerfilCliente(c){
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
       <div style="background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.12);padding:12px;border-radius:10px;text-align:center">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Locações</div>
-        <div style="font-size:24px;font-weight:800;color:#2563EB">${(locs||[]).length}</div>
+        <div style="font-size:24px;font-weight:800;color:#2563EB">${locsValidas.length}</div>
       </div>
       <div style="background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.12);padding:12px;border-radius:10px;text-align:center">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase">Total gasto</div>
