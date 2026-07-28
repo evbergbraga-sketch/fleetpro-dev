@@ -406,8 +406,24 @@ function receberMsgSSE(msg){
 
 function encontrarClientePorNumero(numero){
   if(!numero) return null;
-  const numLimpo = numero.replace(/\D/g,'').slice(-11);
-  const c = allClientes.find(c=>(c.telefone||'').replace(/\D/g,'').slice(-11)===numLimpo);
+  const digitos = numero.replace(/\D/g,'');
+  const numLimpo = digitos.slice(-11);
+
+  // Tentativa 1: match exato pelos últimos 11 dígitos (DDD + número)
+  let c = allClientes.find(c=>(c.telefone||'').replace(/\D/g,'').slice(-11)===numLimpo);
+
+  // Tentativa 2: se não achou, compara só os últimos 8 dígitos (o "miolo"
+  // do número, sem DDD nem o 9 na frente) — cobre casos de dígito extra
+  // ou faltando que às vezes chegam de webhooks/versões antigas de
+  // número, sem precisar bater 100% nos 11 dígitos completos.
+  if(!c && digitos.length>=8){
+    const ultimos8 = digitos.slice(-8);
+    c = allClientes.find(c=>{
+      const telDigitos = (c.telefone||'').replace(/\D/g,'');
+      return telDigitos.length>=8 && telDigitos.slice(-8)===ultimos8;
+    });
+  }
+
   return c ? c.id : numero;
 }
 
@@ -952,17 +968,42 @@ function renderChatContacts(){
   if(!allClientes || allClientes.length === 0) return;
   const s = (document.getElementById('chat-search')?.value||'').toLowerCase();
   const numsCadastrados = new Set(allClientes.map(c=>(c.telefone||'').replace(/\D/g,'').slice(-11)));
+  // Mapa pelos últimos 8 dígitos (o "miolo" do número, sem DDD nem o 9) —
+  // serve de segunda tentativa quando um número chega com 1 dígito a mais
+  // ou a menos (ex: webhook grudando um dígito extra no final), o que faz
+  // a comparação exata de 11 dígitos falhar mesmo sendo o mesmo cliente.
+  const clientePorUltimos8 = {};
+  allClientes.forEach(c=>{
+    const t8 = (c.telefone||'').replace(/\D/g,'').slice(-8);
+    if(t8.length===8 && !clientePorUltimos8[t8]) clientePorUltimos8[t8] = c;
+  });
   const desconhecidosMap = {};
   Object.keys(chatMsgs).forEach(k=>{
     if(!k.includes('-')){
       const num = k.replace(/\D/g,'').slice(-11);
-      if(!numsCadastrados.has(num) && chatMsgs[k]?.length > 0 && !desconhecidosMap[num])
+      if(numsCadastrados.has(num)) return;
+      const num8 = k.replace(/\D/g,'').slice(-8);
+      const clienteFuzzy = num8.length===8 ? clientePorUltimos8[num8] : null;
+      if(clienteFuzzy){
+        // Mesma pessoa, número chegou com dígito a mais/a menos — junta
+        // essas mensagens na conversa do cliente já cadastrado
+        chatMsgs[clienteFuzzy.id] = [...(chatMsgs[clienteFuzzy.id]||[]), ...(chatMsgs[k]||[])];
+        return;
+      }
+      if(chatMsgs[k]?.length > 0 && !desconhecidosMap[num])
         desconhecidosMap[num] = {id:k, nome:'📱 '+k, telefone:k, _desconhecido:true};
     }
   });
   (window._wppNumsDB||[]).forEach(num=>{
     const numL = num.replace(/\D/g,'').slice(-11);
-    if(!numsCadastrados.has(numL) && !desconhecidosMap[numL])
+    if(numsCadastrados.has(numL)) return;
+    const num8 = num.replace(/\D/g,'').slice(-8);
+    const clienteFuzzy = num8.length===8 ? clientePorUltimos8[num8] : null;
+    if(clienteFuzzy){
+      chatMsgs[clienteFuzzy.id] = [...(chatMsgs[clienteFuzzy.id]||[]), ...(chatMsgs[num]||[])];
+      return;
+    }
+    if(!desconhecidosMap[numL])
       desconhecidosMap[numL] = {id:num, nome:'📱 '+num, telefone:num, _desconhecido:true};
   });
   const desconhecidos = Object.values(desconhecidosMap);
