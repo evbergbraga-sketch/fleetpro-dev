@@ -412,16 +412,15 @@ function encontrarClientePorNumero(numero){
   // Tentativa 1: match exato pelos últimos 11 dígitos (DDD + número)
   let c = allClientes.find(c=>(c.telefone||'').replace(/\D/g,'').slice(-11)===numLimpo);
 
-  // Tentativa 2: se não achou, compara só os últimos 8 dígitos (o "miolo"
-  // do número, sem DDD nem o 9 na frente) — cobre casos de dígito extra
-  // ou faltando que às vezes chegam de webhooks/versões antigas de
-  // número, sem precisar bater 100% nos 11 dígitos completos.
-  if(!c && digitos.length>=8){
-    const ultimos8 = digitos.slice(-8);
-    c = allClientes.find(c=>{
-      const telDigitos = (c.telefone||'').replace(/\D/g,'');
-      return telDigitos.length>=8 && telDigitos.slice(-8)===ultimos8;
-    });
+  // Tentativa 2: se não achou, testa remover 1 dígito de cada posição
+  // possível do número recebido (cobre um dígito extra grudado em
+  // qualquer lugar — início, meio ou fim — que às vezes aparece por bug
+  // de webhook) e compara os últimos 11 dígitos de cada variação.
+  if(!c && digitos.length>=11 && digitos.length<=15){
+    for(let i=0; i<digitos.length && !c; i++){
+      const variacao = (digitos.slice(0,i)+digitos.slice(i+1)).slice(-11);
+      c = allClientes.find(cl=>(cl.telefone||'').replace(/\D/g,'').slice(-11)===variacao);
+    }
   }
 
   return c ? c.id : numero;
@@ -968,25 +967,29 @@ function renderChatContacts(){
   if(!allClientes || allClientes.length === 0) return;
   const s = (document.getElementById('chat-search')?.value||'').toLowerCase();
   const numsCadastrados = new Set(allClientes.map(c=>(c.telefone||'').replace(/\D/g,'').slice(-11)));
-  // Mapa pelos últimos 8 dígitos (o "miolo" do número, sem DDD nem o 9) —
-  // serve de segunda tentativa quando um número chega com 1 dígito a mais
-  // ou a menos (ex: webhook grudando um dígito extra no final), o que faz
+  // Acha cliente cujo número bate removendo 1 dígito de alguma posição do
+  // número recebido — cobre um dígito extra grudado em qualquer lugar
+  // (início, meio ou fim), que às vezes aparece por bug de webhook e faz
   // a comparação exata de 11 dígitos falhar mesmo sendo o mesmo cliente.
-  const clientePorUltimos8 = {};
-  allClientes.forEach(c=>{
-    const t8 = (c.telefone||'').replace(/\D/g,'').slice(-8);
-    if(t8.length===8 && !clientePorUltimos8[t8]) clientePorUltimos8[t8] = c;
-  });
+  const _clienteFuzzyPorDigitoExtra = (numero) => {
+    const digitos = numero.replace(/\D/g,'');
+    if(digitos.length<11 || digitos.length>15) return null;
+    for(let i=0; i<digitos.length; i++){
+      const variacao = (digitos.slice(0,i)+digitos.slice(i+1)).slice(-11);
+      const cl = allClientes.find(c=>(c.telefone||'').replace(/\D/g,'').slice(-11)===variacao);
+      if(cl) return cl;
+    }
+    return null;
+  };
   const desconhecidosMap = {};
   Object.keys(chatMsgs).forEach(k=>{
     if(!k.includes('-')){
       const num = k.replace(/\D/g,'').slice(-11);
       if(numsCadastrados.has(num)) return;
-      const num8 = k.replace(/\D/g,'').slice(-8);
-      const clienteFuzzy = num8.length===8 ? clientePorUltimos8[num8] : null;
+      const clienteFuzzy = _clienteFuzzyPorDigitoExtra(k);
       if(clienteFuzzy){
-        // Mesma pessoa, número chegou com dígito a mais/a menos — junta
-        // essas mensagens na conversa do cliente já cadastrado
+        // Mesma pessoa, número chegou com dígito a mais — junta essas
+        // mensagens na conversa do cliente já cadastrado
         chatMsgs[clienteFuzzy.id] = [...(chatMsgs[clienteFuzzy.id]||[]), ...(chatMsgs[k]||[])];
         return;
       }
@@ -997,8 +1000,7 @@ function renderChatContacts(){
   (window._wppNumsDB||[]).forEach(num=>{
     const numL = num.replace(/\D/g,'').slice(-11);
     if(numsCadastrados.has(numL)) return;
-    const num8 = num.replace(/\D/g,'').slice(-8);
-    const clienteFuzzy = num8.length===8 ? clientePorUltimos8[num8] : null;
+    const clienteFuzzy = _clienteFuzzyPorDigitoExtra(num);
     if(clienteFuzzy){
       chatMsgs[clienteFuzzy.id] = [...(chatMsgs[clienteFuzzy.id]||[]), ...(chatMsgs[num]||[])];
       return;
