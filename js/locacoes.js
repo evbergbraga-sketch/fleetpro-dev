@@ -249,6 +249,7 @@ function _renderCobrancasSemanais(cobrancas, loc){
           ${atrasados>0?`<span style="color:var(--muted)">·</span><span style="color:var(--red);font-weight:600">${atrasados} atrasadas</span>`:''}
           ${loc.asaas_subscription_id?`<button onclick="_locSincronizarAsaasAgora('${loc.id}')" id="btn-sync-asaas" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Sincronizar Asaas</button>`:''}
           ${loc.asaas_subscription_id?`<button onclick="_abrirReajusteSemanas('${loc.id}','${loc.asaas_subscription_id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar valor</button>`:''}
+          ${loc.asaas_subscription_id?`<button onclick="_abrirReajusteData('${loc.id}','${loc.asaas_subscription_id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar data</button>`:''}
         </div>
       </div>
       <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">💡 Clique em uma semana pendente/atrasada para marcar como paga manualmente (ex: pagamento em dinheiro na loja)</div>
@@ -410,6 +411,64 @@ async function _confirmarReajusteSemanas(locId, asaasSubscriptionId, novoValor){
 
     abrirModalLocacao(locId);
   }catch(e){ notify('Erro no reajuste: '+e.message,'error'); }
+}
+
+// ── Reajustar DATA — corrige um erro de data na criação do contrato,
+// deslocando todas as semanas ainda não pagas (aqui e no Asaas) pelo mesmo
+// número de dias. Pede a data CORRETA da próxima semana como referência,
+// em vez de pedir "quantos dias" (mais intuitivo — o usuário sabe a data
+// certa de cabeça, não o deslocamento em dias). ──
+async function _abrirReajusteData(locId, asaasSubscriptionId){
+  try{
+    const { data: proxima, error } = await sb.from('cobrancas_semanais')
+      .select('data_vencimento')
+      .eq('locacao_id', locId)
+      .in('status', ['pendente','atrasado'])
+      .order('data_vencimento', {ascending:true})
+      .limit(1)
+      .single();
+    if(error || !proxima){ notify('Não encontrei nenhuma semana pendente pra reajustar.','error'); return; }
+
+    const atual = proxima.data_vencimento;
+    const novaData = prompt(`Data atual da próxima semana: ${fmtData(atual)}\nQual é a data CORRETA? (DD/MM/AAAA)`);
+    if(!novaData) return;
+    const m = novaData.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(!m){ notify('Data inválida — use o formato DD/MM/AAAA.','error'); return; }
+    const novaISO = `${m[3]}-${m[2]}-${m[1]}`;
+    const diasOffset = Math.round((new Date(novaISO+'T12:00:00') - new Date(atual+'T12:00:00')) / 86400000);
+    if(diasOffset === 0){ notify('Essa já é a data atual — nada a mudar.','error'); return; }
+    if(!confirm(`Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda aqui e no Asaas (inclusive cobranças já geradas lá, ainda não pagas).`)) return;
+
+    _confirmarReajusteData(locId, asaasSubscriptionId, diasOffset);
+  }catch(e){ notify('Erro ao preparar o reajuste de data: '+e.message,'error'); }
+}
+
+async function _confirmarReajusteData(locId, asaasSubscriptionId, diasOffset){
+  try{
+    const { data: pendentes, error } = await sb.from('cobrancas_semanais')
+      .select('id, data_vencimento')
+      .eq('locacao_id', locId)
+      .in('status', ['pendente','atrasado']);
+    if(error) throw error;
+
+    for(const c of pendentes||[]){
+      const novaData = new Date(c.data_vencimento+'T12:00:00');
+      novaData.setDate(novaData.getDate() + diasOffset);
+      await sb.from('cobrancas_semanais').update({ data_vencimento: novaData.toISOString().slice(0,10) }).eq('id', c.id);
+    }
+    notify(`✓ ${pendentes?.length||0} semana(s) deslocada(s) no FleetPro. Atualizando no Asaas...`,'success');
+
+    const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+    const resp = await fetch(bridge+'/api/asaas/reajustar-data-assinatura', {
+      method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+      body: JSON.stringify({ asaas_subscription_id: asaasSubscriptionId, dias_offset: diasOffset })
+    });
+    const r = await resp.json();
+    if(!resp.ok) notify('Datas ajustadas no FleetPro, mas o Asaas recusou: '+(r.error||'erro desconhecido'),'error');
+    else notify(`✓ Asaas atualizado — próximo vencimento + ${r.cobrancasAsaasAtualizadas||0} cobrança(s) já geradas.`,'success');
+
+    abrirModalLocacao(locId);
+  }catch(e){ notify('Erro no reajuste de data: '+e.message,'error'); }
 }
 
 async function abrirModalLocacao(locId){
