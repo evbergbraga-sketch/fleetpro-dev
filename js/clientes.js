@@ -407,9 +407,14 @@ async function salvarCliente(){
     // nesse caso, converte o lead existente em cliente (UPDATE) em vez
     // de criar um registro novo (evita duplicação: mesma pessoa
     // aparecendo como lead E cliente ao mesmo tempo no CRM).
-    const digitosNovo = (extras.telefone||'').replace(/\D/g,'');
+    // Compara pelos ÚLTIMOS 11 dígitos (DDD+número) — não pelos dígitos
+    // inteiros — porque o lead vindo do WhatsApp/SARA sempre tem o
+    // prefixo do país (55...), enquanto o telefone digitado manualmente
+    // aqui geralmente não tem. Comparar a string inteira fazia o sistema
+    // nunca achar o lead e criar um cliente duplicado toda vez.
+    const digitosNovo = (extras.telefone||'').replace(/\D/g,'').slice(-11);
     const leadExistente = digitosNovo
-      ? (allClientes||[]).find(c => c.tipo==='lead' && (c.telefone||'').replace(/\D/g,'')===digitosNovo)
+      ? (allClientes||[]).find(c => c.tipo==='lead' && (c.telefone||'').replace(/\D/g,'').slice(-11)===digitosNovo)
       : null;
 
     let data, error, convertidoDeLead = false;
