@@ -412,10 +412,22 @@ function encontrarClientePorNumero(numero){
   // Tentativa 1: match exato pelos últimos 11 dígitos (DDD + número)
   let c = allClientes.find(c=>(c.telefone||'').replace(/\D/g,'').slice(-11)===numLimpo);
 
-  // Tentativa 2: se não achou, testa remover 1 dígito de cada posição
-  // possível do número recebido (cobre um dígito extra grudado em
-  // qualquer lugar — início, meio ou fim — que às vezes aparece por bug
-  // de webhook) e compara os últimos 11 dígitos de cada variação.
+  // Tentativa 2: verifica se o número completo (11 dígitos) de algum
+  // cliente cadastrado aparece como sequência contígua dentro do número
+  // recebido — cobre QUALQUER quantidade de dígitos extras grudados em
+  // qualquer posição (1, 2, ou mais), contanto que o número real
+  // continue intacto e seguido dentro do que chegou. Mais robusto que só
+  // tentar remover 1 dígito (que não cobre 2+ dígitos extras).
+  if(!c && digitos.length>11){
+    c = allClientes.find(cl=>{
+      const tel11 = (cl.telefone||'').replace(/\D/g,'').slice(-11);
+      return tel11.length===11 && digitos.includes(tel11);
+    });
+  }
+
+  // Tentativa 3: testa remover 1 dígito de cada posição possível (cobre
+  // o caso contrário — 1 dígito FALTANDO, não sobrando — que a
+  // tentativa 2 não cobre por si só).
   if(!c && digitos.length>=11 && digitos.length<=15){
     for(let i=0; i<digitos.length && !c; i++){
       const variacao = (digitos.slice(0,i)+digitos.slice(i+1)).slice(-11);
@@ -973,6 +985,14 @@ function renderChatContacts(){
   // a comparação exata de 11 dígitos falhar mesmo sendo o mesmo cliente.
   const _clienteFuzzyPorDigitoExtra = (numero) => {
     const digitos = numero.replace(/\D/g,'');
+    // Cobre qualquer quantidade de dígitos extras grudados (não só 1)
+    if(digitos.length>11){
+      const achado = allClientes.find(c=>{
+        const tel11 = (c.telefone||'').replace(/\D/g,'').slice(-11);
+        return tel11.length===11 && digitos.includes(tel11);
+      });
+      if(achado) return achado;
+    }
     if(digitos.length<11 || digitos.length>15) return null;
     for(let i=0; i<digitos.length; i++){
       const variacao = (digitos.slice(0,i)+digitos.slice(i+1)).slice(-11);
