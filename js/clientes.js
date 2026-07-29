@@ -669,8 +669,12 @@ async function _renderPerfilCliente(c){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
         <div><span style="color:var(--muted)">Nº CNH: </span>${c.cnh||'—'}</div>
         <div><span style="color:var(--muted)">Categoria: </span>${c.cnh_categoria||'—'}</div>
-        <div><span style="color:var(--muted)">Validade: </span>${cnhStatus}</div>
+        <div><span style="color:var(--muted)">Nº Registro: </span>${c.cnh_registro||'—'}</div>
+        <div><span style="color:var(--muted)">Nº de Segurança: </span>${c.cnh_seguranca||'—'}</div>
         <div><span style="color:var(--muted)">Emissão: </span>${c.cnh_emissao?fmtData(c.cnh_emissao):'—'}</div>
+        <div><span style="color:var(--muted)">Validade: </span>${cnhStatus}</div>
+        <div><span style="color:var(--muted)">Primeira habilitação: </span>${c.cnh_primeira_hab?fmtData(c.cnh_primeira_hab):'—'}</div>
+        <div><span style="color:var(--muted)">Local de emissão: </span>${c.cnh_local||'—'}</div>
         <div><span style="color:var(--muted)">Pai: </span>${c.nome_pai||'—'}</div>
         <div><span style="color:var(--muted)">Mãe: </span>${c.nome_mae||'—'}</div>
       </div>
