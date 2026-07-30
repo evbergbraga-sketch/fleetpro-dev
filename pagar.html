@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pagamento — Locadora Royal</title>
+<style>
+:root {
+  --bg:        #0a1628;
+  --bg2:       #0f1e35;
+  --card:      #142240;
+  --card2:     #1a2d50;
+  --green:     #00c46a;
+  --green2:    #00a857;
+  --gold:      #f5c842;
+  --red:       #e05252;
+  --text:      #f0f4ff;
+  --muted:     #8899bb;
+  --muted2:    #4a5c7a;
+  --border:    rgba(255,255,255,0.07);
+  --radius:    16px;
+  --radius-sm: 10px;
+  --safe-top:  env(safe-area-inset-top, 0px);
+  --safe-bot:  env(safe-area-inset-bottom, 0px);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; background: var(--bg); }
+body {
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bot));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.logo { font-size: 13px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; margin-bottom: 28px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+}
+.rotulo { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.valor-principal { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+.subinfo { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
+  margin-bottom: 18px;
+}
+.badge.atrasado { background: rgba(224,82,82,.15); color: var(--red); }
+.badge.desconto { background: rgba(0,196,106,.15); color: var(--green); }
+.badge.pendente { background: rgba(245,200,66,.15); color: var(--gold); }
+.linha-detalhe { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.linha-detalhe:last-of-type { border-bottom: none; }
+.linha-detalhe .label { color: var(--muted); }
+.linha-detalhe .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.linha-detalhe .val.desc { color: var(--green); }
+.linha-detalhe .val.juros { color: var(--red); }
+.total-linha { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--border); }
+.total-linha .label { font-size: 13px; color: var(--muted); }
+.total-linha .val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.btn {
+  width: 100%; margin-top: 20px; padding: 15px; border: none; border-radius: var(--radius-sm);
+  background: var(--green); color: #04170d; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn:active { opacity: .8; }
+.btn:disabled { opacity: .5; cursor: default; }
+.pix-area { display: none; text-align: center; margin-top: 20px; }
+.pix-area.show { display: block; }
+.qr-wrap {
+  background: #fff; border-radius: var(--radius-sm); padding: 16px;
+  display: inline-block; margin-bottom: 16px;
+}
+.qr-wrap img { display: block; width: 220px; height: 220px; }
+.copia-cola-wrap { position: relative; }
+.copia-cola {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 11px; color: var(--muted); word-break: break-all;
+  text-align: left; margin-bottom: 10px; max-height: 70px; overflow-y: auto;
+}
+.btn-copiar {
+  width: 100%; padding: 12px; border: 1px solid var(--green); border-radius: var(--radius-sm);
+  background: transparent; color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.status-linha { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; font-size: 13px; color: var(--muted); }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--muted2); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.erro-msg { background: rgba(224,82,82,.1); border: 1px solid rgba(224,82,82,.25); border-radius: var(--radius-sm); padding: 14px; font-size: 13px; color: var(--red); margin-top: 16px; text-align: center; }
+.rodape { margin-top: 22px; font-size: 11px; color: var(--muted2); text-align: center; }
+</style>
+</head>
+<body>
+  <div class="logo">🏍️ Locadora Royal</div>
+  <div class="card" id="card-principal">
+    <div id="conteudo-carregando" style="text-align:center;padding:30px 0;color:var(--muted);font-size:14px">
+      Carregando cobrança…
+    </div>
+    <div id="conteudo-cobranca" style="display:none"></div>
+  </div>
+  <div class="rodape">Locadora Royal · Pagamento seguro via Pix</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// pagar.html — página standalone de pagamento de UMA semana específica
+// Não exige login: o "segredo" é o ID da cobrança no link (não-adivinhável),
+// igual ao padrão que o Asaas já usava (asaas.com/i/<id-aleatorio>).
+// Mostra só o essencial (valor, vencimento, status) — não expõe dados
+// pessoais do cliente nem o histórico completo, ao contrário do portal
+// principal, que exige o ID do cliente inteiro.
+// ══════════════════════════════════════════════════════════════
+
+const BRIDGE_URL = 'https://bridge.ruahsystems.com.br'; // TODO: usar var de config se precisar trocar
+
+function getParam(nome){
+  return new URLSearchParams(window.location.search).get(nome);
+}
+
+function fmtR$(v){
+  return 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+function fmtData(iso){
+  if(!iso) return '—';
+  const [y,m,d] = iso.slice(0,10).split('-');
+  return `${d}/${m}/${y}`;
+}
+
+async function iniciar(){
+  const semanaId = getParam('semana');
+  if(!semanaId){
+    mostrarErro('Link inválido — falta o identificador da cobrança.');
+    return;
+  }
+
+  try{
+    // Busca os dados dessa cobrança específica — endpoint ainda a construir
+    // no bridge (GET /api/pagamento/detalhes/:id), que devolve só o
+    // necessário pra exibir (valor, vencimento, status, nome do veículo),
+    // sem nenhum dado sensível do cliente.
+    const resp = await fetch(`${BRIDGE_URL}/api/pagamento/detalhes/${semanaId}`);
+    if(!resp.ok) throw new Error('Cobrança não encontrada ou link expirado.');
+    const dados = await resp.json();
+    renderizarCobranca(dados, semanaId);
+  }catch(e){
+    mostrarErro(e.message || 'Não foi possível carregar essa cobrança.');
+  }
+}
+
+function mostrarErro(msg){
+  document.getElementById('conteudo-carregando').style.display = 'none';
+  const el = document.getElementById('conteudo-cobranca');
+  el.style.display = 'block';
+  el.innerHTML = `<div class="erro-msg">⚠️ ${msg}</div>`;
+}
+
+function renderizarCobranca(d, semanaId){
+  document.getElementById('conteudo-carregando').style.display = 'none';
+  const el = document.getElementById('conteudo-cobranca');
+  el.style.display = 'block';
+
+  const hoje = new Date().toISOString().slice(0,10);
+  const vencimento = d.data_vencimento;
+  const atrasado = d.status === 'atrasado' || (d.status === 'pendente' && vencimento < hoje);
+  const diasParaVencer = Math.ceil((new Date(vencimento+'T12:00:00') - new Date(hoje+'T12:00:00')) / 86400000);
+  const temDesconto = !atrasado && diasParaVencer >= 2;
+
+  const badge = atrasado
+    ? `<span class="badge atrasado">⚠ Em atraso</span>`
+    : temDesconto
+      ? `<span class="badge desconto">5% de desconto disponível</span>`
+      : `<span class="badge pendente">Pendente</span>`;
+
+  el.innerHTML = `
+    <div class="rotulo">${d.veiculo_nome||'Locação'} · Semana ${d.numero_semana}</div>
+    <div class="valor-principal">${fmtR$(d.valor)}</div>
+    <div class="subinfo">Vencimento: ${fmtData(vencimento)}</div>
+    ${badge}
+    <div class="linha-detalhe"><span class="label">Valor original</span><span class="val">${fmtR$(d.valor)}</span></div>
+    ${temDesconto ? `<div class="linha-detalhe"><span class="label">Desconto (pagando até ${fmtData(new Date(new Date(vencimento+'T12:00:00').getTime()-2*86400000).toISOString())})</span><span class="val desc">-5%</span></div>` : ''}
+    ${atrasado ? `<div class="linha-detalhe"><span class="label">Multa + juros por atraso</span><span class="val juros">calculado no Pix</span></div>` : ''}
+    <div class="total-linha"><span class="label">Total a pagar</span><span class="val">${fmtR$(d.valor)}</span></div>
+    <button class="btn" id="btn-gerar" onclick="gerarCobranca('${semanaId}')">Gerar Pix e pagar</button>
+    <div class="pix-area" id="pix-area"></div>
+  `;
+}
+
+async function gerarCobranca(semanaId){
+  const btn = document.getElementById('btn-gerar');
+  btn.disabled = true;
+  btn.textContent = 'Gerando cobrança...';
+
+  try{
+    // Endpoint ainda a construir no bridge: monta o payload Pix CobV
+    // (valor, vencimento, juros 1%/multa 2%/desconto 5% até 2 dias antes,
+    // dados do devedor) e chama a API do Santander.
+    const resp = await fetch(`${BRIDGE_URL}/api/pagamento/gerar-pix/${semanaId}`, { method: 'POST' });
+    if(!resp.ok){
+      const erro = await resp.json().catch(()=>({}));
+      throw new Error(erro.error || 'Não foi possível gerar o Pix agora. Tente novamente em instantes.');
+    }
+    const { qrCodeBase64, copiaCola, txid } = await resp.json();
+
+    btn.style.display = 'none';
+    const area = document.getElementById('pix-area');
+    area.classList.add('show');
+    area.innerHTML = `
+      <div class="qr-wrap"><img src="data:image/png;base64,${qrCodeBase64}" alt="QR Code Pix"></div>
+      <div class="copia-cola-wrap">
+        <div class="copia-cola" id="copia-cola-texto">${copiaCola}</div>
+        <button class="btn-copiar" onclick="copiarPix()">Copiar código Pix</button>
+      </div>
+      <div class="status-linha"><div class="spinner"></div> Aguardando pagamento...</div>
+    `;
+    monitorarPagamento(txid);
+  }catch(e){
+    btn.disabled = false;
+    btn.textContent = 'Gerar Pix e pagar';
+    const area = document.getElementById('pix-area');
+    area.classList.add('show');
+    area.innerHTML = `<div class="erro-msg">⚠️ ${e.message}</div>`;
+  }
+}
+
+function copiarPix(){
+  const texto = document.getElementById('copia-cola-texto').textContent;
+  navigator.clipboard?.writeText(texto);
+  const btn = document.querySelector('.btn-copiar');
+  const original = btn.textContent;
+  btn.textContent = '✓ Copiado!';
+  setTimeout(()=>{ btn.textContent = original; }, 2000);
+}
+
+// Verifica a cada 4s se o pagamento já caiu (via webhook do Santander
+// atualizando o status no nosso banco) — endpoint ainda a construir.
+let _monitorTimer = null;
+function monitorarPagamento(txid){
+  if(_monitorTimer) clearInterval(_monitorTimer);
+  _monitorTimer = setInterval(async ()=>{
+    try{
+      const resp = await fetch(`${BRIDGE_URL}/api/pagamento/status/${txid}`);
+      if(!resp.ok) return;
+      const { pago } = await resp.json();
+      if(pago){
+        clearInterval(_monitorTimer);
+        document.getElementById('pix-area').innerHTML = `
+          <div style="padding:30px 0">
+            <div style="font-size:40px;margin-bottom:10px">✅</div>
+            <div style="font-size:18px;font-weight:700;color:var(--green)">Pagamento confirmado!</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:6px">Obrigado — já atualizamos seu contrato.</div>
+          </div>`;
+      }
+    }catch(_e){ /* silencioso — tenta de novo no próximo ciclo */ }
+  }, 4000);
+}
+
+iniciar();
+</script>
+</body>
+</html>
