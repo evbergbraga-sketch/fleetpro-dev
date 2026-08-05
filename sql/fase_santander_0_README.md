@@ -24,6 +24,16 @@ carro não são afetados — não usam cobrança automática.
   não — não conseguimos confirmar na documentação). O campo `qrCodeUrl`
   continua sendo salvo no banco (`santander_qrcode_url`) só como
   informação extra, sem uso obrigatório.
+- **Achado confirmado em teste real (05/08/2026):** o path de criação de
+  workspace muda de barra final entre ambientes — Sandbox **sem** barra
+  (`.../v2/workspaces`), Produção **com** barra (`.../v2/workspaces/`).
+  Usar o errado dá 502. Já corrigido em `fase_santander_2`.
+- **Achado confirmado em teste real:** as rotas GET (lista e por ID) do
+  Workspace **não são confiáveis no sandbox** — devolvem respostas fixas/
+  mockadas, não o que foi realmente criado. Não usar GET pra validar nada
+  no sandbox; confiar sempre no retorno do POST. Isso pode valer também
+  pras rotas de consulta de boleto (Sonda/Bills) — testar com cautela
+  quando chegar nessa etapa.
 - Ainda pendente de confirmação prática: se há validação de origem/
   assinatura no webhook do Santander (IP allowlist, header secreto etc.).
 

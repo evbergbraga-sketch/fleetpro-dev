@@ -42,7 +42,13 @@ const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost } =
 
     const resp = await _httpsRequest({
       hostname: getSantanderHost(),
-      path: '/collection_bill_management/v2/workspaces/', // confirmado no manual oficial (com barra final)
+      // ⚠️ Path MUDA entre ambientes (confirmado no manual E empiricamente —
+      // barra final em produção causa 502 no sandbox):
+      //   Sandbox:  /collection_bill_management/v2/workspaces   (SEM barra)
+      //   Produção: /collection_bill_management/v2/workspaces/  (COM barra)
+      path: (process.env.SANTANDER_ENV || 'SANDBOX').toUpperCase() === 'PRODUCAO'
+        ? '/collection_bill_management/v2/workspaces/'
+        : '/collection_bill_management/v2/workspaces',
       method: 'POST',
       agent: _agenteSantander(),
       headers: {
