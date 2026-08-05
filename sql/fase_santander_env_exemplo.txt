@@ -1,0 +1,10 @@
+# Adicionar ao .env do bridge no VPS — NUNCA commitar este arquivo com valores preenchidos
+
+SANTANDER_CLIENT_ID=
+SANTANDER_CLIENT_SECRET=
+SANTANDER_CERT_PATH=/root/fleetpro-bridge/certs/royal_santander.pfx
+SANTANDER_CERT_PASSWORD=
+SANTANDER_CONVENIO=
+SANTANDER_WORKSPACE_ID=
+SANTANDER_CHAVE_PIX=
+SANTANDER_ENV=PRODUCTION
