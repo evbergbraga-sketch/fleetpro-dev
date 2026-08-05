@@ -9,11 +9,20 @@
 //   mkdir -p /root/fleetpro-bridge/certs && chmod 700 /root/fleetpro-bridge/certs
 //   chmod 600 /root/fleetpro-bridge/certs/royal_santander.pfx
 //
-// Host de autenticação confirmado na doc oficial: trust-open.api.santander.com.br
-// Path confirmado: /auth/oauth/v2/token
+// Host de autenticação confirmado na doc oficial (seção 5.1 — API Servers):
+//   Sandbox:  trust-sandbox.api.santander.com.br
+//   Produção: trust-open.api.santander.com.br
+// Escolhido via SANTANDER_ENV=SANDBOX ou SANTANDER_ENV=PRODUCAO no .env.
+// Path de autenticação (igual nos dois ambientes): /auth/oauth/v2/token
 
 const https = require('https');
 const fs = require('fs');
+
+function getSantanderHost(){
+  return (process.env.SANTANDER_ENV || 'SANDBOX').toUpperCase() === 'PRODUCAO'
+    ? 'trust-open.api.santander.com.br'
+    : 'trust-sandbox.api.santander.com.br';
+}
 
 let _tokenCache = { token: null, expiraEm: 0 };
 
@@ -56,7 +65,7 @@ async function getSantanderToken(){
   }).toString();
 
   const resp = await _httpsRequest({
-    hostname: 'trust-open.api.santander.com.br',
+    hostname: getSantanderHost(),
     path: '/auth/oauth/v2/token',
     method: 'POST',
     agent: _agenteSantander(),
@@ -75,4 +84,4 @@ async function getSantanderToken(){
   return _tokenCache.token;
 }
 
-module.exports = { getSantanderToken, _httpsRequest, _agenteSantander };
+module.exports = { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost };

@@ -11,9 +11,11 @@
 //
 // Requer no .env, além dos já usados na autenticação:
 //   SANTANDER_CONVENIO   (número do convênio de cobrança já contratado no banco)
+//
+// Rodar no VPS com: npx dotenvx run -- node fase_santander_2_criar_workspace.js
+// (usa dotenvx, igual ao resto do bridge — não precisa de require('dotenv'))
 
-require('dotenv').config();
-const { getSantanderToken, _httpsRequest, _agenteSantander } = require('./fase_santander_1_auth');
+const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost } = require('./santander-auth');
 
 (async () => {
   try{
@@ -39,7 +41,7 @@ const { getSantanderToken, _httpsRequest, _agenteSantander } = require('./fase_s
     });
 
     const resp = await _httpsRequest({
-      hostname: 'trust-open.api.santander.com.br',
+      hostname: getSantanderHost(),
       path: '/collection_bill_management/v2/workspaces/', // confirmado no manual oficial (com barra final)
       method: 'POST',
       agent: _agenteSantander(),

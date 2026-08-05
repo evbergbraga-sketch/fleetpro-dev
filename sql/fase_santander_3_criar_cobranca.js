@@ -10,7 +10,7 @@
 //   SANTANDER_CHAVE_PIX_TIPO (CPF | CNPJ | CELULAR | EMAIL | EVP)
 //   SANTANDER_ENV             PRODUCAO ou TESTE (não "PRODUCTION"/"TEST" — literal em português)
 
-const { getSantanderToken, _httpsRequest, _agenteSantander } = require('./fase_santander_1_auth');
+const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost } = require('./fase_santander_1_auth');
 
 app.post('/api/santander/criar-cobranca', async (req, res) => {
   try{
@@ -30,7 +30,15 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
     const cliente = cobranca.locacoes?.clientes;
     if(!cliente?.cpf) return res.status(400).json({error:'Cliente sem CPF cadastrado — obrigatório para emissão'});
 
-    const environment = process.env.SANTANDER_ENV || 'PRODUCAO'; // literal em português, ver nota acima
+    // "SANTANDER_ENV" (SANDBOX/PRODUCAO) escolhe o HOST da API (ver santander-auth.js).
+    // O campo "environment" do payload abaixo é um conceito DIFERENTE, específico
+    // do host de produção: só existe quando SANTANDER_ENV=PRODUCAO, e indica se o
+    // registro deve ser real (PRODUCAO) ou só validado sem gravar (TESTE) — ver
+    // manual seção 4.2. No host sandbox, tudo já é fictício por natureza, então
+    // sempre mandamos "TESTE" aqui.
+    const environment = (process.env.SANTANDER_ENV || 'SANDBOX').toUpperCase() === 'PRODUCAO'
+      ? (process.env.SANTANDER_REGISTRO_MODO || 'TESTE') // ao ligar pra produção de vez, trocar p/ 'PRODUCAO' no .env
+      : 'TESTE';
 
     // "Nosso número" — numérico, até 13 dígitos, único por convênio.
     // Usamos contrato + semana zero-padded. AJUSTAR se algum contrato tiver
@@ -81,7 +89,7 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
     const body = JSON.stringify(payload);
 
     const resp = await _httpsRequest({
-      hostname: 'trust-open.api.santander.com.br',
+      hostname: getSantanderHost(),
       path: `/collection_bill_management/v2/workspaces/${process.env.SANTANDER_WORKSPACE_ID}/bank_slips`,
       method: 'POST',
       agent: _agenteSantander(),
