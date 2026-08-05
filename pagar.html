@@ -109,7 +109,8 @@ body {
     </div>
     <div id="conteudo-cobranca" style="display:none"></div>
   </div>
-  <div class="rodape">Locadora Royal · Pagamento seguro via Pix</div>
+<div class="rodape">Locadora Royal · Pagamento seguro via Pix</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -243,7 +244,7 @@ function exibirFormasDePagamento(d, semanaId){
       <button class="tab-btn" id="tab-boleto" onclick="trocarAba('boleto')">Boleto</button>
     </div>
     <div class="tab-conteudo show" id="conteudo-pix">
-      ${d.pix_qrcode_url ? `<div class="qr-wrap"><img src="${d.pix_qrcode_url}" alt="QR Code Pix"></div>` : ''}
+      ${d.pix_copia_cola ? `<div class="qr-wrap" id="qr-canvas"></div>` : ''}
       <div class="copia-cola-wrap">
         <div class="copia-cola" id="copia-cola-texto">${d.pix_copia_cola || 'Código Pix indisponível no momento.'}</div>
         ${d.pix_copia_cola ? `<button class="btn-copiar" onclick="copiarTexto('copia-cola-texto', this)">Copiar código Pix</button>` : ''}
@@ -256,6 +257,14 @@ function exibirFormasDePagamento(d, semanaId){
     </div>
     <div class="status-linha"><div class="spinner"></div> Aguardando pagamento...</div>
   `;
+
+  if(d.pix_copia_cola && window.QRCode){
+    new QRCode(document.getElementById('qr-canvas'), {
+      text: d.pix_copia_cola, width: 220, height: 220,
+      colorDark: '#000000', colorLight: '#ffffff',
+    });
+  }
+
   monitorarPagamento(semanaId);
 }
 

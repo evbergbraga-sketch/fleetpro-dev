@@ -16,10 +16,16 @@ carro não são afetados — não usam cobrança automática.
 - Specs corrigidos em 05/08/2026 com base no manual oficial **"USERGUIDE -
   API DE COBRANÇA V2.1"** do Santander (não mais em docs de terceiros) —
   paths, nomes de campo e estrutura do webhook já validados contra a fonte
-  oficial. Únicas coisas que ainda dependem de confirmação prática: se há
-  validação de origem/assinatura no webhook, e o comportamento exato do
-  campo `qrCodeUrl` (se é uma imagem pronta pra `<img src>` ou precisa
-  gerar a imagem do QR no cliente a partir do `qrCodePix`).
+  oficial.
+- QR Code do PIX é gerado **no navegador do cliente**, a partir do texto
+  "copia e cola" (`qrCodePix`, padrão EMV do Banco Central) — usando a lib
+  `qrcodejs` via CDN na `pagar.html`. Isso evita depender do campo
+  `qrCodeUrl` do Santander (cujo comportamento exato — imagem pronta ou
+  não — não conseguimos confirmar na documentação). O campo `qrCodeUrl`
+  continua sendo salvo no banco (`santander_qrcode_url`) só como
+  informação extra, sem uso obrigatório.
+- Ainda pendente de confirmação prática: se há validação de origem/
+  assinatura no webhook do Santander (IP allowlist, header secreto etc.).
 
 ## Ordem de implementação (no VPS, via Claude Code)
 
