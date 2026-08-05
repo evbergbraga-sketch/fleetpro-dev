@@ -19,7 +19,7 @@ async function gerarCobrancasSantanderPendentes(){
     const { data: pendentes, error } = await sb.from('cobrancas_semanais')
       .select('id, data_vencimento, locacoes!inner(provedor_cobranca)')
       .eq('status', 'pendente')
-      .is('santander_cobranca_id', null)
+      .is('santander_bank_number', null)
       .eq('locacoes.provedor_cobranca', 'santander')
       .lte('data_vencimento', limiteStr);
     if(error) throw error;

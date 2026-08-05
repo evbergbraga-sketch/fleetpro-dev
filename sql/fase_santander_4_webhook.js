@@ -1,33 +1,68 @@
 // ══ SANTANDER — WEBHOOK DE CONFIRMAÇÃO DE PAGAMENTO ══
 //
-// ⚠️ CONFIRMAR NO SWAGGER/DOC DE WEBHOOK ANTES DE USAR:
-//   - nomes exatos dos campos que o Santander envia no payload
-//   - valores possíveis do campo de status (aqui assumido 'PAID'/'LIQUIDATED')
-//   - se existe assinatura/validação de origem do webhook (ex: header secreto)
-//     — se existir, adicionar validação ANTES de processar, para não aceitar
-//     chamadas forjadas nesse endpoint
+// Payload confirmado no manual oficial (seção 7 — Webhook). Campos reais:
+//   function: "PAGAMENTO" | "ESTORNO"
+//   paymentType: "SANTANDER" | "OUTROS BANCOS" | "PIX"
+//   bankNumber: nosso número (é o que usamos para achar a cobrança)
+//   covenant: código do convênio
+//   payedValue, paymentDate, dueDate, nominalValue, etc.
 //
-// Espelha a lógica de /api/cobranca/pagamento (Asaas, fase4) mas busca por
-// santander_cobranca_id em vez de asaas_payment_id.
+// ⚠️ IMPORTANTE (ver manual, seção 7):
+//   Pagamento via boleto/linha digitável é só "intenção de pagamento" —
+//   pode ser estornado ao longo do dia. Só é definitivo no dia útil
+//   seguinte, se não vier um webhook de ESTORNO. Pagamento via PIX/QRCode
+//   já é definitivo quando o webhook chega. O Santander recomenda
+//   complementar a conciliação com as rotas de consulta (GET), não confiar
+//   só no webhook — isso ainda não está implementado aqui (TODO).
+//
+// ⚠️ Também confirmar: se existe validação de origem/assinatura da chamada
+// (ex: IP allowlist, header secreto). Se existir, validar ANTES de processar.
 
 app.post('/api/santander/webhook', async (req, res) => {
   try{
-    // TODO: validar origem da chamada (assinatura/header) antes de processar
+    // TODO: validar origem da chamada antes de processar
 
-    const { bankNumber, id: santanderId, paymentValue, paymentDate, status } = req.body;
-    const statusPago = ['PAID','LIQUIDATED','PAGO']; // CONFIRMAR valores reais do Santander
-    if(!statusPago.includes(status)){
-      return res.json({ok:true, ignorado:true, motivo:`status '${status}' não é pagamento confirmado`});
+    const {
+      function: tipoEvento, bankNumber, covenant, payedValue,
+      paymentDate, paymentType, nominalValue,
+    } = req.body;
+
+    if(!bankNumber){
+      return res.status(400).json({error:'bankNumber ausente no payload'});
     }
 
-    const idBusca = santanderId || bankNumber;
     const { data: cobranca } = await sb.from('cobrancas_semanais')
-      .select('*').eq('santander_cobranca_id', idBusca).maybeSingle();
-    if(!cobranca) return res.status(404).json({error:'Cobrança Santander não encontrada para id: '+idBusca});
+      .select('*').eq('santander_bank_number', bankNumber).maybeSingle();
+    if(!cobranca) return res.status(404).json({error:'Cobrança Santander não encontrada para bankNumber: '+bankNumber});
+
+    // ── ESTORNO — reverte a baixa se o pagamento foi cancelado no mesmo dia ──
+    if(tipoEvento === 'ESTORNO'){
+      if(cobranca.status !== 'pago') return res.json({ok:true, ignorado:true, motivo:'cobrança não estava paga'});
+      await sb.from('cobrancas_semanais').update({
+        status: 'pendente', valor_pago: null, data_pagamento: null,
+      }).eq('id', cobranca.id);
+      if(cobranca.lancamento_id){
+        await sb.from('lancamentos').update({
+          cancelamento_motivo: 'Estorno via webhook Santander',
+          cancelado_em: new Date().toISOString(),
+        }).eq('id', cobranca.lancamento_id);
+      }
+      console.log(`[santander/webhook] ESTORNO — cobranca ${cobranca.id} revertida para pendente`);
+      return res.json({ok:true, estornado:true, cobranca_id: cobranca.id});
+    }
+
+    if(tipoEvento !== 'PAGAMENTO'){
+      return res.json({ok:true, ignorado:true, motivo:`function '${tipoEvento}' não tratada`});
+    }
     if(cobranca.status === 'pago') return res.json({ok:true, message:'Cobrança já estava marcada como paga'});
 
-    const valorFinal = paymentValue != null ? Number(paymentValue) : Number(cobranca.valor);
-    const dataPag = paymentDate ? new Date(paymentDate).toISOString() : new Date().toISOString();
+    const valorFinal = payedValue != null ? Number(payedValue) : Number(nominalValue ?? cobranca.valor);
+    // paymentDate vem no formato "AAAA-MM-DD-HH.MM.SS.NNNNNN" (não-ISO) — normaliza:
+    let dataPag = new Date().toISOString();
+    if(paymentDate){
+      const m = String(paymentDate).match(/^(\d{4}-\d{2}-\d{2})-(\d{2})\.(\d{2})\.(\d{2})/);
+      dataPag = m ? new Date(`${m[1]}T${m[2]}:${m[3]}:${m[4]}`).toISOString() : new Date().toISOString();
+    }
 
     const { data: loc } = await sb.from('locacoes')
       .select('num_contrato, veiculo_id, cliente_id, veiculos(placa), clientes(nome)')
@@ -41,7 +76,7 @@ app.post('/api/santander/webhook', async (req, res) => {
       data: dataPag.slice(0,10),
       veiculo_id: loc?.veiculo_id || null,
       locacao_id: cobranca.locacao_id,
-      forma_pgto: 'PIX', // ajustar dinamicamente se o payload distinguir boleto x pix
+      forma_pgto: paymentType === 'PIX' ? 'PIX' : 'Boleto',
       origem: 'santander',
     }).select().single();
 
@@ -52,7 +87,7 @@ app.post('/api/santander/webhook', async (req, res) => {
       lancamento_id: lanc?.id || null,
     }).eq('id', cobranca.id);
 
-    console.log(`[santander/webhook] OK — locacao ${cobranca.locacao_id} semana ${cobranca.numero_semana} marcada como paga (R$ ${valorFinal})`);
+    console.log(`[santander/webhook] OK — locacao ${cobranca.locacao_id} semana ${cobranca.numero_semana} marcada como paga (R$ ${valorFinal}, via ${paymentType})`);
     res.json({ok:true, cobranca_id: cobranca.id});
   }catch(e){
     console.error('[santander/webhook]', e.message);

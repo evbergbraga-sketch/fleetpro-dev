@@ -92,6 +92,12 @@ body {
 .spinner { width: 14px; height: 14px; border: 2px solid var(--muted2); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .erro-msg { background: rgba(224,82,82,.1); border: 1px solid rgba(224,82,82,.25); border-radius: var(--radius-sm); padding: 14px; font-size: 13px; color: var(--red); margin-top: 16px; text-align: center; }
+.tabs { display: flex; gap: 8px; margin-top: 20px; }
+.tab-btn { flex: 1; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg2); color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+.tab-btn.ativo { background: var(--green); color: #04170d; border-color: var(--green); }
+.tab-conteudo { display: none; margin-top: 16px; }
+.tab-conteudo.show { display: block; }
+.linha-copiavel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 12px; color: var(--text); word-break: break-all; text-align: left; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
 .rodape { margin-top: 22px; font-size: 11px; color: var(--muted2); text-align: center; }
 </style>
 </head>
@@ -113,6 +119,12 @@ body {
 // Mostra só o essencial (valor, vencimento, status) — não expõe dados
 // pessoais do cliente nem o histórico completo, ao contrário do portal
 // principal, que exige o ID do cliente inteiro.
+//
+// Usa a API de Cobrança v2 do Santander (boleto híbrido = boleto + PIX na
+// mesma cobrança). Normalmente a cobrança já foi gerada antecipadamente por
+// um cron no bridge (alguns dias antes do vencimento) — então ao abrir o
+// link o PIX/boleto já estão prontos. Se o cliente abrir antes do cron
+// rodar, o botão "Gerar forma de pagamento" cria na hora (fallback).
 // ══════════════════════════════════════════════════════════════
 
 const BRIDGE_URL = 'https://bridge.ruahsystems.com.br'; // TODO: usar var de config se precisar trocar
@@ -138,10 +150,9 @@ async function iniciar(){
   }
 
   try{
-    // Busca os dados dessa cobrança específica — endpoint ainda a construir
-    // no bridge (GET /api/pagamento/detalhes/:id), que devolve só o
-    // necessário pra exibir (valor, vencimento, status, nome do veículo),
-    // sem nenhum dado sensível do cliente.
+    // Devolve valor/vencimento/status + os dados de pagamento (linha
+    // digitável, código de barras, PIX copia-e-cola) SE já tiverem sido
+    // gerados pelo cron. Nenhum dado sensível do cliente é exposto aqui.
     const resp = await fetch(`${BRIDGE_URL}/api/pagamento/detalhes/${semanaId}`);
     if(!resp.ok) throw new Error('Cobrança não encontrada ou link expirado.');
     const dados = await resp.json();
@@ -182,11 +193,18 @@ function renderizarCobranca(d, semanaId){
     ${badge}
     <div class="linha-detalhe"><span class="label">Valor original</span><span class="val">${fmtR$(d.valor)}</span></div>
     ${temDesconto ? `<div class="linha-detalhe"><span class="label">Desconto (pagando até ${fmtData(new Date(new Date(vencimento+'T12:00:00').getTime()-2*86400000).toISOString())})</span><span class="val desc">-5%</span></div>` : ''}
-    ${atrasado ? `<div class="linha-detalhe"><span class="label">Multa + juros por atraso</span><span class="val juros">calculado no Pix</span></div>` : ''}
+    ${atrasado ? `<div class="linha-detalhe"><span class="label">Multa + juros por atraso</span><span class="val juros">calculado na cobrança</span></div>` : ''}
     <div class="total-linha"><span class="label">Total a pagar</span><span class="val">${fmtR$(d.valor)}</span></div>
-    <button class="btn" id="btn-gerar" onclick="gerarCobranca('${semanaId}')">Gerar Pix e pagar</button>
-    <div class="pix-area" id="pix-area"></div>
+    <div id="area-pagamento"></div>
   `;
+
+  if(d.ja_gerado){
+    exibirFormasDePagamento(d, semanaId);
+  }else{
+    document.getElementById('area-pagamento').innerHTML =
+      `<button class="btn" id="btn-gerar" onclick="gerarCobranca('${semanaId}')">Gerar forma de pagamento</button>
+       <div class="pix-area" id="pix-area"></div>`;
+  }
 }
 
 async function gerarCobranca(semanaId){
@@ -195,60 +213,81 @@ async function gerarCobranca(semanaId){
   btn.textContent = 'Gerando cobrança...';
 
   try{
-    // Endpoint ainda a construir no bridge: monta o payload Pix CobV
-    // (valor, vencimento, juros 1%/multa 2%/desconto 5% até 2 dias antes,
-    // dados do devedor) e chama a API do Santander.
     const resp = await fetch(`${BRIDGE_URL}/api/pagamento/gerar-pix/${semanaId}`, { method: 'POST' });
     if(!resp.ok){
       const erro = await resp.json().catch(()=>({}));
-      throw new Error(erro.error || 'Não foi possível gerar o Pix agora. Tente novamente em instantes.');
+      throw new Error(erro.error || 'Não foi possível gerar a cobrança agora. Tente novamente em instantes.');
     }
-    const { qrCodeBase64, copiaCola, txid } = await resp.json();
-
-    btn.style.display = 'none';
-    const area = document.getElementById('pix-area');
-    area.classList.add('show');
-    area.innerHTML = `
-      <div class="qr-wrap"><img src="data:image/png;base64,${qrCodeBase64}" alt="QR Code Pix"></div>
-      <div class="copia-cola-wrap">
-        <div class="copia-cola" id="copia-cola-texto">${copiaCola}</div>
-        <button class="btn-copiar" onclick="copiarPix()">Copiar código Pix</button>
-      </div>
-      <div class="status-linha"><div class="spinner"></div> Aguardando pagamento...</div>
-    `;
-    monitorarPagamento(txid);
+    const dados = await resp.json();
+    exibirFormasDePagamento({
+      pix_copia_cola: dados.pix_copia_cola, pix_qrcode_url: dados.pix_qrcode_url,
+      linha_digitavel: dados.linha_digitavel, codigo_barras: dados.codigo_barras,
+    }, semanaId);
   }catch(e){
     btn.disabled = false;
-    btn.textContent = 'Gerar Pix e pagar';
+    btn.textContent = 'Gerar forma de pagamento';
     const area = document.getElementById('pix-area');
     area.classList.add('show');
     area.innerHTML = `<div class="erro-msg">⚠️ ${e.message}</div>`;
   }
 }
 
-function copiarPix(){
-  const texto = document.getElementById('copia-cola-texto').textContent;
+// Boleto híbrido do Santander: uma cobrança só, com PIX (copia-e-cola/QR) e
+// boleto (linha digitável/código de barras) ao mesmo tempo — o cliente
+// escolhe como prefere pagar.
+function exibirFormasDePagamento(d, semanaId){
+  const area = document.getElementById('area-pagamento');
+  area.innerHTML = `
+    <div class="tabs">
+      <button class="tab-btn ativo" id="tab-pix" onclick="trocarAba('pix')">PIX</button>
+      <button class="tab-btn" id="tab-boleto" onclick="trocarAba('boleto')">Boleto</button>
+    </div>
+    <div class="tab-conteudo show" id="conteudo-pix">
+      ${d.pix_qrcode_url ? `<div class="qr-wrap"><img src="${d.pix_qrcode_url}" alt="QR Code Pix"></div>` : ''}
+      <div class="copia-cola-wrap">
+        <div class="copia-cola" id="copia-cola-texto">${d.pix_copia_cola || 'Código Pix indisponível no momento.'}</div>
+        ${d.pix_copia_cola ? `<button class="btn-copiar" onclick="copiarTexto('copia-cola-texto', this)">Copiar código Pix</button>` : ''}
+      </div>
+    </div>
+    <div class="tab-conteudo" id="conteudo-boleto">
+      <div class="rotulo" style="margin-top:4px">Linha digitável</div>
+      <div class="linha-copiavel" id="linha-digitavel-texto">${d.linha_digitavel || 'Indisponível no momento.'}</div>
+      ${d.linha_digitavel ? `<button class="btn-copiar" onclick="copiarTexto('linha-digitavel-texto', this)">Copiar linha digitável</button>` : ''}
+    </div>
+    <div class="status-linha"><div class="spinner"></div> Aguardando pagamento...</div>
+  `;
+  monitorarPagamento(semanaId);
+}
+
+function trocarAba(aba){
+  document.getElementById('tab-pix').classList.toggle('ativo', aba==='pix');
+  document.getElementById('tab-boleto').classList.toggle('ativo', aba==='boleto');
+  document.getElementById('conteudo-pix').classList.toggle('show', aba==='pix');
+  document.getElementById('conteudo-boleto').classList.toggle('show', aba==='boleto');
+}
+
+function copiarTexto(elId, btn){
+  const texto = document.getElementById(elId).textContent;
   navigator.clipboard?.writeText(texto);
-  const btn = document.querySelector('.btn-copiar');
   const original = btn.textContent;
   btn.textContent = '✓ Copiado!';
   setTimeout(()=>{ btn.textContent = original; }, 2000);
 }
 
 // Verifica a cada 4s se o pagamento já caiu (via webhook do Santander
-// atualizando o status no nosso banco) — endpoint ainda a construir.
+// atualizando o status no nosso banco).
 let _monitorTimer = null;
-function monitorarPagamento(txid){
+function monitorarPagamento(semanaId){
   if(_monitorTimer) clearInterval(_monitorTimer);
   _monitorTimer = setInterval(async ()=>{
     try{
-      const resp = await fetch(`${BRIDGE_URL}/api/pagamento/status/${txid}`);
+      const resp = await fetch(`${BRIDGE_URL}/api/pagamento/status/${semanaId}`);
       if(!resp.ok) return;
       const { pago } = await resp.json();
       if(pago){
         clearInterval(_monitorTimer);
-        document.getElementById('pix-area').innerHTML = `
-          <div style="padding:30px 0">
+        document.getElementById('area-pagamento').innerHTML = `
+          <div style="padding:30px 0;text-align:center">
             <div style="font-size:40px;margin-bottom:10px">✅</div>
             <div style="font-size:18px;font-weight:700;color:var(--green)">Pagamento confirmado!</div>
             <div style="font-size:13px;color:var(--muted);margin-top:6px">Obrigado — já atualizamos seu contrato.</div>

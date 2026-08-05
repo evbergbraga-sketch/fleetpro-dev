@@ -6,14 +6,8 @@
 // Depois de rodar com sucesso, copie o campo "id" da resposta para
 // SANTANDER_WORKSPACE_ID no .env — todos os endpoints seguintes dependem dele.
 //
-// ⚠️ ATENÇÃO — CONFIRMAR ANTES DE RODAR:
-//   O path abaixo (/collection_bill_management/v2/workspaces) foi obtido de
-//   documentação de terceiros, não da doc oficial em PDF/Swagger do Santander.
-//   Antes de rodar, abrir o Swagger no Portal do Desenvolvedor (aba da API
-//   "Cobranças"/"Cobrança v2") e confirmar:
-//     1) o path exato de criação de workspace
-//     2) se o host de cobrança é o mesmo de autenticação (trust-open.api.santander.com.br)
-//        ou um host dedicado (ex: trust-open.api.santander.com.br/collection_bill_management)
+// Path e payload confirmados no "USERGUIDE - API DE COBRANÇA V2.1" oficial
+// do Santander (seção 5.3.1 — Criação de Workspace).
 //
 // Requer no .env, além dos já usados na autenticação:
 //   SANTANDER_CONVENIO   (número do convênio de cobrança já contratado no banco)
@@ -34,15 +28,19 @@ const { getSantanderToken, _httpsRequest, _agenteSantander } = require('./fase_s
       type: 'BILLING',
       description: 'Workspace de Cobrança - FleetPro Royal',
       covenants: [{ code: process.env.SANTANDER_CONVENIO }],
-      // Descomentar quando o endpoint de webhook já estiver publicado e testável:
-      // webhookURL: 'https://bridge.ruahsystems.com.br/api/santander/webhook',
-      // bankSlipBillingWebhookActive: true,
-      // pixBillingWebhookActive: true,
+      // Só a PRIMEIRA workspace registrada para o convênio grava a config de
+      // webhook — se já existir outra workspace pro mesmo convênio, isso é
+      // ignorado (ver manual, seção 5.3.1). Publicar o endpoint de webhook
+      // (fase_santander_4) ANTES de rodar este script, ou ajustar depois via
+      // PATCH /workspaces/{WORKSPACE_ID}.
+      webhookURL: 'https://bridge.ruahsystems.com.br/api/santander/webhook',
+      bankSlipBillingWebhookActive: true,
+      pixBillingWebhookActive: true,
     });
 
     const resp = await _httpsRequest({
       hostname: 'trust-open.api.santander.com.br',
-      path: '/collection_bill_management/v2/workspaces', // CONFIRMAR no Swagger antes de rodar
+      path: '/collection_bill_management/v2/workspaces/', // confirmado no manual oficial (com barra final)
       method: 'POST',
       agent: _agenteSantander(),
       headers: {
