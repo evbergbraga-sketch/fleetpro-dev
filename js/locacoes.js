@@ -501,9 +501,9 @@ async function abrirModalLocacao(locId){
   const checkSaida   = checks.find(c=>c.tipo==='saida');
   const checkEntrada = checks.find(c=>c.tipo==='entrada');
 
-  // Busca cobranças semanais (apenas planos moto)
+  // Busca cobranças semanais (planos moto OU assinatura livre — ex: carro)
   let cobrancas = [];
-  if(loc.plano_moto){
+  if(loc.plano_moto || loc.assinatura_valor_semanal){
     try{
       const {data:cobrData} = await sb.from('cobrancas_semanais')
         .select('*')
@@ -845,7 +845,7 @@ function _renderChecklistExistente(check){
 let _servicosExtensao = []; // [{descricao, valor}]
 
 function _renderFormEstender(locId, loc){
-  const isMoto = !!loc.plano_moto;
+  const isMoto = !!(loc.plano_moto || loc.assinatura_valor_semanal);
   const unidade = isMoto ? 'semana' : 'diária';
   const unidadePlural = isMoto ? 'semanas' : 'diárias';
   const valorUnitario = Number(loc.diaria||0);
