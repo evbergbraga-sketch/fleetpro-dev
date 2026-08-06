@@ -181,6 +181,17 @@ function _renderHistoricoPagamentos(lancamentos, loc){
 }
 
 
+// Copia o link direto de pagamento (pagar.html) — mesmo domínio do
+// FleetPro, então funciona automaticamente tanto em dev quanto produção
+function _copiarLinkPagamento(cobrancaId, el){
+  const link = `${location.origin}/pagar.html?semana=${cobrancaId}`;
+  navigator.clipboard?.writeText(link);
+  const original = el.textContent;
+  el.textContent = '✓';
+  setTimeout(()=>{ el.textContent = original; }, 1500);
+  if(typeof notify==='function') notify('Link de pagamento copiado!', 'success');
+}
+
 function _renderCobrancasSemanais(cobrancas, loc){
   if(!cobrancas || cobrancas.length===0) return '';
 
@@ -208,13 +219,15 @@ function _renderCobrancasSemanais(cobrancas, loc){
     const info = statusInfo[statusEf]||statusInfo.pendente;
     const valorExibido = c.valor_pago!=null ? c.valor_pago : c.valor;
     const clicavel = c.status!=='pago';
+    const mostrarLink = loc.provedor_cobranca==='santander' && c.status!=='pago';
     return `
-      <div id="cobr-row-${c.id}" style="display:grid;grid-template-columns:70px 1fr 90px 24px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)${clicavel?';cursor:pointer':''}"
+      <div id="cobr-row-${c.id}" style="display:grid;grid-template-columns:70px 1fr 90px 24px 24px 100px;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)${clicavel?';cursor:pointer':''}"
         ${clicavel?`onclick="_abrirFormPagarSemana('${c.id}', ${c.valor})"`:''} title="${clicavel?'Clique para marcar como pago':''}">
         <div style="font-size:12px;font-weight:600;color:var(--text2)">Sem. ${c.numero_semana}</div>
         <div style="font-size:12px;color:var(--muted)">${fmtData(c.data_vencimento)}</div>
         <div style="font-size:12px;font-weight:600;text-align:right">R$ ${Number(valorExibido).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
         <div style="text-align:center">${clicavel?`<span onclick="event.stopPropagation();_abrirEditarValorSemana('${c.id}', ${c.valor}, '${c.asaas_payment_id||''}')" title="Editar valor desta semana" style="cursor:pointer;font-size:11px;font-weight:600;color:var(--accent)">Editar</span>`:''}</div>
+        <div style="text-align:center">${mostrarLink?`<span onclick="event.stopPropagation();_copiarLinkPagamento('${c.id}', this)" title="Copiar link de pagamento (Santander)" style="cursor:pointer;font-size:14px">🔗</span>`:''}</div>
         <div style="display:flex;justify-content:flex-end">
           <span style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;color:${info.color};background:${info.bg};border:1px solid ${info.border}">${info.icon} ${info.label}</span>
         </div>
