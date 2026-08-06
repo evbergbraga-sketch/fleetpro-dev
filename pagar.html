@@ -259,10 +259,17 @@ function exibirFormasDePagamento(d, semanaId){
   `;
 
   if(d.pix_copia_cola && window.QRCode){
-    new QRCode(document.getElementById('qr-canvas'), {
-      text: d.pix_copia_cola, width: 220, height: 220,
-      colorDark: '#000000', colorLight: '#ffffff',
-    });
+    try{
+      new QRCode(document.getElementById('qr-canvas'), {
+        text: d.pix_copia_cola, width: 220, height: 220,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.L, // menor redundância, mais capacidade — o texto do PIX pode ser longo
+      });
+    }catch(e){
+      console.error('[qrcode] falha ao gerar QR (texto grande demais mesmo em L):', e.message);
+      document.getElementById('qr-canvas').innerHTML =
+        '<div style="font-size:12px;color:var(--muted);padding:20px 0">QR indisponível — use o código copia-e-cola abaixo</div>';
+    }
   }
 
   monitorarPagamento(semanaId);
