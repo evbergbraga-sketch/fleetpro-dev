@@ -573,16 +573,25 @@ async function vincularAssinaturaAsaasExistente(locacao, clienteId){
 }
 
 async function criarAssinaturaAsaas(locacao){
-  if(!sb||!locacao?.plano_moto) return;
+  if(!sb||!(locacao?.plano_moto || locacao?.assinatura_valor_semanal)) return;
   try{
     const c = allClientes.find(x=>x.id===locacao.cliente_id);
     if(!c) return;
 
     const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
-    const valorSemanal = parseFloat(locacao.plano_moto)||0;
-    const totalSemanas = valorSemanal === 399.90 ? 156 : 52;
-    const planoNome = valorSemanal === 399.90 ? 'Plano Conquista 36m' : 'Plano 12 meses';
+    const valorSemanal = parseFloat(locacao.plano_moto || locacao.assinatura_valor_semanal)||0;
     const primeiraIncluida = locacao.primeira_semana_incluida !== false;
+    // Total de semanas calculado pelo período real do contrato — não mais
+    // adivinhado pelo valor (399.90 era exclusivo dos planos fixos de moto,
+    // não funcionava pra valor livre). Usado só como rótulo cosmético aqui,
+    // já que o Asaas usa data_inicio/data_fim reais pra definir a vigência.
+    // Desconta o offset da promo "1ª semana grátis" (data_fim já vem +7 dias).
+    const offsetDiasPromo = primeiraIncluida ? 0 : 7;
+    const diffMsAssinatura = new Date(locacao.data_fim?.slice(0,10)+'T00:00:00') - new Date(locacao.data_inicio?.slice(0,10)+'T00:00:00');
+    const totalSemanas = Math.max(1, Math.round((diffMsAssinatura - offsetDiasPromo*86400000) / (7*86400000)));
+    const planoNome = locacao.plano_moto
+      ? (valorSemanal === 399.90 ? 'Plano Conquista 36m' : 'Plano 12 meses')
+      : `Assinatura semanal (${totalSemanas} semanas)`;
 
     // Promoção "1ª semana grátis": todo o cronograma desliza +7 dias
     let dataFimAjustada = locacao.data_fim?.slice(0,10);
@@ -607,7 +616,7 @@ async function criarAssinaturaAsaas(locacao){
         plano: {
           valor: valorSemanal,
           ciclo: 'WEEKLY',
-          descricao: `${planoNome} — Locação Moto`,
+          descricao: `${planoNome} — Locação ${locacao.tipo_contrato==='moto'?'Moto':'Carro'}`,
         },
         data_inicio: locacao.data_inicio?.slice(0,10),
         data_fim: dataFimAjustada,
@@ -637,11 +646,20 @@ async function finRegistrarLancamentoLocacao(locacao){
     const descBase = `Contrato #${locacao.num_contrato||''} — ${c?.nome||'Cliente'} — ${v?.placa||''}`;
     const dataBase = locacao.data_inicio?.slice(0,10)||new Date().toISOString().slice(0,10);
 
-    // ── PLANO DE ASSINATURA MOTO (12m ou Conquista 36m) ──
-    if(locacao.plano_moto){
-      const valorSemanal = parseFloat(locacao.plano_moto)||0;
-      const totalSemanas = valorSemanal === 399.90 ? 156 : 52; // Conquista 36m = 156, 12m = 52
+    // ── ASSINATURA SEMANAL (plano fixo de moto OU valor livre de qualquer veículo) ──
+    const valorSemanalAssinatura = parseFloat(locacao.plano_moto || locacao.assinatura_valor_semanal) || 0;
+    if(valorSemanalAssinatura > 0){
+      const valorSemanal = valorSemanalAssinatura;
       const primeiraIncluida = locacao.primeira_semana_incluida !== false;
+      // Total de semanas pelo período REAL do contrato (data_fim - data_inicio),
+      // não mais adivinhado pelo valor (399.90 era exclusivo dos 2 planos fixos
+      // de moto — quebrava pra qualquer valor livre, ex: diária×7 de carro).
+      // IMPORTANTE: quando "1ª semana grátis" está ativa, data_fim já vem +7
+      // dias maior (ver _recalcFimPlanoMoto) — precisa descontar esse offset
+      // antes de dividir por semana, senão conta 1 semana a mais.
+      const offsetDiasPromo = primeiraIncluida ? 0 : 7;
+      const diffMs = new Date(locacao.data_fim?.slice(0,10)+'T00:00:00') - new Date(dataBase+'T00:00:00');
+      const totalSemanas = Math.max(1, Math.round((diffMs - offsetDiasPromo*86400000) / (7*86400000)));
 
       // 1) Lançamento da CAUÇÃO (se houver)
       if(locacao.caucao && parseFloat(locacao.caucao) > 0){
