@@ -627,6 +627,16 @@ async function registrarContrato(retornarId=false){
     const condutorCnhSeg = document.getElementById('c-condutor-cnh-seg')?.value||'';
     const planoMoto      = document.querySelector('input[name="c-plano-moto"]:checked')?.value||null;
     const primeiraSemanaIncluida = document.getElementById('c-primeira-semana-incluida')?.checked !== false;
+    // Assinatura livre (carro) — valor semanal editável, sugerido diária×7
+    const ativarAssinaturaCarro = document.getElementById('c-ativar-assinatura-carro')?.checked;
+    const assinaturaValorCarro = ativarAssinaturaCarro
+      ? (parseFloat(document.getElementById('c-assinatura-valor-carro')?.value) || 0)
+      : null;
+    // Provedor de cobrança — só relevante se alguma assinatura (moto ou carro) está ativa
+    const temAssinatura = !!(planoMoto || assinaturaValorCarro);
+    const provedorCobranca = temAssinatura
+      ? (document.getElementById('c-provedor-cobranca')?.value || 'santander')
+      : 'asaas'; // sem assinatura ativa, o valor é irrelevante — mantém default da coluna
 
     const {data:locSalva, error} = await _comRetry(() => sb.from('locacoes').insert({
       veiculo_id:vid, cliente_id:cid,
@@ -657,6 +667,8 @@ async function registrarContrato(retornarId=false){
       condutor_cnh_cat: condutorCnhCat||null,
       condutor_cnh_val: condutorCnhVal,
       plano_moto: planoMoto,
+      assinatura_valor_semanal: assinaturaValorCarro||null,
+      provedor_cobranca: provedorCobranca,
       primeira_semana_incluida: primeiraSemanaIncluida,
       criado_por: currentUser?.id
     }).select().single(), 'registrar contrato');
@@ -664,11 +676,16 @@ async function registrarContrato(retornarId=false){
 
     await sb.from('veiculos').update({status:'alugado'}).eq('id',vid);
 
-    // Criar assinatura recorrente no Asaas (via n8n) — apenas planos moto
+    // Criar assinatura recorrente no Asaas (via bridge) — só quando o
+    // provedor escolhido é Asaas. Se for Santander, não precisa criar nada
+    // aqui: finRegistrarLancamentoLocacao já gera as cobrancas_semanais
+    // (mais abaixo), e o cron do bridge (fase_santander_5) cria a cobrança
+    // real no Santander automaticamente, alguns dias antes do vencimento.
     // MODO MIGRAÇÃO: cliente já tem assinatura ativa no Asaas (veio de outro
     // sistema) — em vez de criar uma nova (o que geraria cobrança duplicada),
     // busca e vincula a assinatura existente pelo CPF, e reconcilia na hora
-    // quais semanas já foram pagas.
+    // quais semanas já foram pagas. (Só se aplica a Asaas — Santander não
+    // tem conceito de assinatura pra migrar.)
     const modoMigracao = document.getElementById('c-modo-migracao')?.checked;
 
     // Lançamento financeiro automático (caução + cobranças semanais).
@@ -682,10 +699,12 @@ async function registrarContrato(retornarId=false){
       else finRegistrarLancamentoLocacao(locSalva).catch(()=>{});
     }
 
-    if(planoMoto && modoMigracao && typeof vincularAssinaturaAsaasExistente==='function'){
-      vincularAssinaturaAsaasExistente(locSalva, cid).catch(e=>console.warn('[migracao/asaas] falha:', e.message));
-    } else if(planoMoto && typeof criarAssinaturaAsaas==='function'){
-      criarAssinaturaAsaas(locSalva).catch(e=>console.warn('[asaas] falha:', e.message));
+    if(temAssinatura && provedorCobranca==='asaas'){
+      if(modoMigracao && typeof vincularAssinaturaAsaasExistente==='function'){
+        vincularAssinaturaAsaasExistente(locSalva, cid).catch(e=>console.warn('[migracao/asaas] falha:', e.message));
+      } else if(typeof criarAssinaturaAsaas==='function'){
+        criarAssinaturaAsaas(locSalva).catch(e=>console.warn('[asaas] falha:', e.message));
+      }
     }
 
     if(window._reservaOrigemId){
@@ -2304,6 +2323,7 @@ function _selecionarPlanoContrato(radio){
   const cDia = document.getElementById('c-dia');
   if(cDia){ cDia.value = val; }
   _recalcFimPlanoMoto();
+  _atualizarVisibilidadeProvedor();
   previewContrato();
 }
 
@@ -2311,9 +2331,11 @@ function _verificarMotoContrato(){
   const veiId = document.getElementById('c-vei')?.value;
   const v = allVeiculos?.find(x=>x.id===veiId);
   const wrap = document.getElementById('c-planos-moto-wrap');
+  const wrapCarroAssinatura = document.getElementById('c-assinatura-carro-wrap');
   const labelVal = document.getElementById('label-valor-principal');
   const isMoto = v?.tipo==='moto';
   if(wrap) wrap.style.display = isMoto ? '' : 'none';
+  if(wrapCarroAssinatura) wrapCarroAssinatura.style.display = isMoto ? 'none' : '';
   if(labelVal) labelVal.textContent = isMoto ? 'Valor semanal (R$)' : 'Valor diária (R$)';
   // Se moto: seleciona Plano 12 meses por padrão e preenche valor
   if(isMoto){
@@ -2335,7 +2357,38 @@ function _verificarMotoContrato(){
       const el=document.getElementById(id);
       if(el){ el.style.borderColor='var(--border2)'; el.style.background=''; }
     });
+    // Reseta assinatura de carro ao trocar de veículo
+    const chk = document.getElementById('c-ativar-assinatura-carro');
+    if(chk) chk.checked = false;
+    const campos = document.getElementById('c-assinatura-carro-campos');
+    if(campos) campos.style.display = 'none';
   }
+  _atualizarVisibilidadeProvedor();
+}
+
+// Assinatura semanal em carro: valor livre, sugerido a partir da diária×7
+function _toggleAssinaturaCarro(){
+  const ativo = document.getElementById('c-ativar-assinatura-carro')?.checked;
+  const campos = document.getElementById('c-assinatura-carro-campos');
+  if(campos) campos.style.display = ativo ? '' : 'none';
+  if(ativo){
+    const valorInput = document.getElementById('c-assinatura-valor-carro');
+    const diaria = parseFloat(document.getElementById('c-dia')?.value)||0;
+    if(valorInput && !valorInput.value && diaria>0){
+      valorInput.value = (diaria*7).toFixed(2);
+    }
+  }
+  _atualizarVisibilidadeProvedor();
+}
+
+// Mostra o seletor de provedor (Asaas/Santander) só quando alguma
+// assinatura semanal está ativa (plano fixo de moto OU valor livre de carro)
+function _atualizarVisibilidadeProvedor(){
+  const isMoto = _tipoContrato === 'moto';
+  const planoMotoAtivo = isMoto && document.querySelector('input[name="c-plano-moto"]:checked');
+  const assinaturaCarroAtiva = !isMoto && document.getElementById('c-ativar-assinatura-carro')?.checked;
+  const wrap = document.getElementById('c-provedor-wrap');
+  if(wrap) wrap.style.display = (planoMotoAtivo || assinaturaCarroAtiva) ? '' : 'none';
 }
 
 // ══ CARTÃO — mostrar/esconder campos ══
