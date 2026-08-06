@@ -34,6 +34,20 @@ carro não são afetados — não usam cobrança automática.
   no sandbox; confiar sempre no retorno do POST. Isso pode valer também
   pras rotas de consulta de boleto (Sonda/Bills) — testar com cautela
   quando chegar nessa etapa.
+- **Achado confirmado em teste real:** o bridge roda em container Docker
+  com bind mount `/root/fleetpro-bridge` (host) → `/app` (container). O
+  `SANTANDER_CERT_PATH` no `.env` precisa usar o caminho **de dentro do
+  container** (`/app/certs/royal_santander.pfx`), não o do host — senão dá
+  `ENOENT`. Isso vale pra qualquer variável de path novo que a gente
+  adicionar no futuro.
+- **Bug real corrigido em `_httpsRequest` (05/08/2026):** os chunks da
+  resposta HTTP eram concatenados como string (`data += chunk`) em vez de
+  acumulados como Buffer e decodificados só no final. Um caractere UTF-8
+  multibyte (acento em "endereço", "número" etc.) partido entre dois
+  chunks TCP corrompia o JSON perto do fim do corpo. Corrigido para
+  `Buffer.concat(chunks).toString('utf8')`. Isso já está certo nos
+  arquivos deste repo — se recriar esse módulo do zero, não reintroduzir
+  o bug antigo.
 - Ainda pendente de confirmação prática: se há validação de origem/
   assinatura no webhook do Santander (IP allowlist, header secreto etc.).
 

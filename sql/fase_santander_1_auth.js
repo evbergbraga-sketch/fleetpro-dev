@@ -36,9 +36,17 @@ function _agenteSantander(){
 function _httpsRequest(options, bodyStr){
   return new Promise((resolve, reject) => {
     const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
+      // IMPORTANTE: acumular Buffers e decodificar UMA VEZ no final — nunca
+      // concatenar chunks como string incrementalmente. Um caractere UTF-8
+      // multibyte (acentos em "endereço", "número" etc.) pode cair na
+      // fronteira entre dois chunks TCP, corrompendo o JSON perto do fim
+      // da resposta se decodificado em pedaços. Bug real encontrado em
+      // teste (05/08/2026): JSON.parse falhava só quando o payload tinha
+      // campos de endereço acentuados no fim do corpo.
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8');
         try{
           const json = data ? JSON.parse(data) : {};
           if(res.statusCode >= 200 && res.statusCode < 300) resolve(json);
