@@ -47,13 +47,24 @@ function _httpsRequest(options, bodyStr){
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
         const data = Buffer.concat(chunks).toString('utf8');
+        let json;
         try{
-          const json = data ? JSON.parse(data) : {};
-          if(res.statusCode >= 200 && res.statusCode < 300) resolve(json);
-          else reject(new Error(`Santander ${res.statusCode}: ${JSON.stringify(json)}`));
+          json = data ? JSON.parse(data) : {};
         }catch(e){
-          reject(new Error(`Resposta não-JSON do Santander (status ${res.statusCode}): ${data.slice(0,300)}`));
+          // Fallback: o ambiente sandbox do Santander (stub/mock —
+          // identificável pelo header "matched-stub-id" na resposta) foi
+          // observado devolvendo JSON com vírgula sobrando antes de } ou ]
+          // quando um campo do template fica vazio (bug confirmado em
+          // teste real, 05/08/2026). Tenta corrigir antes de desistir.
+          try{
+            const corrigido = data.replace(/,(\s*[}\]])/g, '$1');
+            json = corrigido ? JSON.parse(corrigido) : {};
+          }catch(e2){
+            return reject(new Error(`Resposta não-JSON do Santander (status ${res.statusCode}): ${data.slice(0,300)}`));
+          }
         }
+        if(res.statusCode >= 200 && res.statusCode < 300) resolve(json);
+        else reject(new Error(`Santander ${res.statusCode}: ${JSON.stringify(json)}`));
       });
     });
     req.on('error', reject);

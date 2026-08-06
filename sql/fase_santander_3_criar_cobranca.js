@@ -103,10 +103,10 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
 
     await sb.from('cobrancas_semanais').update({
       santander_bank_number: nossoNumero,
-      santander_barcode: resp.barCode || null,
-      santander_linha_digitavel: resp.digitableLine || null,
-      santander_qrcode: resp.qrCodePix || null,       // string "copia e cola" do PIX
-      santander_qrcode_url: resp.qrCodeUrl || null,    // URL p/ exibir/consultar o QR
+      santander_barcode: resp.barCode || resp.barcode || null,
+      santander_linha_digitavel: resp.digitableLine || resp.digitablLine || null,
+      santander_qrcode: resp.qrCodePix || resp.qrcodePix || null,       // string "copia e cola" do PIX
+      santander_qrcode_url: resp.qrCodeUrl || resp.qrcodeUrl || null,    // URL p/ exibir/consultar o QR
     }).eq('id', cobranca_id);
 
     console.log(`[santander/criar-cobranca] OK — cobranca ${cobranca_id} (nosso número ${nossoNumero})`);
