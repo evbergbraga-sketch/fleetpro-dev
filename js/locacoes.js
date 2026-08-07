@@ -434,7 +434,7 @@ async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscr
       for(const c of jaRegistradas){
         try{
           const resp = await fetch(bridge+'/api/santander/reajustar-cobranca', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
             body: JSON.stringify({ cobranca_id: c.id, novo_valor: novoValor })
           });
           if(resp.ok) ok++; else falhas++;
@@ -528,7 +528,7 @@ async function _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscrip
       for(const c of jaRegistradas){
         try{
           const resp = await fetch(bridge+'/api/santander/reajustar-cobranca', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
             body: JSON.stringify({ cobranca_id: c.id, nova_data_vencimento: novasDatas[c.id] })
           });
           if(resp.ok) ok++; else falhas++;
