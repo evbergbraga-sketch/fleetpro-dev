@@ -1,10 +1,15 @@
-// ══ SANTANDER — CRIAR WORKSPACE (rodar UMA VEZ, manualmente) ══
+// ══ SANTANDER — CRIAR WORKSPACE (rodar UMA VEZ por ambiente) ══
 //
 // Uso no VPS:
 //   node fase_santander_2_criar_workspace.js
 //
+// Roda contra o ambiente definido em SANTANDER_ENV no .env (SANDBOX ou
+// PRODUCAO) — confira essa variável ANTES de rodar, especialmente em
+// PRODUCAO: isso registra um workspace REAL vinculado ao convênio real.
+//
 // Depois de rodar com sucesso, copie o campo "id" da resposta para
-// SANTANDER_WORKSPACE_ID no .env — todos os endpoints seguintes dependem dele.
+// SANTANDER_WORKSPACE_ID_SANDBOX ou SANTANDER_WORKSPACE_ID_PRODUCAO no
+// .env (conforme o ambiente que você rodou).
 //
 // Path e payload confirmados no "USERGUIDE - API DE COBRANÇA V2.1" oficial
 // do Santander (seção 5.3.1 — Criação de Workspace).
@@ -12,15 +17,22 @@
 // Requer no .env, além dos já usados na autenticação:
 //   SANTANDER_CONVENIO   (número do convênio de cobrança já contratado no banco)
 //
-// Rodar no VPS com: npx dotenvx run -- node fase_santander_2_criar_workspace.js
-// (usa dotenvx, igual ao resto do bridge — não precisa de require('dotenv'))
+// Rodar no VPS com: node fase_santander_2_criar_workspace.js
+// (usa require('dotenv').config() — não precisa de dotenvx)
 
-const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost } = require('./santander-auth');
+require('dotenv').config();
+const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost, getSantanderClientId } = require('./santander-auth');
 
 (async () => {
   try{
     if(!process.env.SANTANDER_CONVENIO){
       throw new Error('SANTANDER_CONVENIO não definido no .env — obtenha o número do convênio antes de rodar');
+    }
+
+    const ambiente = (process.env.SANTANDER_ENV || 'SANDBOX').toUpperCase();
+    console.log(`\n⚠️  Rodando contra o ambiente: ${ambiente} (host: ${getSantanderHost()})`);
+    if(ambiente === 'PRODUCAO'){
+      console.log('⚠️  ISSO VAI REGISTRAR UM WORKSPACE REAL NO SANTANDER. Ctrl+C agora se não tiver certeza.\n');
     }
 
     const token = await getSantanderToken();
@@ -46,7 +58,7 @@ const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost } =
       // barra final em produção causa 502 no sandbox):
       //   Sandbox:  /collection_bill_management/v2/workspaces   (SEM barra)
       //   Produção: /collection_bill_management/v2/workspaces/  (COM barra)
-      path: (process.env.SANTANDER_ENV || 'SANDBOX').toUpperCase() === 'PRODUCAO'
+      path: ambiente === 'PRODUCAO'
         ? '/collection_bill_management/v2/workspaces/'
         : '/collection_bill_management/v2/workspaces',
       method: 'POST',
@@ -55,13 +67,13 @@ const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost } =
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
         'Authorization': `Bearer ${token}`,
-        'X-Application-Key': process.env.SANTANDER_CLIENT_ID,
+        'X-Application-Key': getSantanderClientId(),
       },
     }, body);
 
     console.log('\n=== WORKSPACE CRIADO ===');
     console.log(JSON.stringify(resp, null, 2));
-    console.log('\n>>> Copie o campo "id" acima para SANTANDER_WORKSPACE_ID no .env <<<\n');
+    console.log(`\n>>> Copie o campo "id" acima para SANTANDER_WORKSPACE_ID_${ambiente} no .env <<<\n`);
   }catch(e){
     console.error('[santander/criar-workspace] ERRO:', e.message);
     process.exit(1);

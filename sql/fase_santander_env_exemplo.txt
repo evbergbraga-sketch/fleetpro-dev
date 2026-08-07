@@ -1,12 +1,21 @@
-# Adicionar ao .env do bridge no VPS — NUNCA commitar este arquivo com valores preenchidos
+# Adicionar/ajustar no .env do bridge no VPS — NUNCA commitar este arquivo com valores preenchidos
 
-SANTANDER_CLIENT_ID=
-SANTANDER_CLIENT_SECRET=
-SANTANDER_CERT_PATH=/root/fleetpro-bridge/certs/royal_santander.pfx
+# Decide qual conjunto de credenciais/host usar (SANDBOX ou PRODUCAO)
+SANTANDER_ENV=SANDBOX
+
+# Sandbox (aplicação separada no portal do desenvolvedor)
+SANTANDER_CLIENT_ID_SANDBOX=
+SANTANDER_CLIENT_SECRET_SANDBOX=
+SANTANDER_WORKSPACE_ID_SANDBOX=
+
+# Produção (aplicação separada, mesmo certificado)
+SANTANDER_CLIENT_ID_PRODUCAO=
+SANTANDER_CLIENT_SECRET_PRODUCAO=
+SANTANDER_WORKSPACE_ID_PRODUCAO=
+
+# Comuns aos dois ambientes
+SANTANDER_CERT_PATH=/app/certs/royal_santander.pfx
 SANTANDER_CERT_PASSWORD=
 SANTANDER_CONVENIO=0863038
-SANTANDER_WORKSPACE_ID=
-SANTANDER_CHAVE_PIX=
-SANTANDER_CHAVE_PIX_TIPO=
-# Literal em português — PRODUCAO ou TESTE (não "PRODUCTION"/"TEST")
-SANTANDER_ENV=PRODUCAO
+SANTANDER_CHAVE_PIX_TIPO=CNPJ
+SANTANDER_CHAVE_PIX=18686521000290

@@ -1,8 +1,12 @@
 // ══ SANTANDER — AUTENTICAÇÃO mTLS + OAuth2 ══
-// Requer no .env do bridge:
-//   SANTANDER_CLIENT_ID
-//   SANTANDER_CLIENT_SECRET
-//   SANTANDER_CERT_PATH        (caminho absoluto do .pfx no VPS, ex: /root/fleetpro-bridge/certs/royal_santander.pfx)
+// Requer no .env do bridge (client_id/secret/workspace SEPARADOS por
+// ambiente — são aplicações diferentes no portal do Santander):
+//   SANTANDER_ENV                    SANDBOX ou PRODUCAO — decide qual
+//                                     conjunto de credenciais/host usar
+//   SANTANDER_CLIENT_ID_SANDBOX      / SANTANDER_CLIENT_ID_PRODUCAO
+//   SANTANDER_CLIENT_SECRET_SANDBOX  / SANTANDER_CLIENT_SECRET_PRODUCAO
+//   SANTANDER_WORKSPACE_ID_SANDBOX   / SANTANDER_WORKSPACE_ID_PRODUCAO
+//   SANTANDER_CERT_PATH              (mesmo certificado nos dois ambientes)
 //   SANTANDER_CERT_PASSWORD
 //
 // IMPORTANTE: colocar o .pfx fora do repo git, com permissão 600.
@@ -12,19 +16,28 @@
 // Host de autenticação confirmado na doc oficial (seção 5.1 — API Servers):
 //   Sandbox:  trust-sandbox.api.santander.com.br
 //   Produção: trust-open.api.santander.com.br
-// Escolhido via SANTANDER_ENV=SANDBOX ou SANTANDER_ENV=PRODUCAO no .env.
 // Path de autenticação (igual nos dois ambientes): /auth/oauth/v2/token
 
 const https = require('https');
 const fs = require('fs');
 
+function _isProducao(){
+  return (process.env.SANTANDER_ENV || 'SANDBOX').toUpperCase() === 'PRODUCAO';
+}
 function getSantanderHost(){
-  return (process.env.SANTANDER_ENV || 'SANDBOX').toUpperCase() === 'PRODUCAO'
-    ? 'trust-open.api.santander.com.br'
-    : 'trust-sandbox.api.santander.com.br';
+  return _isProducao() ? 'trust-open.api.santander.com.br' : 'trust-sandbox.api.santander.com.br';
+}
+function getSantanderClientId(){
+  return _isProducao() ? process.env.SANTANDER_CLIENT_ID_PRODUCAO : process.env.SANTANDER_CLIENT_ID_SANDBOX;
+}
+function getSantanderClientSecret(){
+  return _isProducao() ? process.env.SANTANDER_CLIENT_SECRET_PRODUCAO : process.env.SANTANDER_CLIENT_SECRET_SANDBOX;
+}
+function getSantanderWorkspaceId(){
+  return _isProducao() ? process.env.SANTANDER_WORKSPACE_ID_PRODUCAO : process.env.SANTANDER_WORKSPACE_ID_SANDBOX;
 }
 
-let _tokenCache = { token: null, expiraEm: 0 };
+let _tokenCache = { token: null, expiraEm: 0, ambiente: null };
 
 function _agenteSantander(){
   return new https.Agent({
@@ -75,12 +88,24 @@ function _httpsRequest(options, bodyStr){
 
 async function getSantanderToken(){
   const agora = Date.now();
-  if(_tokenCache.token && agora < _tokenCache.expiraEm) return _tokenCache.token;
+  const ambienteAtual = _isProducao() ? 'PRODUCAO' : 'SANDBOX';
+  // Cache chaveado por ambiente — se SANTANDER_ENV mudar em runtime (sem
+  // restart do processo), nunca reaproveita token de PRODUCAO no SANDBOX
+  // ou vice-versa.
+  if(_tokenCache.token && _tokenCache.ambiente === ambienteAtual && agora < _tokenCache.expiraEm){
+    return _tokenCache.token;
+  }
+
+  const clientId = getSantanderClientId();
+  const clientSecret = getSantanderClientSecret();
+  if(!clientId || !clientSecret){
+    throw new Error(`Credenciais Santander ausentes para ambiente ${ambienteAtual} — confira SANTANDER_CLIENT_ID_${ambienteAtual} e SANTANDER_CLIENT_SECRET_${ambienteAtual} no .env`);
+  }
 
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
-    client_id: process.env.SANTANDER_CLIENT_ID,
-    client_secret: process.env.SANTANDER_CLIENT_SECRET,
+    client_id: clientId,
+    client_secret: clientSecret,
   }).toString();
 
   const resp = await _httpsRequest({
@@ -98,9 +123,13 @@ async function getSantanderToken(){
 
   _tokenCache = {
     token: resp.access_token,
+    ambiente: ambienteAtual,
     expiraEm: agora + (Number(resp.expires_in || 900) - 60) * 1000, // renova 60s antes de expirar
   };
   return _tokenCache.token;
 }
 
-module.exports = { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost };
+module.exports = {
+  getSantanderToken, _httpsRequest, _agenteSantander,
+  getSantanderHost, getSantanderClientId, getSantanderClientSecret, getSantanderWorkspaceId,
+};

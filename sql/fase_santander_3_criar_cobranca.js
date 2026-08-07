@@ -4,13 +4,13 @@
 // do Santander (seção 6.1 — BANK SLIP | Registro de Boletos | POST).
 //
 // Requer no .env:
-//   SANTANDER_WORKSPACE_ID   (gerado no passo fase_santander_2_criar_workspace.js)
+//   SANTANDER_WORKSPACE_ID_SANDBOX / SANTANDER_WORKSPACE_ID_PRODUCAO
 //   SANTANDER_CONVENIO       (código de 7 dígitos do beneficiário — ex: 0863038)
 //   SANTANDER_CHAVE_PIX      (chave DICT cadastrada no Santander p/ receber PIX)
 //   SANTANDER_CHAVE_PIX_TIPO (CPF | CNPJ | CELULAR | EMAIL | EVP)
-//   SANTANDER_ENV             PRODUCAO ou TESTE (não "PRODUCTION"/"TEST" — literal em português)
+//   SANTANDER_ENV             SANDBOX ou PRODUCAO — decide credenciais/host/workspace
 
-const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost } = require('./fase_santander_1_auth');
+const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost, getSantanderClientId, getSantanderWorkspaceId } = require('./fase_santander_1_auth');
 
 app.post('/api/santander/criar-cobranca', async (req, res) => {
   try{
@@ -90,14 +90,14 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
 
     const resp = await _httpsRequest({
       hostname: getSantanderHost(),
-      path: `/collection_bill_management/v2/workspaces/${process.env.SANTANDER_WORKSPACE_ID}/bank_slips`,
+      path: `/collection_bill_management/v2/workspaces/${getSantanderWorkspaceId()}/bank_slips`,
       method: 'POST',
       agent: _agenteSantander(),
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
         'Authorization': `Bearer ${token}`,
-        'X-Application-Key': process.env.SANTANDER_CLIENT_ID,
+        'X-Application-Key': getSantanderClientId(),
       },
     }, body);
 
