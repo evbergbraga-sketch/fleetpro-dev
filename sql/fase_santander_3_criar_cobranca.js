@@ -12,6 +12,19 @@
 
 const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost, getSantanderClientId, getSantanderWorkspaceId } = require('./fase_santander_1_auth');
 
+// payer.name do Santander só aceita [A-Za-z0-9& ] — nem acento, nem hífen.
+// Confirmado em teste real de produção (05/08/2026): um slice(0,40) simples
+// pode cortar no meio de um hífen (ex: "... - NAO USAR") e ser rejeitado.
+// Remove acentos primeiro (preserva legibilidade — "José" vira "Jose", não
+// some) e só depois filtra caracteres não permitidos, antes de truncar.
+function _limparNomeSantander(nome){
+  return (nome || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9& ]/g, '')
+    .trim()
+    .slice(0, 40);
+}
+
 app.post('/api/santander/criar-cobranca', async (req, res) => {
   try{
     const { cobranca_id } = req.body;
@@ -63,7 +76,7 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
       clientNumber: `SEM${cobranca.numero_semana}`, // "seu número" — livre; produção rejeita hífen (só [0-9A-Za-Z ])
       nominalValue: Number(cobranca.valor).toFixed(2),
       payer: {
-        name: (cliente.nome || '').slice(0, 40), // limite de 40 chars confirmado em produção real
+        name: _limparNomeSantander(cliente.nome),
         documentType: 'CPF',
         documentNumber: (cliente.cpf || '').replace(/\D/g,''),
         address: cliente.endereco_rua || 'Não informado',
