@@ -404,7 +404,7 @@ function _abrirReajusteSemanas(locId, provedor, asaasSubscriptionId){
   const novoValor = parseFloat(valorNovo.replace(',','.'));
   if(!novoValor || novoValor<=0){ notify('Valor inválido','error'); return; }
   const msg = provedor==='santander'
-    ? `Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato no FleetPro. Semanas que já têm boleto/PIX gerado no Santander NÃO são alteradas automaticamente lá — você será avisado se isso acontecer.`
+    ? `Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato — no FleetPro e, para as que já têm boleto/PIX registrado no Santander, sincroniza lá também via PATCH.`
     : `Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato, aqui e no Asaas.`;
   if(!confirm(msg)) return;
   _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId);
@@ -423,9 +423,27 @@ async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscr
       const jaRegistradas = (afetadas||[]).filter(c=>c.santander_bank_number);
       if(jaRegistradas.length===0){
         notify(`✓ ${afetadas?.length||0} semana(s) reajustada(s). Nenhuma tinha boleto/PIX já gerado no Santander — tudo consistente.`,'success');
-      }else{
-        notify(`⚠️ ${afetadas?.length||0} semana(s) reajustada(s) no FleetPro, mas ${jaRegistradas.length} já tinha(m) boleto/PIX gerado no Santander e NÃO foi(ram) atualizada(s) lá — precisa ajustar manualmente no banco por enquanto (funcionalidade de alteração automática ainda não implementada).`,'error');
+        abrirModalLocacao(locId);
+        return;
       }
+
+      notify(`✓ ${afetadas?.length||0} semana(s) reajustada(s) no FleetPro. Sincronizando ${jaRegistradas.length} já registrada(s) no Santander...`,'success');
+
+      const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+      let ok = 0, falhas = 0;
+      for(const c of jaRegistradas){
+        try{
+          const resp = await fetch(bridge+'/api/santander/reajustar-cobranca', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ cobranca_id: c.id, novo_valor: novoValor })
+          });
+          if(resp.ok) ok++; else falhas++;
+        }catch(_e){ falhas++; }
+      }
+
+      if(falhas===0) notify(`✓ ${ok} cobrança(s) sincronizada(s) no Santander com sucesso.`,'success');
+      else notify(`⚠️ ${ok} sincronizada(s), ${falhas} falhou(aram) — confira os logs do bridge.`,'error');
+
       abrirModalLocacao(locId);
       return;
     }
@@ -470,7 +488,7 @@ async function _abrirReajusteData(locId, provedor, asaasSubscriptionId){
     const diasOffset = Math.round((new Date(novaISO+'T12:00:00') - new Date(atual+'T12:00:00')) / 86400000);
     if(diasOffset === 0){ notify('Essa já é a data atual — nada a mudar.','error'); return; }
     const msg = provedor==='santander'
-      ? `Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda no FleetPro. Semanas que já têm boleto/PIX gerado no Santander NÃO são alteradas automaticamente lá — você será avisado se isso acontecer.`
+      ? `Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda no FleetPro e, para as que já têm boleto/PIX registrado no Santander, sincroniza lá também via PATCH.`
       : `Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda aqui e no Asaas (inclusive cobranças já geradas lá, ainda não pagas).`;
     if(!confirm(msg)) return;
 
@@ -486,19 +504,40 @@ async function _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscrip
       .in('status', ['pendente','atrasado']);
     if(error) throw error;
 
+    const novasDatas = {}; // id -> nova data ISO, guardado pra sincronizar depois
     for(const c of pendentes||[]){
       const novaData = new Date(c.data_vencimento+'T12:00:00');
       novaData.setDate(novaData.getDate() + diasOffset);
-      await sb.from('cobrancas_semanais').update({ data_vencimento: novaData.toISOString().slice(0,10) }).eq('id', c.id);
+      const novaISO = novaData.toISOString().slice(0,10);
+      novasDatas[c.id] = novaISO;
+      await sb.from('cobrancas_semanais').update({ data_vencimento: novaISO }).eq('id', c.id);
     }
 
     if(provedor==='santander'){
       const jaRegistradas = (pendentes||[]).filter(c=>c.santander_bank_number);
       if(jaRegistradas.length===0){
         notify(`✓ ${pendentes?.length||0} semana(s) deslocada(s). Nenhuma tinha boleto/PIX já gerado no Santander — tudo consistente.`,'success');
-      }else{
-        notify(`⚠️ ${pendentes?.length||0} semana(s) deslocada(s) no FleetPro, mas ${jaRegistradas.length} já tinha(m) boleto/PIX gerado no Santander e NÃO foi(ram) atualizada(s) lá — precisa ajustar manualmente no banco por enquanto.`,'error');
+        abrirModalLocacao(locId);
+        return;
       }
+
+      notify(`✓ ${pendentes?.length||0} semana(s) deslocada(s) no FleetPro. Sincronizando ${jaRegistradas.length} já registrada(s) no Santander...`,'success');
+
+      const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
+      let ok = 0, falhas = 0;
+      for(const c of jaRegistradas){
+        try{
+          const resp = await fetch(bridge+'/api/santander/reajustar-cobranca', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ cobranca_id: c.id, nova_data_vencimento: novasDatas[c.id] })
+          });
+          if(resp.ok) ok++; else falhas++;
+        }catch(_e){ falhas++; }
+      }
+
+      if(falhas===0) notify(`✓ ${ok} cobrança(s) sincronizada(s) no Santander com sucesso.`,'success');
+      else notify(`⚠️ ${ok} sincronizada(s), ${falhas} falhou(aram) — confira os logs do bridge.`,'error');
+
       abrirModalLocacao(locId);
       return;
     }
