@@ -56,7 +56,12 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
     // "Nosso número" — numérico, até 13 dígitos, único por convênio.
     // Usamos contrato + semana zero-padded. AJUSTAR se algum contrato tiver
     // num_contrato não-numérico ou se precisar de mais dígitos.
-    const nossoNumero = `${cobranca.locacoes?.num_contrato || '0'}${String(cobranca.numero_semana).padStart(4,'0')}`;
+    // "Nosso número" inclui a tentativa (últimos 2 dígitos) — permite
+    // reemitir (baixa+recriação) sem colidir com o nosso-número anterior,
+    // já que documentKind RECIBO não aceita PATCH de nominalValue e o
+    // reajuste de valor precisa baixar o antigo e criar um novo.
+    const tentativa = cobranca.santander_tentativa || 1;
+    const nossoNumero = `${cobranca.locacoes?.num_contrato || '0'}${String(cobranca.numero_semana).padStart(4,'0')}${String(tentativa).padStart(2,'0')}`;
 
     // nsuCode deve ser NUMÉRICO em produção (erro 1082 se não for) e único
     // por convênio/dia. Reaproveitamos o próprio nosso-número, que já é único.
