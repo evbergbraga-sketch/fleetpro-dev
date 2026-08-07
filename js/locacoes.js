@@ -254,15 +254,20 @@ function _renderCobrancasSemanais(cobrancas, loc){
         <div style="background:var(--green);height:100%;width:${pctPago}%"></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2)">Cobranças Semanais</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);display:flex;align-items:center;gap:6px">
+          Cobranças Semanais
+          ${loc.provedor_cobranca==='santander'
+            ? '<span style="background:rgba(236,28,36,.12);color:#ec1c24;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.5px">SANTANDER</span>'
+            : '<span style="background:rgba(0,163,133,.12);color:#00a385;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.5px">ASAAS</span>'}
+        </div>
         <div style="display:flex;gap:8px;font-size:11px;align-items:center;flex-wrap:wrap">
           <span style="color:var(--green);font-weight:600">${pagos} pagas</span>
           <span style="color:var(--muted)">·</span>
           <span style="color:var(--muted)">${total-pagos-atrasados} pendentes</span>
           ${atrasados>0?`<span style="color:var(--muted)">·</span><span style="color:var(--red);font-weight:600">${atrasados} atrasadas</span>`:''}
           ${loc.asaas_subscription_id?`<button onclick="_locSincronizarAsaasAgora('${loc.id}')" id="btn-sync-asaas" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Sincronizar Asaas</button>`:''}
-          ${loc.asaas_subscription_id?`<button onclick="_abrirReajusteSemanas('${loc.id}','${loc.asaas_subscription_id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar valor</button>`:''}
-          ${loc.asaas_subscription_id?`<button onclick="_abrirReajusteData('${loc.id}','${loc.asaas_subscription_id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar data</button>`:''}
+          ${(loc.plano_moto||loc.assinatura_valor_semanal)?`<button onclick="_abrirReajusteSemanas('${loc.id}','${loc.provedor_cobranca||'asaas'}','${loc.asaas_subscription_id||''}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar valor</button>`:''}
+          ${(loc.plano_moto||loc.assinatura_valor_semanal)?`<button onclick="_abrirReajusteData('${loc.id}','${loc.provedor_cobranca||'asaas'}','${loc.asaas_subscription_id||''}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar data</button>`:''}
         </div>
       </div>
       <div style="font-size:11px;color:var(--muted2);margin-bottom:6px">💡 Clique em uma semana pendente/atrasada para marcar como paga manualmente (ex: pagamento em dinheiro na loja)</div>
@@ -393,23 +398,37 @@ async function _confirmarEditarValorSemana(cobrancaId, asaasPaymentId){
 }
 
 // ── Reajuste em massa: novo valor pra TODAS as semanas ainda não pagas ──
-function _abrirReajusteSemanas(locId, asaasSubscriptionId){
+function _abrirReajusteSemanas(locId, provedor, asaasSubscriptionId){
   const valorNovo = prompt('Novo valor semanal para TODAS as semanas ainda não pagas (as já pagas não mudam):');
   if(!valorNovo) return;
   const novoValor = parseFloat(valorNovo.replace(',','.'));
   if(!novoValor || novoValor<=0){ notify('Valor inválido','error'); return; }
-  if(!confirm(`Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato, aqui e no Asaas.`)) return;
-  _confirmarReajusteSemanas(locId, asaasSubscriptionId, novoValor);
+  const msg = provedor==='santander'
+    ? `Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato no FleetPro. Semanas que já têm boleto/PIX gerado no Santander NÃO são alteradas automaticamente lá — você será avisado se isso acontecer.`
+    : `Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato, aqui e no Asaas.`;
+  if(!confirm(msg)) return;
+  _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId);
 }
 
-async function _confirmarReajusteSemanas(locId, asaasSubscriptionId, novoValor){
+async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId){
   try{
     const { data: afetadas, error } = await sb.from('cobrancas_semanais')
       .update({ valor: novoValor })
       .eq('locacao_id', locId)
       .in('status', ['pendente','atrasado'])
-      .select('id');
+      .select('id, santander_bank_number');
     if(error) throw error;
+
+    if(provedor==='santander'){
+      const jaRegistradas = (afetadas||[]).filter(c=>c.santander_bank_number);
+      if(jaRegistradas.length===0){
+        notify(`✓ ${afetadas?.length||0} semana(s) reajustada(s). Nenhuma tinha boleto/PIX já gerado no Santander — tudo consistente.`,'success');
+      }else{
+        notify(`⚠️ ${afetadas?.length||0} semana(s) reajustada(s) no FleetPro, mas ${jaRegistradas.length} já tinha(m) boleto/PIX gerado no Santander e NÃO foi(ram) atualizada(s) lá — precisa ajustar manualmente no banco por enquanto (funcionalidade de alteração automática ainda não implementada).`,'error');
+      }
+      abrirModalLocacao(locId);
+      return;
+    }
 
     notify(`✓ ${afetadas?.length||0} semana(s) reajustada(s) no FleetPro. Atualizando no Asaas...`,'success');
 
@@ -427,11 +446,11 @@ async function _confirmarReajusteSemanas(locId, asaasSubscriptionId, novoValor){
 }
 
 // ── Reajustar DATA — corrige um erro de data na criação do contrato,
-// deslocando todas as semanas ainda não pagas (aqui e no Asaas) pelo mesmo
-// número de dias. Pede a data CORRETA da próxima semana como referência,
-// em vez de pedir "quantos dias" (mais intuitivo — o usuário sabe a data
-// certa de cabeça, não o deslocamento em dias). ──
-async function _abrirReajusteData(locId, asaasSubscriptionId){
+// deslocando todas as semanas ainda não pagas (aqui e no Asaas, quando
+// aplicável) pelo mesmo número de dias. Pede a data CORRETA da próxima
+// semana como referência, em vez de pedir "quantos dias" (mais intuitivo —
+// o usuário sabe a data certa de cabeça, não o deslocamento em dias). ──
+async function _abrirReajusteData(locId, provedor, asaasSubscriptionId){
   try{
     const { data: proxima, error } = await sb.from('cobrancas_semanais')
       .select('data_vencimento')
@@ -450,16 +469,19 @@ async function _abrirReajusteData(locId, asaasSubscriptionId){
     const novaISO = `${m[3]}-${m[2]}-${m[1]}`;
     const diasOffset = Math.round((new Date(novaISO+'T12:00:00') - new Date(atual+'T12:00:00')) / 86400000);
     if(diasOffset === 0){ notify('Essa já é a data atual — nada a mudar.','error'); return; }
-    if(!confirm(`Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda aqui e no Asaas (inclusive cobranças já geradas lá, ainda não pagas).`)) return;
+    const msg = provedor==='santander'
+      ? `Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda no FleetPro. Semanas que já têm boleto/PIX gerado no Santander NÃO são alteradas automaticamente lá — você será avisado se isso acontecer.`
+      : `Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda aqui e no Asaas (inclusive cobranças já geradas lá, ainda não pagas).`;
+    if(!confirm(msg)) return;
 
-    _confirmarReajusteData(locId, asaasSubscriptionId, diasOffset);
+    _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscriptionId);
   }catch(e){ notify('Erro ao preparar o reajuste de data: '+e.message,'error'); }
 }
 
-async function _confirmarReajusteData(locId, asaasSubscriptionId, diasOffset){
+async function _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscriptionId){
   try{
     const { data: pendentes, error } = await sb.from('cobrancas_semanais')
-      .select('id, data_vencimento')
+      .select('id, data_vencimento, santander_bank_number')
       .eq('locacao_id', locId)
       .in('status', ['pendente','atrasado']);
     if(error) throw error;
@@ -469,6 +491,18 @@ async function _confirmarReajusteData(locId, asaasSubscriptionId, diasOffset){
       novaData.setDate(novaData.getDate() + diasOffset);
       await sb.from('cobrancas_semanais').update({ data_vencimento: novaData.toISOString().slice(0,10) }).eq('id', c.id);
     }
+
+    if(provedor==='santander'){
+      const jaRegistradas = (pendentes||[]).filter(c=>c.santander_bank_number);
+      if(jaRegistradas.length===0){
+        notify(`✓ ${pendentes?.length||0} semana(s) deslocada(s). Nenhuma tinha boleto/PIX já gerado no Santander — tudo consistente.`,'success');
+      }else{
+        notify(`⚠️ ${pendentes?.length||0} semana(s) deslocada(s) no FleetPro, mas ${jaRegistradas.length} já tinha(m) boleto/PIX gerado no Santander e NÃO foi(ram) atualizada(s) lá — precisa ajustar manualmente no banco por enquanto.`,'error');
+      }
+      abrirModalLocacao(locId);
+      return;
+    }
+
     notify(`✓ ${pendentes?.length||0} semana(s) deslocada(s) no FleetPro. Atualizando no Asaas...`,'success');
 
     const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
