@@ -60,17 +60,17 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
       issueDate: new Date().toISOString().slice(0,10),
       dueDate: cobranca.data_vencimento,
       bankNumber: nossoNumero,
-      clientNumber: `SEM-${cobranca.numero_semana}`, // "seu número" — livre, usado só p/ referência nossa
+      clientNumber: `SEM${cobranca.numero_semana}`, // "seu número" — livre; produção rejeita hífen (só [0-9A-Za-Z ])
       nominalValue: Number(cobranca.valor).toFixed(2),
       payer: {
-        name: cliente.nome,
+        name: (cliente.nome || '').slice(0, 40), // limite de 40 chars confirmado em produção real
         documentType: 'CPF',
         documentNumber: (cliente.cpf || '').replace(/\D/g,''),
         address: cliente.endereco_rua || 'Não informado',
         neighborhood: cliente.endereco_bairro || 'Não informado',
         city: cliente.endereco_cidade || 'Não informado',
         state: cliente.endereco_uf || 'RJ',
-        zipCode: (cliente.cep || '00000000').replace(/\D/g,''),
+        zipCode: (cliente.cep || '00000000').replace(/\D/g,'').replace(/(\d{5})(\d{3})/, '$1-$2'), // formato 00000-000 exigido em produção
       },
       documentKind: 'RECIBO',   // espécie do documento — RECIBO é a mais próxima p/ cobrança recorrente de aluguel
       paymentType: 'REGISTRO',  // só aceita o valor nominal exato (sem range divergente)
