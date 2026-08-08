@@ -17,7 +17,9 @@ async function consultarPagamentosSantanderPendentes(){
 
     for(const c of (pendentes || [])){
       try{
-        const resp = await fetch(`http://localhost:${PORT}/api/santander/consultar-pagamento/${c.id}`);
+        const resp = await fetch(`http://localhost:${PORT}/api/santander/consultar-pagamento/${c.id}`, {
+          headers: {'x-secret':'FleetPro2025'},
+        });
         const data = await resp.json();
         if(data.pago) console.log(`[cron/consultar-santander] pagamento detectado — cobranca ${c.id}`);
       }catch(e){
