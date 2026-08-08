@@ -70,6 +70,13 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
 
     const token = await getSantanderToken();
 
+    // Desconto 5% se pago até 2 dias antes do vencimento (VALOR_DATA_FIXA —
+    // valor fixo em R$, não %, então calculamos o valor absoluto aqui).
+    const dataVenc = new Date(cobranca.data_vencimento+'T12:00:00');
+    const dataLimiteDesconto = new Date(dataVenc);
+    dataLimiteDesconto.setDate(dataLimiteDesconto.getDate() - 2);
+    const valorDesconto = (Number(cobranca.valor) * 0.05).toFixed(2);
+
     const payload = {
       nsuCode,
       nsuDate: new Date().toISOString().slice(0,10),
@@ -92,7 +99,17 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
       },
       documentKind: 'RECIBO',   // espécie do documento — RECIBO é a mais próxima p/ cobrança recorrente de aluguel
       paymentType: 'REGISTRO',  // só aceita o valor nominal exato (sem range divergente)
-      messages: [`Contrato #${cobranca.locacoes?.num_contrato||''} — Semana ${cobranca.numero_semana}`],
+      messages: [`Cobranca referente ao contrato #${cobranca.locacoes?.num_contrato||''} semana ${cobranca.numero_semana}`],
+      discount: {
+        type: 'VALOR_DATA_FIXA',
+        discountOne: {
+          value: valorDesconto,
+          limitDate: dataLimiteDesconto.toISOString().slice(0,10),
+        },
+      },
+      finePercentage: '2.00',      // multa 2%, a partir do dia seguinte ao vencimento
+      fineQuantityDays: '1',
+      interestPercentage: '1.00',  // juros 1% ao mês
     };
 
     // Ativa o PIX na mesma cobrança (boleto híbrido / "Boleto SX") — só entra
