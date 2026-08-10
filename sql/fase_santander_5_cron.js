@@ -56,10 +56,10 @@ function _montarMensagem(tipo, ctx){
   }
 }
 
-async function reguaDeCobrancaSantander(){
+async function reguaDeCobrancaSantander(forcar){
   try{
     const horaAtual = _horaBrasilia();
-    if(!HORARIOS_ENVIO.includes(horaAtual)) return; // fora das janelas de envio, não faz nada
+    if(!forcar && !HORARIOS_ENVIO.includes(horaAtual)) return; // fora das janelas de envio, não faz nada
 
     const hoje = _dataBrasiliaISO();
 
@@ -124,3 +124,16 @@ async function reguaDeCobrancaSantander(){
 
 reguaDeCobrancaSantander(); // roda uma vez ao subir (só executa de verdade se já estiver numa das 3 janelas)
 setInterval(reguaDeCobrancaSantander, 5*60*1000); // checa a cada 5 minutos
+
+// Gatilho manual pra testes — roda a régua ignorando a janela de horário.
+// Protegido por x-secret. Fica disponível pra depuração futura, sem custo
+// (só executa quando chamado).
+app.post('/api/santander/regua-forcar', async (req, res) => {
+  if(req.headers['x-secret'] !== 'FleetPro2025') return res.status(401).json({error:'unauthorized'});
+  try{
+    await reguaDeCobrancaSantander(true);
+    res.json({ok:true, message:'Régua executada manualmente'});
+  }catch(e){
+    res.status(500).json({error: e.message});
+  }
+});
