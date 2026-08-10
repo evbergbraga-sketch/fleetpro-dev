@@ -31,11 +31,22 @@ function _dataBrasiliaISO(){
   return br.toISOString().slice(0,10);
 }
 
+// Mesma lógica do fmtPhone() já usado no frontend (js/chat.js) — o
+// cadastro do cliente guarda o telefone sem "55", mas a Evolution API
+// exige o formato internacional completo.
+function _fmtPhone(tel){
+  if(!tel) return '';
+  let n = tel.replace(/\D/g,'');
+  if(n.startsWith('0')) n = n.slice(1);
+  if(!n.startsWith('55')) n = '55'+n;
+  return n;
+}
+
 async function _enviarWhatsApp(numero, texto){
   const resp = await fetch(`http://localhost:${PORT}/api/enviar-mensagem`, {
     method: 'POST',
     headers: {'x-secret':'FleetPro2025','Content-Type':'application/json'},
-    body: JSON.stringify({ numero, texto, nomeAtendente: '🤖 Cobrança automática' }),
+    body: JSON.stringify({ numero: _fmtPhone(numero), texto, nomeAtendente: '🤖 Cobrança automática' }),
   });
   if(!resp.ok){
     const erroTxt = await resp.text().catch(()=>'');
