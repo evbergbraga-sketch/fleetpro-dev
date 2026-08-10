@@ -32,11 +32,15 @@ function _dataBrasiliaISO(){
 }
 
 async function _enviarWhatsApp(numero, texto){
-  await fetch(`http://localhost:${PORT}/api/enviar-mensagem`, {
+  const resp = await fetch(`http://localhost:${PORT}/api/enviar-mensagem`, {
     method: 'POST',
     headers: {'x-secret':'FleetPro2025','Content-Type':'application/json'},
     body: JSON.stringify({ numero, texto, nomeAtendente: '🤖 Cobrança automática' }),
   });
+  if(!resp.ok){
+    const erroTxt = await resp.text().catch(()=>'');
+    throw new Error(`enviar-mensagem HTTP ${resp.status}: ${erroTxt}`);
+  }
 }
 
 function _montarMensagem(tipo, ctx){
@@ -96,6 +100,7 @@ async function reguaDeCobrancaSantander(forcar){
         }
 
         const cliente = c.locacoes?.clientes;
+        let mensagemEnviada = false;
         if(!cliente?.telefone){
           console.warn(`[regua/santander] cobranca ${c.id} sem telefone do cliente — mensagem não enviada`);
         }else{
@@ -108,9 +113,20 @@ async function reguaDeCobrancaSantander(forcar){
             link: `${URL_BASE_PAGAMENTO}/pagar.html?semana=${c.id}`,
             diasAtraso: Math.abs(diasParaVencer),
           });
-          await _enviarWhatsApp(cliente.telefone, texto);
-          console.log(`[regua/santander] WhatsApp '${tipo}' enviado para ${cliente.nome} (cobranca ${c.id})`);
+          try{
+            await _enviarWhatsApp(cliente.telefone, texto);
+            mensagemEnviada = true;
+            console.log(`[regua/santander] WhatsApp '${tipo}' enviado para ${cliente.nome} (cobranca ${c.id})`);
+          }catch(eWpp){
+            console.error(`[regua/santander] FALHA ao enviar WhatsApp da cobranca ${c.id}:`, eWpp.message);
+          }
         }
+
+        // Só marca como "notificado hoje" se a mensagem realmente saiu —
+        // se falhar (número inválido, WhatsApp fora do ar, etc.), tenta
+        // de novo na próxima janela do mesmo dia, em vez de perder a
+        // notificação silenciosamente até o dia seguinte.
+        if(!mensagemEnviada) continue;
 
         await sb.from('cobrancas_semanais').update({ santander_notif_data: hoje }).eq('id', c.id);
       }catch(e){
