@@ -870,6 +870,15 @@ const DADOS_KEY = 'rp_dados';
 
 // ══ ESTADO ════════════════════════════════════════════════
 let _dados = null;
+
+// A locação carrega provedor_cobranca, mas as parcelas (cobrancas_semanais)
+// não trazem esse campo no SELECT do bridge — como só existe 1 locação
+// ativa por cliente, propaga o mesmo valor pra cada parcela aqui no
+// frontend, em vez de duplicar a coluna no banco/join.
+function _aplicarProvedorNasParcelas(dados){
+  const provedor = dados?.locacao?.provedor_cobranca || 'asaas';
+  (dados?.parcelas || []).forEach(p => { p.provedor_cobranca = provedor; });
+}
 let _deferredPrompt = null;
 
 // ══ PWA — INSTALAR ════════════════════════════════════════
@@ -981,6 +990,7 @@ if ('serviceWorker' in navigator) {
   if (cache) {
     try {
       _dados = JSON.parse(cache);
+      _aplicarProvedorNasParcelas(_dados);
       renderApp();
       // Busca dados frescos em background sem precisar de senha
       _recarregarDados();
@@ -1002,6 +1012,7 @@ async function _recarregarDados() {
     const json = await r.json();
     if (!json.cliente) return;
     _dados = json;
+    _aplicarProvedorNasParcelas(_dados);
     localStorage.setItem(DADOS_KEY, JSON.stringify(json));
     // Re-renderiza todos os blocos dinâmicos sem piscar a tela
     renderComunicados(_dados.comunicados);
@@ -1051,6 +1062,7 @@ async function fazerLogin() {
     const json = await r.json();
     if (!r.ok || !json.cliente) throw new Error(json.erro || 'CPF ou senha incorretos.');
     _dados = json;
+    _aplicarProvedorNasParcelas(_dados);
     localStorage.setItem(DADOS_KEY, JSON.stringify(json));
     renderApp();
   } catch(e) {

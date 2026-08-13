@@ -1,5 +1,5 @@
 // sw-portal.js — Service Worker Portal Royal
-const CACHE = 'royal-portal-v16';
+const CACHE = 'royal-portal-v17';
 const ASSETS = [
   '/portal.html',
   '/manifest-portal.json',
