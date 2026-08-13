@@ -25,10 +25,16 @@ app.post('/api/santander/webhook', async (req, res) => {
     const {
       function: tipoEvento, bankNumber, covenant, payedValue,
       paymentDate, paymentType, nominalValue,
-    } = req.body;
+    } = req.body || {};
 
     if(!bankNumber){
-      return res.status(400).json({error:'bankNumber ausente no payload'});
+      // Corpo vazio (ou sem bankNumber) — confirmado por e-mail do time
+      // técnico Santander (13/08/2026): eles testam a URL com POST de
+      // corpo vazio antes de aceitar o cadastro do webhook, e esperam
+      // 200 mesmo assim. Isso NÃO é uma notificação real de pagamento
+      // (que sempre tem bankNumber), então responde OK sem tratar como
+      // erro — não retry, não log de erro.
+      return res.status(200).json({ok:true, recebido:true});
     }
 
     const { data: cobranca } = await sb.from('cobrancas_semanais')
