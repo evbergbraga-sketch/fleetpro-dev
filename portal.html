@@ -1148,6 +1148,7 @@ function renderInicio(loc, parcelas, sorteios) {
       document.getElementById('btn-prox-pagar').dataset.semana = prox.numero_semana;
       document.getElementById('btn-prox-pagar').dataset.valor = prox.valor;
       document.getElementById('btn-prox-pagar').dataset.venc = prox.data_vencimento;
+      document.getElementById('btn-prox-pagar').dataset.provedor = prox.provedor_cobranca || 'asaas';
     }
 
     // Faturas em atraso — sempre têm prioridade sobre o card de desconto
@@ -1251,13 +1252,23 @@ function renderInicio(loc, parcelas, sorteios) {
 
 function pagarProxima() {
   const btn = document.getElementById('btn-prox-pagar');
-  buscarLinkPagar(btn.dataset.id, btn.dataset.semana, btn.dataset.valor, btn.dataset.venc, btn);
+  buscarLinkPagar(btn.dataset.id, btn.dataset.semana, btn.dataset.valor, btn.dataset.venc, btn, btn.dataset.provedor);
 }
 
-async function buscarLinkPagar(parcelaId, numeroSemana, valor, dataVenc, btn) {
+async function buscarLinkPagar(parcelaId, numeroSemana, valor, dataVenc, btn, provedor) {
   const textoOriginal = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Buscando...';
+
+  // Santander: não precisa passar pelo bridge pra gerar link — a
+  // pagar.html já busca/gera o boleto+PIX diretamente. Evita duplicar a
+  // lógica de geração que já existe e está testada.
+  if(provedor === 'santander'){
+    window.open(`${location.origin}/pagar.html?semana=${parcelaId}`, '_blank');
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+    return;
+  }
 
   try {
     const { cliente } = _dados;
@@ -1293,7 +1304,7 @@ function renderParcelas(parcelas) {
     const statusClass = p.status === 'pago' ? 'badge-pago' : p.status === 'atrasado' ? 'badge-atrasado' : 'badge-pendente';
     const statusTxt = p.status === 'pago' ? 'Pago' : p.status === 'atrasado' ? '⚠ Atrasado' : 'Pendente';
     const btnPagar = p.status !== 'pago'
-      ? `<button class="btn-pagar" id="btn-pagar-${p.id}" onclick="buscarLinkPagar('${p.id}','${p.numero_semana}','${p.valor}','${p.data_vencimento}',this)">Pagar</button>`
+      ? `<button class="btn-pagar" id="btn-pagar-${p.id}" onclick="buscarLinkPagar('${p.id}','${p.numero_semana}','${p.valor}','${p.data_vencimento}',this,'${p.provedor_cobranca||'asaas'}')">Pagar</button>`
       : '';
     const valorExibido = (p.status === 'pago' && p.valor_pago != null) ? p.valor_pago : p.valor;
     return `
