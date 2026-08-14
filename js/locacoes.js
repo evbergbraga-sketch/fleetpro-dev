@@ -210,12 +210,14 @@ async function _migrarParaSantander(locId){
       .select('id', { count:'exact', head:true })
       .eq('locacao_id', locId).neq('status','pago');
 
-    const msg = `Migrar o contrato #${loc.num_contrato} (${loc.clientes?.nome||''}) do Asaas para o Santander?\n\n`
-      + `• ${emAberto||0} semana(s) em aberto passarão a ser cobradas via Santander\n`
+    const msg = `Contrato #${loc.num_contrato} — ${loc.clientes?.nome||''}\n\n`
+      + `• ${emAberto||0} semana(s) em aberto passam a ser cobradas via Santander\n`
       + `• Semanas já pagas não são afetadas\n`
-      + `• A assinatura no Asaas será CANCELADA (evita cobrança duplicada)\n`
-      + `• Os 4 primeiros boletos serão registrados no Santander em seguida`;
-    if(!confirm(msg)) return;
+      + `• A assinatura no Asaas será cancelada, evitando cobrança duplicada\n`
+      + `• Os primeiros boletos são registrados logo em seguida`;
+    const ok = await fpConfirm(msg, 'Migrar para o Santander',
+      { confirmLabel: 'Migrar agora', danger: false });
+    if(!ok) return;
 
     // 1) Cancela a assinatura no Asaas primeiro — se falhar, aborta a
     // migração, senão o cliente ficaria cobrado nos dois provedores.
@@ -471,29 +473,34 @@ async function _confirmarEditarValorSemana(cobrancaId, asaasPaymentId){
 
 // ── Reajuste de valor: todas as semanas não pagas, ou uma específica ──
 async function _abrirReajusteSemanas(locId, provedor, asaasSubscriptionId){
-  const semanaAlvo = await _escolherEscopoSemana(locId, 'reajustar o valor');
+  const semanaAlvo = await _escolherEscopoSemana(locId, 'Reajustar valor');
   if(semanaAlvo === null) return; // cancelou
 
   const alvoTexto = semanaAlvo === 'todas'
-    ? 'TODAS as semanas ainda não pagas'
+    ? 'todas as semanas ainda não pagas'
     : `a semana ${semanaAlvo.numero_semana} (vence ${fmtData(semanaAlvo.data_vencimento)})`;
 
-  const valorNovo = prompt(`Novo valor para ${alvoTexto}:`, semanaAlvo === 'todas' ? '' : Number(semanaAlvo.valor).toFixed(2));
+  const valorNovo = await fpPrompt(`Novo valor (R$) para ${alvoTexto}.`, 'Reajustar valor', {
+    defaultValue: semanaAlvo === 'todas' ? '' : Number(semanaAlvo.valor).toFixed(2),
+    placeholder: '0,00',
+  });
   if(!valorNovo) return;
-  const novoValor = parseFloat(valorNovo.replace(',','.'));
+  const novoValor = parseFloat(String(valorNovo).replace(',','.'));
   if(!novoValor || novoValor<=0){ notify('Valor inválido','error'); return; }
 
   const sufixo = provedor==='santander'
-    ? ' As que já têm boleto/PIX registrado no Santander são sincronizadas lá via PATCH.'
-    : ' A mudança também é aplicada no Asaas.';
-  if(!confirm(`Confirma reajustar ${alvoTexto} para R$ ${novoValor.toFixed(2)}?${sufixo}`)) return;
+    ? '\n\nAs que já têm boleto registrado no Santander são atualizadas lá também.'
+    : '\n\nA mudança também é aplicada no Asaas.';
+  const ok = await fpConfirm(`Reajustar ${alvoTexto} para R$ ${novoValor.toFixed(2)}?${sufixo}`,
+    'Confirmar reajuste', { confirmLabel: 'Reajustar', danger: false });
+  if(!ok) return;
 
   _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId, semanaAlvo === 'todas' ? null : semanaAlvo.id);
 }
 
 // Pergunta se a ação vale pra todas as semanas em aberto ou só uma —
 // usado tanto no reajuste de valor quanto no de data.
-async function _escolherEscopoSemana(locId, acaoTexto){
+async function _escolherEscopoSemana(locId, titulo){
   const { data: abertas } = await sb.from('cobrancas_semanais')
     .select('id, numero_semana, data_vencimento, valor, status')
     .eq('locacao_id', locId)
@@ -506,24 +513,21 @@ async function _escolherEscopoSemana(locId, acaoTexto){
   }
   if(abertas.length === 1) return abertas[0]; // só uma opção, nem pergunta
 
-  const escolha = prompt(
-    `Deseja ${acaoTexto} de todas as ${abertas.length} semanas em aberto, ou de uma específica?\n\n`
-    + `• Digite TODAS para aplicar em todas\n`
-    + `• Ou digite o número da semana (ex: ${abertas[0].numero_semana})\n\n`
-    + `Semanas em aberto: ${abertas.map(a=>a.numero_semana).join(', ')}`,
-    'TODAS'
-  );
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const opcoes = [
+    { valor: 'todas', titulo: `Todas as ${abertas.length} semanas em aberto`,
+      subtitulo: `Semana ${abertas[0].numero_semana} até ${abertas[abertas.length-1].numero_semana}` },
+    ...abertas.map(a => ({
+      valor: a.id,
+      titulo: `Somente a semana ${a.numero_semana}`,
+      subtitulo: `Vence ${fmtData(a.data_vencimento)} · ${fmtR(a.valor)}${a.status==='atrasado'?' · em atraso':''}`,
+    })),
+  ];
+
+  const escolha = await fpEscolha('Aplicar em quais semanas?', opcoes, { titulo });
   if(!escolha) return null;
-
-  if(escolha.trim().toUpperCase() === 'TODAS') return 'todas';
-
-  const num = parseInt(escolha.trim(), 10);
-  const achada = abertas.find(a => a.numero_semana === num);
-  if(!achada){
-    notify(`Semana ${escolha} não está em aberto neste contrato.`,'error');
-    return null;
-  }
-  return achada;
+  if(escolha === 'todas') return 'todas';
+  return abertas.find(a => a.id === escolha) || null;
 }
 
 async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId, cobrancaId){
@@ -597,7 +601,7 @@ async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscr
 // data certa de cabeça, não o deslocamento). ──
 async function _abrirReajusteData(locId, provedor, asaasSubscriptionId){
   try{
-    const semanaAlvo = await _escolherEscopoSemana(locId, 'reajustar a data');
+    const semanaAlvo = await _escolherEscopoSemana(locId, 'Reajustar data');
     if(semanaAlvo === null) return;
 
     let atual, cobrancaId = null;
@@ -616,22 +620,32 @@ async function _abrirReajusteData(locId, provedor, asaasSubscriptionId){
       cobrancaId = semanaAlvo.id;
     }
 
-    const rotulo = semanaAlvo === 'todas' ? 'da próxima semana' : `da semana ${semanaAlvo.numero_semana}`;
-    const novaData = prompt(`Data atual ${rotulo}: ${fmtData(atual)}\nQual é a data CORRETA? (DD/MM/AAAA)`);
+    const rotulo = semanaAlvo === 'todas'
+      ? `A próxima semana vence em ${fmtData(atual)}.\nInformando a data correta dela, todas as outras são deslocadas junto.`
+      : `A semana ${semanaAlvo.numero_semana} vence em ${fmtData(atual)}.`;
+
+    const novaData = await fpPrompt(rotulo + '\n\nInforme a data no formato DD/MM/AAAA.', 'Reajustar data', {
+      defaultValue: fmtData(atual),
+      placeholder: 'DD/MM/AAAA',
+    });
     if(!novaData) return;
-    const m = novaData.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+    const m = String(novaData).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if(!m){ notify('Data inválida — use o formato DD/MM/AAAA.','error'); return; }
     const novaISO = `${m[3]}-${m[2]}-${m[1]}`;
     const diasOffset = Math.round((new Date(novaISO+'T12:00:00') - new Date(atual+'T12:00:00')) / 86400000);
     if(diasOffset === 0){ notify('Essa já é a data atual — nada a mudar.','error'); return; }
 
     const alvoTexto = semanaAlvo === 'todas'
-      ? `TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)`
-      : `a semana ${semanaAlvo.numero_semana} para ${fmtData(novaISO)}`;
+      ? `Deslocar todas as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)?`
+      : `Alterar a semana ${semanaAlvo.numero_semana} para ${fmtData(novaISO)}?`;
     const sufixo = provedor==='santander'
-      ? ' As que já têm boleto/PIX registrado no Santander são sincronizadas lá via PATCH.'
-      : (semanaAlvo === 'todas' ? ' A mudança também é aplicada no Asaas.' : '');
-    if(!confirm(`Confirma alterar ${alvoTexto}?${sufixo}`)) return;
+      ? '\n\nAs que já têm boleto registrado no Santander são atualizadas lá também.'
+      : (semanaAlvo === 'todas' ? '\n\nA mudança também é aplicada no Asaas.' : '');
+
+    const ok = await fpConfirm(alvoTexto + sufixo, 'Confirmar nova data',
+      { confirmLabel: 'Alterar data', danger: false });
+    if(!ok) return;
 
     _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscriptionId, cobrancaId);
   }catch(e){ notify('Erro ao preparar o reajuste de data: '+e.message,'error'); }

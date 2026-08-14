@@ -318,6 +318,76 @@ function setMsg(txt){
   if(inp){ inp.value = txt; inp.focus(); }
 }
 
+// ══ MODAL DE ESCOLHA — não há equivalente nativo decente.
+// (fpConfirm/fpPrompt/fpAlert já existem mais abaixo neste arquivo,
+//  usando o modal #m-fp-dialog do index.html)
+
+function _fpFecharDialogo(){
+  const el = document.getElementById('fp-dialogo');
+  if(el) el.remove();
+  document.removeEventListener('keydown', _fpDialogoTeclas);
+}
+
+function _fpDialogoTeclas(e){
+  if(e.key === 'Escape'){
+    const cancelar = document.getElementById('fp-dlg-cancelar');
+    if(cancelar) cancelar.click();
+  }
+  if(e.key === 'Enter' && e.target.tagName !== 'TEXTAREA'){
+    const ok = document.getElementById('fp-dlg-ok');
+    if(ok && !ok.disabled) ok.click();
+  }
+}
+
+function _fpMontarDialogo(html, aoAbrir){
+  _fpFecharDialogo();
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-overlay show';
+  wrap.id = 'fp-dialogo';
+  wrap.innerHTML = `<div class="modal" style="width:440px">${html}</div>`;
+  document.body.appendChild(wrap);
+  document.addEventListener('keydown', _fpDialogoTeclas);
+  if(aoAbrir) aoAbrir();
+  return wrap;
+}
+
+// Escolha entre opções — não tem equivalente nativo decente.
+// opcoes: [{ valor, titulo, subtitulo }]. Resolve o valor escolhido ou null.
+function fpEscolha(mensagem, opcoes, opts = {}){
+  const { titulo = 'Escolher' } = opts;
+  return new Promise(resolve => {
+    const itens = opcoes.map((o,i) => `
+      <button class="fp-opcao" data-valor="${o.valor}" style="
+        width:100%;text-align:left;padding:13px 15px;margin-bottom:8px;cursor:pointer;
+        background:var(--bg2);border:1px solid var(--border2);border-radius:10px;
+        color:var(--text);font-family:inherit;transition:border-color .15s,background .15s">
+        <div style="font-size:13.5px;font-weight:600">${o.titulo}</div>
+        ${o.subtitulo?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">${o.subtitulo}</div>`:''}
+      </button>`).join('');
+
+    _fpMontarDialogo(`
+      <div class="modal-header">
+        <div class="modal-title">${titulo}</div>
+        <button class="modal-close" id="fp-dlg-cancelar">✕</button>
+      </div>
+      ${mensagem?`<div style="font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px">${mensagem}</div>`:''}
+      <div style="max-height:320px;overflow-y:auto">${itens}</div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="fp-dlg-cancelar2">Cancelar</button>
+      </div>
+    `, () => {
+      const fechar = v => { _fpFecharDialogo(); resolve(v); };
+      document.querySelectorAll('.fp-opcao').forEach(b => {
+        b.onmouseenter = () => { b.style.borderColor='var(--accent)'; b.style.background='rgba(79,70,229,.07)'; };
+        b.onmouseleave = () => { b.style.borderColor='var(--border2)'; b.style.background='var(--bg2)'; };
+        b.onclick = () => fechar(b.dataset.valor);
+      });
+      document.getElementById('fp-dlg-cancelar').onclick = () => fechar(null);
+      document.getElementById('fp-dlg-cancelar2').onclick = () => fechar(null);
+    });
+  });
+}
+
 // ══ BUSCA GLOBAL ══
 (function(){
   let _buscaTimer = null;
