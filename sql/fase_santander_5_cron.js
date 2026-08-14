@@ -99,7 +99,11 @@ async function reguaDeCobrancaSantander(forcar){
         else if(diasParaVencer < 0) tipo = 'atrasado';
         if(!tipo) continue; // fora da janela de interesse (ex: vence daqui 10 dias) — não faz nada ainda
 
-        // Gera o boleto/PIX agora, se ainda não existir
+        // Boleto/PIX é gerado pelo cron de janela (fase_santander_10), que
+        // mantém sempre N boletos registrados à frente. Se por algum motivo
+        // essa cobrança ainda não tiver boleto quando chegar a hora de
+        // notificar, gera aqui como rede de segurança — o cliente não pode
+        // receber uma mensagem de cobrança com link sem boleto pronto.
         if(!c.santander_bank_number){
           const respCriar = await fetch(`http://localhost:${PORT}/api/santander/criar-cobranca`, {
             method: 'POST',
@@ -107,7 +111,7 @@ async function reguaDeCobrancaSantander(forcar){
             body: JSON.stringify({ cobranca_id: c.id }),
           });
           if(!respCriar.ok) throw new Error(`criar-cobranca HTTP ${respCriar.status}`);
-          console.log(`[regua/santander] cobrança criada para ${c.id}`);
+          console.log(`[regua/santander] boleto gerado como fallback para ${c.id} (janela deveria ter coberto)`);
         }
 
         const cliente = c.locacoes?.clientes;
