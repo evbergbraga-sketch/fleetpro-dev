@@ -13,17 +13,29 @@
 const { getSantanderToken, _httpsRequest, _agenteSantander, getSantanderHost, getSantanderClientId, getSantanderWorkspaceId } = require('./fase_santander_1_auth');
 
 // payer.name do Santander só aceita [A-Za-z0-9& ] — nem acento, nem hífen.
-// Confirmado em teste real de produção (05/08/2026): um slice(0,40) simples
-// pode cortar no meio de um hífen (ex: "... - NAO USAR") e ser rejeitado.
-// Remove acentos primeiro (preserva legibilidade — "José" vira "Jose", não
-// some) e só depois filtra caracteres não permitidos, antes de truncar.
-function _limparNomeSantander(nome){
-  return (nome || '')
+// Confirmado em testes reais de produção: o Santander rejeita qualquer
+// caractere fora de [A-Za-z0-9& ] nos campos de texto do pagador — não só
+// no nome, mas em bairro, rua e cidade também (erro 901). Casos reais que
+// quebram: "Freguesia (Jacarepaguá)" (parênteses + acento), "Av. Pres.
+// Vargas" (pontos), "Praça Seca" (cedilha).
+//
+// Remove acentos primeiro (preserva legibilidade — "José" vira "Jose",
+// não some a letra), depois filtra o que sobrou, colapsa espaços
+// duplicados (senão "Rua X (Y)" viraria "Rua X  ") e trunca no limite
+// que cada campo aceita.
+function _limparTextoSantander(txt, limite){
+  return (txt || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^A-Za-z0-9& ]/g, '')
+    .replace(/[^A-Za-z0-9& ]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 40);
+    .slice(0, limite);
 }
+// Limites por campo, conforme o Swagger oficial da API de Cobrança v2
+const _limparNomeSantander   = t => _limparTextoSantander(t, 40);
+const _limparRuaSantander    = t => _limparTextoSantander(t, 40);
+const _limparBairroSantander = t => _limparTextoSantander(t, 30);
+const _limparCidadeSantander = t => _limparTextoSantander(t, 20);
 
 app.post('/api/santander/criar-cobranca', async (req, res) => {
   try{
@@ -91,9 +103,9 @@ app.post('/api/santander/criar-cobranca', async (req, res) => {
         name: _limparNomeSantander(cliente.nome),
         documentType: 'CPF',
         documentNumber: (cliente.cpf || '').replace(/\D/g,''),
-        address: cliente.endereco_rua || 'Não informado',
-        neighborhood: cliente.endereco_bairro || 'Não informado',
-        city: cliente.endereco_cidade || 'Não informado',
+        address: _limparRuaSantander(cliente.endereco_rua) || 'Nao informado',
+        neighborhood: _limparBairroSantander(cliente.endereco_bairro) || 'Nao informado',
+        city: _limparCidadeSantander(cliente.endereco_cidade) || 'Nao informado',
         state: cliente.endereco_uf || 'RJ',
         zipCode: (cliente.cep || '00000000').replace(/\D/g,'').replace(/(\d{5})(\d{3})/, '$1-$2'), // formato 00000-000 exigido em produção
       },
