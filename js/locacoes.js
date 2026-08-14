@@ -488,9 +488,17 @@ async function _abrirReajusteSemanas(locId, provedor, asaasSubscriptionId){
   const novoValor = parseFloat(String(valorNovo).replace(',','.'));
   if(!novoValor || novoValor<=0){ notify('Valor inválido','error'); return; }
 
-  const sufixo = provedor==='santander'
-    ? '\n\nAs que já têm boleto registrado no Santander são atualizadas lá também.'
-    : '\n\nA mudança também é aplicada no Asaas.';
+  const umaSo = semanaAlvo !== 'todas';
+  let sufixo;
+  if(provedor === 'santander'){
+    sufixo = umaSo
+      ? '\n\nSe essa semana já tiver boleto registrado no Santander, ele é atualizado lá também.'
+      : '\n\nAs que já tiverem boleto registrado no Santander são atualizadas lá também.';
+  }else{
+    sufixo = umaSo
+      ? '\n\nNo Asaas o valor é da assinatura inteira, então essa alteração vale só aqui no FleetPro.'
+      : '\n\nA mudança também é aplicada no Asaas.';
+  }
   const ok = await fpConfirm(`Reajustar ${alvoTexto} para R$ ${novoValor.toFixed(2)}?${sufixo}`,
     'Confirmar reajuste', { confirmLabel: 'Reajustar', danger: false });
   if(!ok) return;
@@ -636,12 +644,20 @@ async function _abrirReajusteData(locId, provedor, asaasSubscriptionId){
     const diasOffset = Math.round((new Date(novaISO+'T12:00:00') - new Date(atual+'T12:00:00')) / 86400000);
     if(diasOffset === 0){ notify('Essa já é a data atual — nada a mudar.','error'); return; }
 
-    const alvoTexto = semanaAlvo === 'todas'
-      ? `Deslocar todas as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)?`
-      : `Alterar a semana ${semanaAlvo.numero_semana} para ${fmtData(novaISO)}?`;
-    const sufixo = provedor==='santander'
-      ? '\n\nAs que já têm boleto registrado no Santander são atualizadas lá também.'
-      : (semanaAlvo === 'todas' ? '\n\nA mudança também é aplicada no Asaas.' : '');
+    const umaSoData = semanaAlvo !== 'todas';
+    const alvoTexto = umaSoData
+      ? `Alterar a semana ${semanaAlvo.numero_semana} para ${fmtData(novaISO)}?`
+      : `Deslocar todas as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)?`;
+    let sufixo;
+    if(provedor === 'santander'){
+      sufixo = umaSoData
+        ? '\n\nSe essa semana já tiver boleto registrado no Santander, ele é atualizado lá também.'
+        : '\n\nAs que já tiverem boleto registrado no Santander são atualizadas lá também.';
+    }else{
+      sufixo = umaSoData
+        ? '\n\nNo Asaas a data é do ciclo inteiro da assinatura, então essa alteração vale só aqui no FleetPro.'
+        : '\n\nA mudança também é aplicada no Asaas.';
+    }
 
     const ok = await fpConfirm(alvoTexto + sufixo, 'Confirmar nova data',
       { confirmLabel: 'Alterar data', danger: false });
