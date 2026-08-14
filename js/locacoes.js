@@ -192,6 +192,77 @@ function _copiarLinkPagamento(cobrancaId, el){
   if(typeof notify==='function') notify('Link de pagamento copiado!', 'success');
 }
 
+// ── MIGRAR CONTRATO ASAAS → SANTANDER ──
+// Cancela a assinatura no Asaas (pra não cobrar duplicado) e vira a
+// chave do provedor. As cobranças semanais JÁ PAGAS ficam intactas —
+// só as em aberto passam a ser cobradas via Santander, e o cron de
+// janela (fase_santander_10) registra os 4 primeiros boletos sozinho
+// na próxima rodada (ou imediatamente, via botão do modal).
+async function _migrarParaSantander(locId){
+  try{
+    const { data: loc } = await sb.from('locacoes')
+      .select('id, num_contrato, provedor_cobranca, asaas_subscription_id, clientes(nome)')
+      .eq('id', locId).single();
+    if(!loc) return notify('Locação não encontrada','error');
+    if(loc.provedor_cobranca === 'santander') return notify('Este contrato já está no Santander','error');
+
+    const { count: emAberto } = await sb.from('cobrancas_semanais')
+      .select('id', { count:'exact', head:true })
+      .eq('locacao_id', locId).neq('status','pago');
+
+    const msg = `Migrar o contrato #${loc.num_contrato} (${loc.clientes?.nome||''}) do Asaas para o Santander?\n\n`
+      + `• ${emAberto||0} semana(s) em aberto passarão a ser cobradas via Santander\n`
+      + `• Semanas já pagas não são afetadas\n`
+      + `• A assinatura no Asaas será CANCELADA (evita cobrança duplicada)\n`
+      + `• Os 4 primeiros boletos serão registrados no Santander em seguida`;
+    if(!confirm(msg)) return;
+
+    // 1) Cancela a assinatura no Asaas primeiro — se falhar, aborta a
+    // migração, senão o cliente ficaria cobrado nos dois provedores.
+    if(loc.asaas_subscription_id){
+      const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+      const bridgeUrl = cfg.bridgeUrl || (cfg.apiUrl ? cfg.apiUrl.replace('evo.','bridge.') : null);
+      if(!bridgeUrl) return notify('Bridge não configurado — não dá pra cancelar a assinatura no Asaas. Migração abortada.','error');
+
+      const r = await fetch(bridgeUrl+'/api/asaas/cancelar-assinatura', {
+        method:'POST',
+        headers:{'x-secret':'FleetPro2025','Content-Type':'application/json'},
+        body: JSON.stringify({ subscriptionId: loc.asaas_subscription_id })
+      });
+      if(!r.ok){
+        const t = await r.text();
+        return notify('Não foi possível cancelar a assinatura no Asaas — migração abortada pra evitar cobrança duplicada. ('+t.slice(0,120)+')','error');
+      }
+      console.log('[migracao/santander] assinatura Asaas cancelada:', loc.asaas_subscription_id);
+    }
+
+    // 2) Vira a chave do provedor
+    const { error } = await sb.from('locacoes')
+      .update({ provedor_cobranca: 'santander' })
+      .eq('id', locId);
+    if(error) throw error;
+
+    notify(`✓ Contrato #${loc.num_contrato} migrado para o Santander. Registrando os primeiros boletos...`,'success');
+
+    // 3) Dispara o cron de janela pra já registrar os 4 primeiros boletos
+    try{
+      const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+      const bridgeUrl = cfg.bridgeUrl || (cfg.apiUrl ? cfg.apiUrl.replace('evo.','bridge.') : null);
+      if(bridgeUrl){
+        await fetch(bridgeUrl+'/api/santander/janela-forcar', {
+          method:'POST', headers:{'x-secret':'FleetPro2025'}
+        });
+      }
+    }catch(e){
+      console.warn('[migracao/santander] janela não disparou na hora (o cron pega em até 30min):', e.message);
+    }
+
+    abrirModalLocacao(locId);
+  }catch(e){
+    notify('Erro na migração: '+e.message,'error');
+  }
+}
+
 function _renderCobrancasSemanais(cobrancas, loc){
   if(!cobrancas || cobrancas.length===0) return '';
 
@@ -266,6 +337,7 @@ function _renderCobrancasSemanais(cobrancas, loc){
           <span style="color:var(--muted)">${total-pagos-atrasados} pendentes</span>
           ${atrasados>0?`<span style="color:var(--muted)">·</span><span style="color:var(--red);font-weight:600">${atrasados} atrasadas</span>`:''}
           ${loc.asaas_subscription_id?`<button onclick="_locSincronizarAsaasAgora('${loc.id}')" id="btn-sync-asaas" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Sincronizar Asaas</button>`:''}
+          ${(loc.provedor_cobranca!=='santander' && (loc.plano_moto||loc.assinatura_valor_semanal))?`<button onclick="_migrarParaSantander('${loc.id}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:#ec1c24;border-color:rgba(236,28,36,.3)">→ Migrar p/ Santander</button>`:''}
           ${(loc.plano_moto||loc.assinatura_valor_semanal)?`<button onclick="_abrirReajusteSemanas('${loc.id}','${loc.provedor_cobranca||'asaas'}','${loc.asaas_subscription_id||''}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar valor</button>`:''}
           ${(loc.plano_moto||loc.assinatura_valor_semanal)?`<button onclick="_abrirReajusteData('${loc.id}','${loc.provedor_cobranca||'asaas'}','${loc.asaas_subscription_id||''}')" class="btn btn-ghost" style="font-size:11px;padding:4px 10px">Reajustar data</button>`:''}
         </div>
