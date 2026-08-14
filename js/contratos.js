@@ -707,6 +707,36 @@ async function registrarContrato(retornarId=false){
       }
     }
 
+    // Santander: dispara o cron de janela pra já registrar os primeiros
+    // boletos, em vez de esperar até 30min pela rodada automática — assim
+    // o link de pagamento fica disponível na hora, logo após criar o
+    // contrato. Precisa esperar finRegistrarLancamentoLocacao terminar,
+    // senão as cobranças semanais ainda não existem quando o cron olhar.
+    if(temAssinatura && provedorCobranca==='santander'){
+      (async () => {
+        try{
+          const cfg = JSON.parse(localStorage.getItem('fp_evo_cfg')||'{}');
+          const bridgeUrl = cfg.bridgeUrl || (cfg.apiUrl ? cfg.apiUrl.replace('evo.','bridge.') : null);
+          if(!bridgeUrl) return console.warn('[santander] bridge não configurado — boletos serão gerados pelo cron em até 30min');
+
+          // Garante que as cobranças semanais já foram gravadas
+          for(let i=0; i<10; i++){
+            const {count} = await sb.from('cobrancas_semanais')
+              .select('id',{count:'exact',head:true}).eq('locacao_id', locSalva.id);
+            if(count>0) break;
+            await new Promise(r=>setTimeout(r,600));
+          }
+
+          await fetch(bridgeUrl+'/api/santander/janela-forcar', {
+            method:'POST', headers:{'x-secret':'FleetPro2025'}
+          });
+          console.log('[santander] janela de boletos disparada para a locação', locSalva.id);
+        }catch(e){
+          console.warn('[santander] não deu pra disparar a janela agora (o cron pega em até 30min):', e.message);
+        }
+      })();
+    }
+
     if(window._reservaOrigemId){
       await sb.from('reservas').update({status:'convertida'}).eq('id',window._reservaOrigemId);
       window._reservaOrigemId=null; window._reservaValorPago=0;
