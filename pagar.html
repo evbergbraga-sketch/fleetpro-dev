@@ -4,114 +4,175 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pagamento — Locadora Royal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:        #0a1628;
-  --bg2:       #0f1e35;
-  --card:      #142240;
-  --card2:     #1a2d50;
-  --green:     #00c46a;
-  --green2:    #00a857;
-  --gold:      #f5c842;
-  --red:       #e05252;
-  --text:      #f0f4ff;
-  --muted:     #8899bb;
-  --muted2:    #4a5c7a;
-  --border:    rgba(255,255,255,0.07);
-  --radius:    16px;
-  --radius-sm: 10px;
+  /* Paleta derivada do logo: verde-garrafa profundo + dourado da coroa,
+     sobre o azul-noite que o portal do cliente já usa. */
+  --noite:     #081222;
+  --noite2:    #0d1c31;
+  --card:      #12233d;
+  --verde:     #1a6b45;   /* verde-garrafa do logo, não o verde-limão de fintech */
+  --verde-cl:  #2d9963;
+  --ouro:      #d4af5f;   /* dourado da coroa — é a cor de AÇÃO desta página */
+  --ouro-cl:   #e8ca85;
+  --vermelho:  #d96a6a;
+  --texto:     #f2f5fb;
+  --suave:     #92a4c4;
+  --tenue:     #4d6183;
+  --borda:     rgba(212,175,95,0.14);
+  --borda-fria:rgba(255,255,255,0.06);
+  --r:         18px;
+  --r-sm:      12px;
   --safe-top:  env(safe-area-inset-top, 0px);
   --safe-bot:  env(safe-area-inset-bottom, 0px);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; background: var(--bg); }
+html { height: 100%; background: var(--noite); }
 body {
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(900px 520px at 50% -8%, rgba(26,107,69,.30), transparent 68%),
+    radial-gradient(620px 420px at 50% 42%, rgba(212,175,95,.055), transparent 72%),
+    var(--noite);
+  background-attachment: fixed;
+  color: var(--texto);
   min-height: 100%;
-  padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bot));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  padding: calc(26px + var(--safe-top)) 18px calc(26px + var(--safe-bot));
+  display: flex; flex-direction: column; align-items: center;
+  -webkit-font-smoothing: antialiased;
 }
-.logo { font-size: 13px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; margin-bottom: 28px; }
+.marca { margin-bottom: 22px; text-align: center; }
+.marca img { height: 62px; width: auto; display: block; margin: 0 auto 10px; }
+.marca .selo {
+  font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ouro); opacity: .85;
+}
 .card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  width: 100%;
-  max-width: 420px;
+  background: linear-gradient(168deg, var(--card), var(--noite2));
+  border: 1px solid var(--borda);
+  border-radius: var(--r);
+  padding: 26px 22px;
+  width: 100%; max-width: 440px;
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.045);
 }
-.rotulo { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-.valor-principal { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
-.subinfo { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.eyebrow {
+  font-size: 10.5px; color: var(--suave); text-transform: uppercase;
+  letter-spacing: .13em; font-weight: 600; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.eyebrow::after { content:''; flex:1; height:1px; background: var(--borda-fria); }
+.valor-principal {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 46px; font-weight: 700; line-height: 1;
+  letter-spacing: -0.025em; font-variant-numeric: tabular-nums;
+  color: var(--ouro); margin-bottom: 8px;
+}
+.valor-principal .cifra { font-size: 24px; color: var(--ouro-cl); opacity:.75; margin-right: 4px; vertical-align: 6px; }
+.subinfo { font-size: 13.5px; color: var(--suave); margin-bottom: 16px; }
+.subinfo strong { color: var(--texto); font-weight: 600; }
 .badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
-  margin-bottom: 18px;
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 700; padding: 6px 13px; border-radius: 999px;
+  margin-bottom: 20px; letter-spacing: .01em;
 }
-.badge.atrasado { background: rgba(224,82,82,.15); color: var(--red); }
-.badge.desconto { background: rgba(0,196,106,.15); color: var(--green); }
-.badge.pendente { background: rgba(245,200,66,.15); color: var(--gold); }
-.linha-detalhe { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-.linha-detalhe:last-of-type { border-bottom: none; }
-.linha-detalhe .label { color: var(--muted); }
-.linha-detalhe .val { font-weight: 600; font-variant-numeric: tabular-nums; }
-.linha-detalhe .val.desc { color: var(--green); }
-.linha-detalhe .val.juros { color: var(--red); }
-.total-linha { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--border); }
-.total-linha .label { font-size: 13px; color: var(--muted); }
-.total-linha .val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.badge svg { width: 13px; height: 13px; flex-shrink: 0; }
+.badge.atrasado { background: rgba(217,106,106,.13); color: var(--vermelho); border:1px solid rgba(217,106,106,.22); }
+.badge.desconto { background: rgba(212,175,95,.12); color: var(--ouro); border:1px solid rgba(212,175,95,.25); }
+.badge.pendente { background: rgba(146,164,196,.10); color: var(--suave); border:1px solid var(--borda-fria); }
+.linha-detalhe { display: flex; justify-content: space-between; align-items:center; gap:16px; padding: 11px 0; border-bottom: 1px solid var(--borda-fria); font-size: 13.5px; }
+.linha-detalhe .label { color: var(--suave); }
+.linha-detalhe .val { font-weight: 600; font-variant-numeric: tabular-nums; text-align:right; }
+.linha-detalhe .val.desc { color: var(--ouro); }
+.linha-detalhe .val.juros { color: var(--vermelho); }
+.total-linha {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-top: 16px; margin-top: 4px; border-top: 1px solid var(--borda);
+}
+.total-linha .label { font-size: 12px; color: var(--suave); text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
+.total-linha .val { font-size: 25px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--texto); }
 .btn {
-  width: 100%; margin-top: 20px; padding: 15px; border: none; border-radius: var(--radius-sm);
-  background: var(--green); color: #04170d; font-size: 15px; font-weight: 700;
-  cursor: pointer; transition: opacity .15s;
+  width: 100%; margin-top: 22px; padding: 17px; border: none; border-radius: var(--r-sm);
+  background: linear-gradient(180deg, var(--ouro-cl), var(--ouro));
+  color: #2b1e05; font-size: 15.5px; font-weight: 800; letter-spacing:.01em;
+  cursor: pointer; transition: transform .12s, filter .15s;
+  box-shadow: 0 8px 20px -8px rgba(212,175,95,.5);
 }
-.btn:active { opacity: .8; }
-.btn:disabled { opacity: .5; cursor: default; }
-.pix-area { display: none; text-align: center; margin-top: 20px; }
-.pix-area.show { display: block; }
-.qr-wrap {
-  background: #fff; border-radius: var(--radius-sm); padding: 16px;
-  display: inline-block; margin-bottom: 16px;
+.btn:active { transform: translateY(1px); filter: brightness(.94); }
+.btn:disabled { opacity: .45; cursor: default; box-shadow:none; }
+.tabs { display: flex; gap: 8px; margin-top: 22px; background: rgba(0,0,0,.22); padding: 5px; border-radius: var(--r-sm); }
+.tab-btn {
+  flex: 1; padding: 11px; border-radius: 9px; border: none; background: transparent;
+  color: var(--suave); font-size: 13.5px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: background .15s, color .15s;
+  display:flex; align-items:center; justify-content:center; gap:7px;
 }
-.qr-wrap img { display: block; width: 220px; height: 220px; }
-.copia-cola-wrap { position: relative; }
-.copia-cola {
-  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 12px 14px; font-size: 11px; color: var(--muted); word-break: break-all;
-  text-align: left; margin-bottom: 10px; max-height: 70px; overflow-y: auto;
-}
-.btn-copiar {
-  width: 100%; padding: 12px; border: 1px solid var(--green); border-radius: var(--radius-sm);
-  background: transparent; color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer;
-}
-.status-linha { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; font-size: 13px; color: var(--muted); }
-.spinner { width: 14px; height: 14px; border: 2px solid var(--muted2); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.erro-msg { background: rgba(224,82,82,.1); border: 1px solid rgba(224,82,82,.25); border-radius: var(--radius-sm); padding: 14px; font-size: 13px; color: var(--red); margin-top: 16px; text-align: center; }
-.tabs { display: flex; gap: 8px; margin-top: 20px; }
-.tab-btn { flex: 1; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg2); color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
-.tab-btn.ativo { background: var(--green); color: #04170d; border-color: var(--green); }
-.tab-conteudo { display: none; margin-top: 16px; }
+.tab-btn svg { width: 15px; height: 15px; }
+.tab-btn.ativo { background: var(--verde); color: #eafaf1; }
+.tab-conteudo { display: none; margin-top: 18px; text-align: center; }
 .tab-conteudo.show { display: block; }
-.linha-copiavel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 12px; color: var(--text); word-break: break-all; text-align: left; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
-.rodape { margin-top: 22px; font-size: 11px; color: var(--muted2); text-align: center; }
+.qr-wrap { background: #fff; border-radius: var(--r-sm); padding: 15px; display: inline-block; margin-bottom: 16px; box-shadow: 0 10px 30px -12px rgba(0,0,0,.5); }
+.qr-wrap img, .qr-wrap canvas { display: block; width: 208px; height: 208px; }
+.codigo-box {
+  background: rgba(0,0,0,.26); border: 1px solid var(--borda-fria); border-radius: var(--r-sm);
+  padding: 13px 14px; font-size: 11.5px; color: var(--suave); word-break: break-all;
+  text-align: left; margin-bottom: 11px; max-height: 74px; overflow-y: auto;
+  font-variant-numeric: tabular-nums; line-height: 1.55;
+}
+.codigo-box.destaque { color: var(--texto); font-size: 13px; letter-spacing:.01em; }
+.btn-copiar {
+  width: 100%; padding: 13px; border: 1px solid var(--verde-cl); border-radius: var(--r-sm);
+  background: rgba(45,153,99,.08); color: var(--verde-cl); font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: background .15s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-copiar svg { width: 15px; height: 15px; }
+.btn-copiar:active { background: rgba(45,153,99,.18); }
+.rotulo-campo { font-size: 10.5px; color: var(--suave); text-transform: uppercase; letter-spacing: .1em; font-weight:600; margin-bottom: 8px; text-align:left; }
+.status-linha { display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 18px; font-size: 12.5px; color: var(--tenue); }
+.spinner { width: 13px; height: 13px; border: 2px solid rgba(146,164,196,.2); border-top-color: var(--ouro); border-radius: 50%; animation: spin .85s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.erro-msg {
+  background: rgba(217,106,106,.09); border: 1px solid rgba(217,106,106,.22); border-radius: var(--r-sm);
+  padding: 15px; font-size: 13px; color: var(--vermelho); margin-top: 16px;
+  display:flex; align-items:flex-start; gap:10px; text-align:left; line-height:1.5;
+}
+.erro-msg svg { width:16px; height:16px; flex-shrink:0; margin-top:1px; }
+.confirmado { padding: 34px 0; text-align: center; }
+.confirmado svg { width: 52px; height: 52px; margin-bottom: 14px; }
+.confirmado .titulo { font-family:'Fraunces', Georgia, serif; font-size: 21px; font-weight: 700; color: var(--verde-cl); margin-bottom: 6px; }
+.confirmado .sub { font-size: 13.5px; color: var(--suave); }
+.rodape { margin-top: 24px; font-size: 11px; color: var(--tenue); text-align: center; line-height:1.7; }
+.rodape .divisor { color: var(--borda); margin: 0 7px; }
+@media (max-width: 380px) {
+  .valor-principal { font-size: 40px; }
+  .card { padding: 22px 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
 </style>
 </head>
 <body>
-  <div class="logo">🏍️ Locadora Royal</div>
+  <div class="marca">
+    <img src="icons/logo-Royal-sm.png" alt="Locadora Royal">
+    <div class="selo">Pagamento de locação</div>
+  </div>
+
   <div class="card" id="card-principal">
-    <div id="conteudo-carregando" style="text-align:center;padding:30px 0;color:var(--muted);font-size:14px">
+    <div id="conteudo-carregando" style="text-align:center;padding:34px 0;color:var(--suave);font-size:13.5px">
       Carregando cobrança…
     </div>
     <div id="conteudo-cobranca" style="display:none"></div>
   </div>
-<div class="rodape">Locadora Royal · Pagamento seguro via Pix</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
+  <div class="rodape">
+    Locadora Royal<span class="divisor">·</span>Cobrança emitida pelo Banco Santander
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 // pagar.html — página standalone de pagamento de UMA semana específica
@@ -123,19 +184,29 @@ body {
 //
 // Usa a API de Cobrança v2 do Santander (boleto híbrido = boleto + PIX na
 // mesma cobrança). Normalmente a cobrança já foi gerada antecipadamente por
-// um cron no bridge (alguns dias antes do vencimento) — então ao abrir o
-// link o PIX/boleto já estão prontos. Se o cliente abrir antes do cron
-// rodar, o botão "Gerar forma de pagamento" cria na hora (fallback).
+// um cron no bridge — então ao abrir o link o PIX/boleto já estão prontos.
+// Se o cliente abrir antes do cron rodar, o botão gera na hora (fallback).
 // ══════════════════════════════════════════════════════════════
 
-const BRIDGE_URL = 'https://bridge.ruahsystems.com.br'; // TODO: usar var de config se precisar trocar
+const BRIDGE_URL = 'https://bridge.ruahsystems.com.br';
+
+// Ícones SVG inline — nada de emoji (padrão do projeto)
+const ICO = {
+  alerta:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  coroa:   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18l-1.4-9.1-4.3 3.4L12 6l-3.3 6.3-4.3-3.4L3 18zm0 2v1h18v-1H3z"/></svg>',
+  relogio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+  pix:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 2 4.5 4.5L12 11 7.5 6.5 12 2zM2 12l4.5-4.5L11 12l-4.5 4.5L2 12zm20 0-4.5-4.5L13 12l4.5 4.5L22 12zm-10 1 4.5 4.5L12 22l-4.5-4.5L12 13z"/></svg>',
+  boleto:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5v14M6.5 5v14M10 5v14M13.5 5v14M17 5v14M20.5 5v14"/></svg>',
+  copiar:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  check:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  selo:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16.5 9 10.75 15 7.5 12"/></svg>',
+};
 
 function getParam(nome){
   return new URLSearchParams(window.location.search).get(nome);
 }
-
 function fmtR$(v){
-  return 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
 }
 function fmtData(iso){
   if(!iso) return '—';
@@ -149,11 +220,7 @@ async function iniciar(){
     mostrarErro('Link inválido — falta o identificador da cobrança.');
     return;
   }
-
   try{
-    // Devolve valor/vencimento/status + os dados de pagamento (linha
-    // digitável, código de barras, PIX copia-e-cola) SE já tiverem sido
-    // gerados pelo cron. Nenhum dado sensível do cliente é exposto aqui.
     const resp = await fetch(`${BRIDGE_URL}/api/pagamento/detalhes/${semanaId}`);
     if(!resp.ok) throw new Error('Cobrança não encontrada ou link expirado.');
     const dados = await resp.json();
@@ -167,7 +234,7 @@ function mostrarErro(msg){
   document.getElementById('conteudo-carregando').style.display = 'none';
   const el = document.getElementById('conteudo-cobranca');
   el.style.display = 'block';
-  el.innerHTML = `<div class="erro-msg">⚠️ ${msg}</div>`;
+  el.innerHTML = `<div class="erro-msg">${ICO.alerta}<span>${msg}</span></div>`;
 }
 
 function renderizarCobranca(d, semanaId){
@@ -180,22 +247,23 @@ function renderizarCobranca(d, semanaId){
   const atrasado = d.status === 'atrasado' || (d.status === 'pendente' && vencimento < hoje);
   const diasParaVencer = Math.ceil((new Date(vencimento+'T12:00:00') - new Date(hoje+'T12:00:00')) / 86400000);
   const temDesconto = !atrasado && diasParaVencer >= 2;
+  const limiteDesconto = fmtData(new Date(new Date(vencimento+'T12:00:00').getTime()-2*86400000).toISOString());
 
   const badge = atrasado
-    ? `<span class="badge atrasado">⚠ Em atraso</span>`
+    ? `<span class="badge atrasado">${ICO.alerta} Em atraso</span>`
     : temDesconto
-      ? `<span class="badge desconto">5% de desconto disponível</span>`
-      : `<span class="badge pendente">Pendente</span>`;
+      ? `<span class="badge desconto">${ICO.coroa} 5% de desconto até ${limiteDesconto}</span>`
+      : `<span class="badge pendente">${ICO.relogio} Aguardando pagamento</span>`;
 
   el.innerHTML = `
-    <div class="rotulo">${d.veiculo_nome||'Locação'} · Semana ${d.numero_semana}</div>
-    <div class="valor-principal">${fmtR$(d.valor)}</div>
-    <div class="subinfo">Vencimento: ${fmtData(vencimento)}</div>
+    <div class="eyebrow">${d.veiculo_nome||'Locação'} · Semana ${d.numero_semana}</div>
+    <div class="valor-principal"><span class="cifra">R$</span>${fmtR$(d.valor)}</div>
+    <div class="subinfo">Vence em <strong>${fmtData(vencimento)}</strong></div>
     ${badge}
-    <div class="linha-detalhe"><span class="label">Valor original</span><span class="val">${fmtR$(d.valor)}</span></div>
-    ${temDesconto ? `<div class="linha-detalhe"><span class="label">Desconto (pagando até ${fmtData(new Date(new Date(vencimento+'T12:00:00').getTime()-2*86400000).toISOString())})</span><span class="val desc">-5%</span></div>` : ''}
-    ${atrasado ? `<div class="linha-detalhe"><span class="label">Multa + juros por atraso</span><span class="val juros">calculado na cobrança</span></div>` : ''}
-    <div class="total-linha"><span class="label">Total a pagar</span><span class="val">${fmtR$(d.valor)}</span></div>
+    <div class="linha-detalhe"><span class="label">Valor da semana</span><span class="val">R$ ${fmtR$(d.valor)}</span></div>
+    ${temDesconto ? `<div class="linha-detalhe"><span class="label">Desconto pagando até ${limiteDesconto}</span><span class="val desc">−5%</span></div>` : ''}
+    ${atrasado ? `<div class="linha-detalhe"><span class="label">Multa e juros por atraso</span><span class="val juros">somados no pagamento</span></div>` : ''}
+    <div class="total-linha"><span class="label">Total</span><span class="val">R$ ${fmtR$(d.valor)}</span></div>
     <div id="area-pagamento"></div>
   `;
 
@@ -203,16 +271,15 @@ function renderizarCobranca(d, semanaId){
     exibirFormasDePagamento(d, semanaId);
   }else{
     document.getElementById('area-pagamento').innerHTML =
-      `<button class="btn" id="btn-gerar" onclick="gerarCobranca('${semanaId}')">Gerar forma de pagamento</button>
-       <div class="pix-area" id="pix-area"></div>`;
+      `<button class="btn" id="btn-gerar" onclick="gerarCobranca('${semanaId}')">Gerar Pix e boleto</button>
+       <div id="pix-area"></div>`;
   }
 }
 
 async function gerarCobranca(semanaId){
   const btn = document.getElementById('btn-gerar');
   btn.disabled = true;
-  btn.textContent = 'Gerando cobrança...';
-
+  btn.textContent = 'Gerando…';
   try{
     const resp = await fetch(`${BRIDGE_URL}/api/pagamento/gerar-pix/${semanaId}`, { method: 'POST' });
     if(!resp.ok){
@@ -226,49 +293,45 @@ async function gerarCobranca(semanaId){
     }, semanaId);
   }catch(e){
     btn.disabled = false;
-    btn.textContent = 'Gerar forma de pagamento';
-    const area = document.getElementById('pix-area');
-    area.classList.add('show');
-    area.innerHTML = `<div class="erro-msg">⚠️ ${e.message}</div>`;
+    btn.textContent = 'Gerar Pix e boleto';
+    document.getElementById('pix-area').innerHTML = `<div class="erro-msg">${ICO.alerta}<span>${e.message}</span></div>`;
   }
 }
 
 // Boleto híbrido do Santander: uma cobrança só, com PIX (copia-e-cola/QR) e
-// boleto (linha digitável/código de barras) ao mesmo tempo — o cliente
-// escolhe como prefere pagar.
+// boleto (linha digitável) ao mesmo tempo — o cliente escolhe como pagar.
 function exibirFormasDePagamento(d, semanaId){
   const area = document.getElementById('area-pagamento');
   area.innerHTML = `
     <div class="tabs">
-      <button class="tab-btn ativo" id="tab-pix" onclick="trocarAba('pix')">PIX</button>
-      <button class="tab-btn" id="tab-boleto" onclick="trocarAba('boleto')">Boleto</button>
+      <button class="tab-btn ativo" id="tab-pix" onclick="trocarAba('pix')">${ICO.pix} Pix</button>
+      <button class="tab-btn" id="tab-boleto" onclick="trocarAba('boleto')">${ICO.boleto} Boleto</button>
     </div>
     <div class="tab-conteudo show" id="conteudo-pix">
       ${d.pix_copia_cola ? `<div class="qr-wrap" id="qr-canvas"></div>` : ''}
-      <div class="copia-cola-wrap">
-        <div class="copia-cola" id="copia-cola-texto">${d.pix_copia_cola || 'Código Pix indisponível no momento.'}</div>
-        ${d.pix_copia_cola ? `<button class="btn-copiar" onclick="copiarTexto('copia-cola-texto', this)">Copiar código Pix</button>` : ''}
-      </div>
+      <div class="rotulo-campo">Código Pix copia e cola</div>
+      <div class="codigo-box" id="copia-cola-texto">${d.pix_copia_cola || 'Código Pix indisponível no momento.'}</div>
+      ${d.pix_copia_cola ? `<button class="btn-copiar" onclick="copiarTexto('copia-cola-texto', this)">${ICO.copiar} Copiar código Pix</button>` : ''}
     </div>
     <div class="tab-conteudo" id="conteudo-boleto">
-      <div class="rotulo" style="margin-top:4px">Linha digitável</div>
-      <div class="linha-copiavel" id="linha-digitavel-texto">${d.linha_digitavel || 'Indisponível no momento.'}</div>
-      ${d.linha_digitavel ? `<button class="btn-copiar" onclick="copiarTexto('linha-digitavel-texto', this)">Copiar linha digitável</button>` : ''}
+      <div class="rotulo-campo">Linha digitável</div>
+      <div class="codigo-box destaque" id="linha-digitavel-texto">${d.linha_digitavel || 'Indisponível no momento.'}</div>
+      ${d.linha_digitavel ? `<button class="btn-copiar" onclick="copiarTexto('linha-digitavel-texto', this)">${ICO.copiar} Copiar linha digitável</button>` : ''}
     </div>
-    <div class="status-linha"><div class="spinner"></div> Aguardando pagamento...</div>
+    <div class="status-linha"><div class="spinner"></div> Aguardando confirmação do pagamento</div>
   `;
 
   if(d.pix_copia_cola && window.QRCode){
     try{
       new QRCode(document.getElementById('qr-canvas'), {
-        text: d.pix_copia_cola, width: 220, height: 220,
-        colorDark: '#000000', colorLight: '#ffffff',
+        text: d.pix_copia_cola, width: 208, height: 208,
+        colorDark: '#081222', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.L, // menor redundância, mais capacidade — o texto do PIX pode ser longo
       });
     }catch(e){
-      console.error('[qrcode] falha ao gerar QR (texto grande demais mesmo em L):', e.message);
+      console.error('[qrcode] falha ao gerar QR:', e.message);
       document.getElementById('qr-canvas').innerHTML =
-        '<div style="font-size:12px;color:var(--muted);padding:20px 0">QR indisponível — use o código copia-e-cola abaixo</div>';
+        '<div style="font-size:12px;color:#666;padding:24px 12px;max-width:208px">QR indisponível — use o código copia e cola abaixo</div>';
     }
   }
 
@@ -285,9 +348,9 @@ function trocarAba(aba){
 function copiarTexto(elId, btn){
   const texto = document.getElementById(elId).textContent;
   navigator.clipboard?.writeText(texto);
-  const original = btn.textContent;
-  btn.textContent = '✓ Copiado!';
-  setTimeout(()=>{ btn.textContent = original; }, 2000);
+  const original = btn.innerHTML;
+  btn.innerHTML = `${ICO.check} Copiado`;
+  setTimeout(()=>{ btn.innerHTML = original; }, 2000);
 }
 
 // Verifica a cada 4s se o pagamento já caiu (via webhook do Santander
@@ -303,10 +366,10 @@ function monitorarPagamento(semanaId){
       if(pago){
         clearInterval(_monitorTimer);
         document.getElementById('area-pagamento').innerHTML = `
-          <div style="padding:30px 0;text-align:center">
-            <div style="font-size:40px;margin-bottom:10px">✅</div>
-            <div style="font-size:18px;font-weight:700;color:var(--green)">Pagamento confirmado!</div>
-            <div style="font-size:13px;color:var(--muted);margin-top:6px">Obrigado — já atualizamos seu contrato.</div>
+          <div class="confirmado">
+            <div style="color:var(--verde-cl)">${ICO.selo}</div>
+            <div class="titulo">Pagamento confirmado</div>
+            <div class="sub">Sua semana já está quitada. Obrigado!</div>
           </div>`;
       }
     }catch(_e){ /* silencioso — tenta de novo no próximo ciclo */ }

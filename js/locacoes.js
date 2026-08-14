@@ -469,26 +469,72 @@ async function _confirmarEditarValorSemana(cobrancaId, asaasPaymentId){
   }catch(e){ notify('Erro ao atualizar valor: '+e.message,'error'); }
 }
 
-// ── Reajuste em massa: novo valor pra TODAS as semanas ainda não pagas ──
-function _abrirReajusteSemanas(locId, provedor, asaasSubscriptionId){
-  const valorNovo = prompt('Novo valor semanal para TODAS as semanas ainda não pagas (as já pagas não mudam):');
+// ── Reajuste de valor: todas as semanas não pagas, ou uma específica ──
+async function _abrirReajusteSemanas(locId, provedor, asaasSubscriptionId){
+  const semanaAlvo = await _escolherEscopoSemana(locId, 'reajustar o valor');
+  if(semanaAlvo === null) return; // cancelou
+
+  const alvoTexto = semanaAlvo === 'todas'
+    ? 'TODAS as semanas ainda não pagas'
+    : `a semana ${semanaAlvo.numero_semana} (vence ${fmtData(semanaAlvo.data_vencimento)})`;
+
+  const valorNovo = prompt(`Novo valor para ${alvoTexto}:`, semanaAlvo === 'todas' ? '' : Number(semanaAlvo.valor).toFixed(2));
   if(!valorNovo) return;
   const novoValor = parseFloat(valorNovo.replace(',','.'));
   if(!novoValor || novoValor<=0){ notify('Valor inválido','error'); return; }
-  const msg = provedor==='santander'
-    ? `Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato — no FleetPro e, para as que já têm boleto/PIX registrado no Santander, sincroniza lá também via PATCH.`
-    : `Confirma reajustar para R$ ${novoValor.toFixed(2)}/semana? Isso muda todas as semanas pendentes/atrasadas deste contrato, aqui e no Asaas.`;
-  if(!confirm(msg)) return;
-  _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId);
+
+  const sufixo = provedor==='santander'
+    ? ' As que já têm boleto/PIX registrado no Santander são sincronizadas lá via PATCH.'
+    : ' A mudança também é aplicada no Asaas.';
+  if(!confirm(`Confirma reajustar ${alvoTexto} para R$ ${novoValor.toFixed(2)}?${sufixo}`)) return;
+
+  _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId, semanaAlvo === 'todas' ? null : semanaAlvo.id);
 }
 
-async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId){
+// Pergunta se a ação vale pra todas as semanas em aberto ou só uma —
+// usado tanto no reajuste de valor quanto no de data.
+async function _escolherEscopoSemana(locId, acaoTexto){
+  const { data: abertas } = await sb.from('cobrancas_semanais')
+    .select('id, numero_semana, data_vencimento, valor, status')
+    .eq('locacao_id', locId)
+    .in('status', ['pendente','atrasado'])
+    .order('numero_semana', {ascending:true});
+
+  if(!abertas || abertas.length === 0){
+    notify('Não há semanas em aberto para ajustar.','error');
+    return null;
+  }
+  if(abertas.length === 1) return abertas[0]; // só uma opção, nem pergunta
+
+  const escolha = prompt(
+    `Deseja ${acaoTexto} de todas as ${abertas.length} semanas em aberto, ou de uma específica?\n\n`
+    + `• Digite TODAS para aplicar em todas\n`
+    + `• Ou digite o número da semana (ex: ${abertas[0].numero_semana})\n\n`
+    + `Semanas em aberto: ${abertas.map(a=>a.numero_semana).join(', ')}`,
+    'TODAS'
+  );
+  if(!escolha) return null;
+
+  if(escolha.trim().toUpperCase() === 'TODAS') return 'todas';
+
+  const num = parseInt(escolha.trim(), 10);
+  const achada = abertas.find(a => a.numero_semana === num);
+  if(!achada){
+    notify(`Semana ${escolha} não está em aberto neste contrato.`,'error');
+    return null;
+  }
+  return achada;
+}
+
+async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscriptionId, cobrancaId){
   try{
-    const { data: afetadas, error } = await sb.from('cobrancas_semanais')
+    let query = sb.from('cobrancas_semanais')
       .update({ valor: novoValor })
       .eq('locacao_id', locId)
-      .in('status', ['pendente','atrasado'])
-      .select('id, santander_bank_number');
+      .in('status', ['pendente','atrasado']);
+    if(cobrancaId) query = query.eq('id', cobrancaId); // só a semana escolhida
+
+    const { data: afetadas, error } = await query.select('id, santander_bank_number');
     if(error) throw error;
 
     if(provedor==='santander'){
@@ -520,6 +566,15 @@ async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscr
       return;
     }
 
+    // Asaas: a alteração é na ASSINATURA, que vale pra todas as cobranças
+    // futuras — não dá pra mudar só uma semana lá. Quando o reajuste é
+    // pontual, altera só no FleetPro e avisa que o Asaas não foi tocado.
+    if(cobrancaId){
+      notify(`✓ Semana reajustada no FleetPro. A assinatura no Asaas NÃO foi alterada (lá o valor é da assinatura inteira) — ajuste manualmente no Asaas se essa cobrança já tiver sido gerada.`,'success');
+      abrirModalLocacao(locId);
+      return;
+    }
+
     notify(`✓ ${afetadas?.length||0} semana(s) reajustada(s) no FleetPro. Atualizando no Asaas...`,'success');
 
     const bridge = (window.FP_CONFIG?.bridgeUrl || 'https://bridge.ruahsystems.com.br').replace(/\/$/,'');
@@ -535,45 +590,62 @@ async function _confirmarReajusteSemanas(locId, provedor, novoValor, asaasSubscr
   }catch(e){ notify('Erro no reajuste: '+e.message,'error'); }
 }
 
-// ── Reajustar DATA — corrige um erro de data na criação do contrato,
-// deslocando todas as semanas ainda não pagas (aqui e no Asaas, quando
-// aplicável) pelo mesmo número de dias. Pede a data CORRETA da próxima
-// semana como referência, em vez de pedir "quantos dias" (mais intuitivo —
-// o usuário sabe a data certa de cabeça, não o deslocamento em dias). ──
+// ── Reajustar DATA — pode valer pra todas as semanas em aberto (deslocando
+// todas pelo mesmo número de dias, útil quando a data do contrato saiu
+// errada) ou só pra uma semana específica. Pede a data CORRETA como
+// referência, em vez de "quantos dias" (mais intuitivo — o usuário sabe a
+// data certa de cabeça, não o deslocamento). ──
 async function _abrirReajusteData(locId, provedor, asaasSubscriptionId){
   try{
-    const { data: proxima, error } = await sb.from('cobrancas_semanais')
-      .select('data_vencimento')
-      .eq('locacao_id', locId)
-      .in('status', ['pendente','atrasado'])
-      .order('data_vencimento', {ascending:true})
-      .limit(1)
-      .single();
-    if(error || !proxima){ notify('Não encontrei nenhuma semana pendente pra reajustar.','error'); return; }
+    const semanaAlvo = await _escolherEscopoSemana(locId, 'reajustar a data');
+    if(semanaAlvo === null) return;
 
-    const atual = proxima.data_vencimento;
-    const novaData = prompt(`Data atual da próxima semana: ${fmtData(atual)}\nQual é a data CORRETA? (DD/MM/AAAA)`);
+    let atual, cobrancaId = null;
+    if(semanaAlvo === 'todas'){
+      const { data: proxima, error } = await sb.from('cobrancas_semanais')
+        .select('data_vencimento')
+        .eq('locacao_id', locId)
+        .in('status', ['pendente','atrasado'])
+        .order('data_vencimento', {ascending:true})
+        .limit(1)
+        .single();
+      if(error || !proxima){ notify('Não encontrei nenhuma semana pendente pra reajustar.','error'); return; }
+      atual = proxima.data_vencimento;
+    }else{
+      atual = semanaAlvo.data_vencimento;
+      cobrancaId = semanaAlvo.id;
+    }
+
+    const rotulo = semanaAlvo === 'todas' ? 'da próxima semana' : `da semana ${semanaAlvo.numero_semana}`;
+    const novaData = prompt(`Data atual ${rotulo}: ${fmtData(atual)}\nQual é a data CORRETA? (DD/MM/AAAA)`);
     if(!novaData) return;
     const m = novaData.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if(!m){ notify('Data inválida — use o formato DD/MM/AAAA.','error'); return; }
     const novaISO = `${m[3]}-${m[2]}-${m[1]}`;
     const diasOffset = Math.round((new Date(novaISO+'T12:00:00') - new Date(atual+'T12:00:00')) / 86400000);
     if(diasOffset === 0){ notify('Essa já é a data atual — nada a mudar.','error'); return; }
-    const msg = provedor==='santander'
-      ? `Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda no FleetPro e, para as que já têm boleto/PIX registrado no Santander, sincroniza lá também via PATCH.`
-      : `Confirma deslocar TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)? Isso muda aqui e no Asaas (inclusive cobranças já geradas lá, ainda não pagas).`;
-    if(!confirm(msg)) return;
 
-    _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscriptionId);
+    const alvoTexto = semanaAlvo === 'todas'
+      ? `TODAS as semanas ainda não pagas em ${diasOffset>0?'+':''}${diasOffset} dia(s)`
+      : `a semana ${semanaAlvo.numero_semana} para ${fmtData(novaISO)}`;
+    const sufixo = provedor==='santander'
+      ? ' As que já têm boleto/PIX registrado no Santander são sincronizadas lá via PATCH.'
+      : (semanaAlvo === 'todas' ? ' A mudança também é aplicada no Asaas.' : '');
+    if(!confirm(`Confirma alterar ${alvoTexto}?${sufixo}`)) return;
+
+    _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscriptionId, cobrancaId);
   }catch(e){ notify('Erro ao preparar o reajuste de data: '+e.message,'error'); }
 }
 
-async function _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscriptionId){
+async function _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscriptionId, cobrancaId){
   try{
-    const { data: pendentes, error } = await sb.from('cobrancas_semanais')
+    let queryPend = sb.from('cobrancas_semanais')
       .select('id, data_vencimento, santander_bank_number')
       .eq('locacao_id', locId)
       .in('status', ['pendente','atrasado']);
+    if(cobrancaId) queryPend = queryPend.eq('id', cobrancaId); // só a semana escolhida
+
+    const { data: pendentes, error } = await queryPend;
     if(error) throw error;
 
     const novasDatas = {}; // id -> nova data ISO, guardado pra sincronizar depois
@@ -610,6 +682,14 @@ async function _confirmarReajusteData(locId, provedor, diasOffset, asaasSubscrip
       if(falhas===0) notify(`✓ ${ok} cobrança(s) sincronizada(s) no Santander com sucesso.`,'success');
       else notify(`⚠️ ${ok} sincronizada(s), ${falhas} falhou(aram) — confira os logs do bridge.`,'error');
 
+      abrirModalLocacao(locId);
+      return;
+    }
+
+    // Asaas: o ajuste é no ciclo da ASSINATURA — desloca todas as
+    // cobranças futuras, não dá pra mover só uma semana lá.
+    if(cobrancaId){
+      notify(`✓ Data da semana alterada no FleetPro. A assinatura no Asaas NÃO foi deslocada (lá a data é do ciclo inteiro) — ajuste manualmente no Asaas se essa cobrança já tiver sido gerada.`,'success');
       abrirModalLocacao(locId);
       return;
     }
